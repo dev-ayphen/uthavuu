@@ -80,12 +80,11 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         ...d,
         photos: d.photos.map((p) => (p.localUri === localUri ? { ...p, uploadedUrl: uploaded.url, uploading: false } : p)),
       }));
-    } catch {
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Upload failed';
       setDraft((d) => ({
         ...d,
-        photos: d.photos.map((p) =>
-          p.localUri === localUri ? { ...p, uploading: false, error: 'Upload failed' } : p
-        ),
+        photos: d.photos.map((p) => (p.localUri === localUri ? { ...p, uploading: false, error: message } : p)),
       }));
     }
   };

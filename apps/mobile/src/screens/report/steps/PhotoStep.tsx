@@ -39,7 +39,9 @@ export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
             )}
             {photo.error ? (
               <TouchableOpacity style={styles.overlay} onPress={() => onRemove(index)}>
-                <Text style={styles.errorText}>Failed — tap to remove</Text>
+                <Text style={styles.errorText} numberOfLines={2}>
+                  {photo.error} — tap to remove
+                </Text>
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity

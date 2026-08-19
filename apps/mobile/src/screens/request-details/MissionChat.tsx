@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColorScheme } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeProvider';
 import { RADIUS, SPACING, TYPE } from '../../theme/tokens';
 import { listMissionMessages, sendMissionMessage, type MissionMessage } from '../../api/missions';
+import { ApiError } from '../../lib/api';
 import TextField from '../../components/TextField';
 import Button from '../../components/Button';
 import Skeleton from '../../components/Skeleton';
@@ -30,6 +31,12 @@ export default function MissionChat({ reportId }: Props) {
     onSuccess: (updated) => {
       queryClient.setQueryData(['missionMessages', reportId], updated);
       setDraft('');
+    },
+    // The draft is only cleared on success (above), so a failed send never
+    // loses what the user typed — this just makes sure they're told it failed
+    // rather than silently doing nothing.
+    onError: (e) => {
+      Alert.alert('Message not sent', e instanceof ApiError ? e.message : 'Try again.');
     },
   });
 
