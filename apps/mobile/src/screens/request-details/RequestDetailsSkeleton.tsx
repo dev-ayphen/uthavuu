@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorScheme } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeProvider';
 import { RADIUS, SIZES, SPACING } from '../../theme/tokens';
@@ -7,10 +8,14 @@ import Skeleton from '../../components/Skeleton';
 
 // Mirrors RequestDetailsScreen's real layout (photo, category label, title,
 // description lines, location, reporter row, roster card) so the initial
-// load doesn't jump when real content replaces it.
+// load doesn't jump when real content replaces it. Also mirrors its top
+// safe-area padding — this screen has no native header (headerShown: false
+// on the whole stack), so without it the skeleton renders under the
+// status bar/notch and then jumps down once real content mounts.
 export default function RequestDetailsSkeleton() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   return (
     <View style={styles.root}>
@@ -33,9 +38,9 @@ export default function RequestDetailsSkeleton() {
   );
 }
 
-const createStyles = (colors: ColorScheme) =>
+const createStyles = (colors: ColorScheme, insets: { top: number }) =>
   StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
+    root: { flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + SPACING.sm },
     content: { padding: SIZES.padding },
     title: { marginTop: SPACING.xs, marginBottom: SPACING.xs },
     line: { marginBottom: SPACING.xs },

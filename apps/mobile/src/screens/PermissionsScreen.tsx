@@ -17,7 +17,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
-import { RADIUS, SPACING, TYPE } from '../theme/tokens';
+import { ICON_SIZE, RADIUS, SPACING, TYPE } from '../theme/tokens';
 import { reverseGeocode } from '../lib/geocode';
 import Button from '../components/Button';
 
@@ -34,6 +34,7 @@ export default function PermissionsScreen({ navigation }: Props) {
   const [locationGranted, setLocationGranted] = useState(false);
   const [notificationsGranted, setNotificationsGranted] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [notifRequesting, setNotifRequesting] = useState(false);
   const [locating, setLocating] = useState(false);
 
   useEffect(() => {
@@ -66,8 +67,13 @@ export default function PermissionsScreen({ navigation }: Props) {
   };
 
   const requestNotifications = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    setNotificationsGranted(status === 'granted');
+    setNotifRequesting(true);
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      setNotificationsGranted(status === 'granted');
+    } finally {
+      setNotifRequesting(false);
+    }
   };
 
   const onContinue = async () => {
@@ -88,7 +94,7 @@ export default function PermissionsScreen({ navigation }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.iconCircle}>
-        <ShieldCheck size={28} color={colors.primaryGreen} />
+        <ShieldCheck size={ICON_SIZE.xl} color={colors.primaryGreen} />
       </View>
       <Text style={styles.title}>App Permissions</Text>
       <Text style={styles.subtitle}>
@@ -104,7 +110,7 @@ export default function PermissionsScreen({ navigation }: Props) {
         accessibilityState={{ checked: locationGranted }}
       >
         <View style={[styles.iconBox, locationGranted && styles.iconBoxTintOn]}>
-          <MapPin size={20} color={locationGranted ? colors.primaryGreen : colors.textSecondary} />
+          <MapPin size={ICON_SIZE.md} color={locationGranted ? colors.primaryGreen : colors.textSecondary} />
         </View>
         <View style={styles.rowText}>
           <Text style={styles.rowTitle}>Location Access</Text>
@@ -114,7 +120,7 @@ export default function PermissionsScreen({ navigation }: Props) {
           <ActivityIndicator size="small" color={colors.primaryGreen} />
         ) : (
           <View style={[styles.checkCircle, locationGranted && styles.checkCircleOn]}>
-            {locationGranted && <Check size={12} color={colors.textOnTint} strokeWidth={3} />}
+            {locationGranted && <Check size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />}
           </View>
         )}
       </TouchableOpacity>
@@ -122,24 +128,28 @@ export default function PermissionsScreen({ navigation }: Props) {
       <TouchableOpacity
         style={[styles.row, notificationsGranted && styles.rowActive]}
         onPress={requestNotifications}
-        disabled={notificationsGranted}
+        disabled={notificationsGranted || notifRequesting}
         accessibilityRole="switch"
         accessibilityState={{ checked: notificationsGranted }}
       >
         <View style={[styles.iconBox, notificationsGranted && styles.iconBoxTintOn]}>
-          <Bell size={20} color={notificationsGranted ? colors.primaryGreen : colors.textSecondary} />
+          <Bell size={ICON_SIZE.md} color={notificationsGranted ? colors.primaryGreen : colors.textSecondary} />
         </View>
         <View style={styles.rowText}>
           <Text style={styles.rowTitle}>Push Notifications</Text>
           <Text style={styles.rowSubtitle}>Alerts you when someone accepts your report.</Text>
         </View>
-        <View style={[styles.checkCircle, notificationsGranted && styles.checkCircleOn]}>
-          {notificationsGranted && <Check size={12} color={colors.textOnTint} strokeWidth={3} />}
-        </View>
+        {notifRequesting ? (
+          <ActivityIndicator size="small" color={colors.primaryGreen} />
+        ) : (
+          <View style={[styles.checkCircle, notificationsGranted && styles.checkCircleOn]}>
+            {notificationsGranted && <Check size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />}
+          </View>
+        )}
       </TouchableOpacity>
 
       <View style={styles.privacyRow}>
-        <Lock size={12} color={colors.textSecondary} />
+        <Lock size={ICON_SIZE.xs} color={colors.textSecondary} />
         <Text style={styles.privacyText}>
           Your location is only used while actively responding to or creating reports.
         </Text>
@@ -171,7 +181,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     iconCircle: {
       width: 54,
       height: 54,
-      borderRadius: 27,
+      borderRadius: RADIUS.round,
       backgroundColor: colors.primaryGreenLight,
       justifyContent: 'center',
       alignItems: 'center',
@@ -213,7 +223,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     checkCircle: {
       width: 20,
       height: 20,
-      borderRadius: 10,
+      borderRadius: RADIUS.md,
       borderWidth: 1.5,
       borderColor: colors.border,
     },

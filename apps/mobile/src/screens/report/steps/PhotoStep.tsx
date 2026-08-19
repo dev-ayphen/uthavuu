@@ -50,7 +50,7 @@ export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Remove photo"
             >
-              <X size={12} color={colors.textOnTint} strokeWidth={3} />
+              <X size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />
             </TouchableOpacity>
           </View>
         ))}

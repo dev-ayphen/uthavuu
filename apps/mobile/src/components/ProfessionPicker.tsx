@@ -51,7 +51,7 @@ export default function ProfessionPicker({ visible, selectedId, onSelect, onClos
                   </Text>
                   {selected && (
                     <View style={styles.checkCircle}>
-                      <Check size={12} color={colors.textOnTint} strokeWidth={3} />
+                      <Check size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />
                     </View>
                   )}
                 </TouchableOpacity>

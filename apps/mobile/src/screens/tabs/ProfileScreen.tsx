@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LogOut } from 'lucide-react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,7 +17,8 @@ import ErrorState from '../../components/ErrorState';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const navigation = useNavigation();
   const queryClient = useQueryClient();
 
@@ -84,10 +86,16 @@ export default function ProfileScreen() {
   );
 }
 
-const createStyles = (colors: ColorScheme) =>
+const createStyles = (colors: ColorScheme, insets: { top: number }) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    container: { flexGrow: 1, backgroundColor: colors.bg, alignItems: 'center', padding: SPACING.xl, paddingTop: 64 },
+    container: {
+      flexGrow: 1,
+      backgroundColor: colors.bg,
+      alignItems: 'center',
+      padding: SPACING.xl,
+      paddingTop: insets.top + SPACING.xxl,
+    },
     avatar: { marginBottom: SPACING.md },
     name: { ...TYPE.display, color: colors.textPrimary },
     phone: { ...TYPE.subhead, color: colors.textSecondary, marginTop: SPACING.xxs },

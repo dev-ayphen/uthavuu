@@ -21,7 +21,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeProvider';
-import { COLORS, RADIUS, SPACING, TONES, TYPE } from '../../theme/tokens';
+import { COLORS, ICON_SIZE, RADIUS, SPACING, TONES, TYPE } from '../../theme/tokens';
 import { getMe, updateRadius as updateRadiusApi } from '../../api/users';
 import { getReportsSummary } from '../../api/reports';
 import { reverseGeocode } from '../../lib/geocode';
@@ -277,7 +277,7 @@ export default function DashboardScreen() {
                 setExploreModalOpen(true);
               }}
             >
-              <Compass size={16} color={colors.primaryGreen} />
+              <Compass size={ICON_SIZE.sm} color={colors.primaryGreen} />
               <Text style={styles.exploreButtonText}>Explore Another Location</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.doneButton} onPress={() => setRadiusModalOpen(false)}>
@@ -293,7 +293,7 @@ export default function DashboardScreen() {
           <TouchableOpacity activeOpacity={1} style={styles.sheet}>
             <Text style={styles.sheetTitle}>Search a location</Text>
             <View style={styles.searchBox}>
-              <Search size={16} color={colors.textSecondary} />
+              <Search size={ICON_SIZE.sm} color={colors.textSecondary} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search city, area or town…"
@@ -390,7 +390,7 @@ const createStyles = (colors: ColorScheme) =>
       alignItems: 'center',
       marginBottom: SPACING.xs,
     },
-    cardEmoji: { fontSize: 20 },
+    cardEmoji: { fontSize: ICON_SIZE.md },
     countBadge: {
       minWidth: 22,
       height: 22,

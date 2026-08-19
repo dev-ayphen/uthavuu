@@ -88,7 +88,7 @@ const createStyles = (colors: ColorScheme) =>
       padding: SPACING.md,
     },
     categoryRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.sm },
-    emoji: { fontSize: 20 },
+    emoji: { fontSize: ICON_SIZE.md },
     categoryLabel: { ...TYPE.bodyStrong, color: colors.textPrimary },
     photoRow: { marginBottom: SPACING.sm },
     photo: { width: 72, height: 72, borderRadius: RADIUS.md, marginRight: SPACING.xs },

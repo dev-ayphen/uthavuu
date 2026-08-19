@@ -99,7 +99,7 @@ const createStyles = (insets: { top: number; bottom: number }) =>
     },
     bottomContent: {
       position: 'absolute',
-      bottom: insets.bottom + 30,
+      bottom: insets.bottom + SPACING.xxl,
     },
     tagline: {
       ...TYPE.subhead,

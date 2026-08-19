@@ -12,7 +12,7 @@ import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { SIZES, SPACING, TYPE } from '../theme/tokens';
+import { ICON_SIZE, SIZES, SPACING, TYPE } from '../theme/tokens';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
 import { requestOtp } from '../api/auth';
@@ -58,7 +58,7 @@ export default function LoginScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <HeartHandshake size={28} color={colors.primaryGreen} strokeWidth={1.5} />
+          <HeartHandshake size={ICON_SIZE.xl} color={colors.primaryGreen} strokeWidth={1.5} />
           <Text style={styles.wordmark}>உதவு</Text>
         </View>
 
