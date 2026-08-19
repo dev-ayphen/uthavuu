@@ -8,6 +8,7 @@ import type { CreateReportDto } from './dto/create-report.dto';
 import type { UpdateReportDto } from './dto/update-report.dto';
 import type { ListReportsDto } from './dto/list-reports.dto';
 import type { ReportsSummaryDto } from './dto/reports-summary.dto';
+import { MissionsService } from '../missions/missions.service';
 
 // Great-circle distance in km via the haversine formula, expressed directly
 // in SQL (no PostGIS extension on this Postgres — see docker-compose.yml).
@@ -30,6 +31,8 @@ type StatusRow = typeof reportStatuses.$inferSelect;
 
 @Injectable()
 export class ReportsService {
+  constructor(private readonly missionsService: MissionsService) {}
+
   // US-1 AC2 — the client needs each category's default expiry to pre-fill
   // it; served from the DB so it stays the single source (API-CONTRACT.md
   // flagged the old prototype for duplicating this client-side).
@@ -107,6 +110,7 @@ export class ReportsService {
     if (!row) throw new NotFoundException('Report not found');
 
     const photos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
+    const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(reportId, requestingUserId);
 
     return this.toResponse(
       row.report,
@@ -114,7 +118,8 @@ export class ReportsService {
       row.status,
       photos.map((p) => p.url),
       row.reporter,
-      requestingUserId
+      requestingUserId,
+      hasActiveVolunteerAccess
     );
   }
 
@@ -189,17 +194,20 @@ export class ReportsService {
       photosByReportId.set(photo.reportId, existing);
     }
 
-    return rows.map((row) => ({
-      ...this.toResponse(
-        row.report,
-        row.category,
-        row.status,
-        photosByReportId.get(row.report.id) ?? [],
-        row.reporter,
-        requestingUserId
-      ),
-      distanceKm: Math.round(Number(row.distanceKm) * 10) / 10,
-    }));
+    return Promise.all(
+      rows.map(async (row) => ({
+        ...this.toResponse(
+          row.report,
+          row.category,
+          row.status,
+          photosByReportId.get(row.report.id) ?? [],
+          row.reporter,
+          requestingUserId,
+          await this.missionsService.hasActiveAccess(row.report.id, requestingUserId)
+        ),
+        distanceKm: Math.round(Number(row.distanceKm) * 10) / 10,
+      }))
+    );
   }
 
   async update(reportId: string, requestingUserId: string, input: UpdateReportDto) {
@@ -258,7 +266,8 @@ export class ReportsService {
     status: StatusRow,
     photoUrls: string[],
     reporter: typeof user.$inferSelect,
-    requestingUserId: string
+    requestingUserId: string,
+    hasActiveVolunteerAccess: boolean
   ) {
     const isOwner = report.reporterId === requestingUserId;
     return {
@@ -284,7 +293,9 @@ export class ReportsService {
         report.anonymous && !isOwner
           ? null
           : { name: reporter.name, avatarUrl: reporter.avatarUrl },
-      reporterPhone: isOwner || report.phoneVisible ? reporter.phoneNumber : null,
+      // BR-4: reporter always sees it; an active volunteer sees it only if
+      // the reporter opted in — never from phoneVisible alone.
+      reporterPhone: isOwner || (hasActiveVolunteerAccess && report.phoneVisible) ? reporter.phoneNumber : null,
     };
   }
 }
