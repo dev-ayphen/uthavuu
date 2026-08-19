@@ -54,6 +54,9 @@ export const reports = pgTable(
     // reporter explicitly opted in.
     anonymous: boolean('anonymous').default(false).notNull(),
     phoneVisible: boolean('phone_visible').default(false).notNull(),
+    // accept-and-mission-chat.md BR-1/BR-2: 1–20, default 1 (solo mission),
+    // fixed after publish in v0.1.
+    neededVolunteers: integer('needed_volunteers').default(1).notNull(),
     expiryAt: timestamp('expiry_at', { withTimezone: true }).notNull(),
     closedAt: timestamp('closed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
