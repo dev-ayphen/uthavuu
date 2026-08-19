@@ -16,4 +16,5 @@ export type RootStackParamList = {
     radiusKm: 1 | 3 | 5 | 10;
     locationLabel: string;
   };
+  RequestDetails: { reportId: string };
 };

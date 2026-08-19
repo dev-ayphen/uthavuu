@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clock, MapPin, PackageOpen } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -68,7 +68,14 @@ export default function CategoryListScreen({ navigation, route }: Props) {
               </Text>
             </View>
           }
-          renderItem={({ item }) => <ReportRow report={item} colors={colors} styles={styles} />}
+          renderItem={({ item }) => (
+            <ReportRow
+              report={item}
+              colors={colors}
+              styles={styles}
+              onPress={() => navigation.navigate('RequestDetails', { reportId: item.id })}
+            />
+          )}
         />
       )}
     </View>
@@ -79,16 +86,18 @@ function ReportRow({
   report,
   colors,
   styles,
+  onPress,
 }: {
   report: ReportWithDistance;
   colors: ColorScheme;
   styles: ReturnType<typeof createStyles>;
+  onPress: () => void;
 }) {
   const tone = getUrgencyTone(report.expiryAt);
   const toneStyle = TONES[tone];
 
   return (
-    <View style={styles.row}>
+    <TouchableOpacity style={styles.row} onPress={onPress} accessibilityRole="button">
       {report.photos[0] ? (
         <Image source={{ uri: report.photos[0] }} style={styles.photo} />
       ) : (
@@ -112,7 +121,7 @@ function ReportRow({
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
