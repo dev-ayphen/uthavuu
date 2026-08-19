@@ -29,6 +29,13 @@
       "when": 1787154011008,
       "tag": "0003_blushing_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787155649793,
+      "tag": "0004_natural_thena",
+      "breakpoints": true
     }
   ]
 }

@@ -47,6 +47,6 @@ export function updateRadius(radius: 1 | 3 | 5 | 10): Promise<AuthUser> {
   return apiRequest('/users/me/radius', { method: 'PATCH', auth: true, body: { radius } });
 }
 
-export function registerPushToken(token: string): Promise<void> {
-  return apiRequest('/devices', { method: 'POST', auth: true, body: { token } });
+export function registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void> {
+  return apiRequest('/devices', { method: 'POST', auth: true, body: { token, platform } });
 }

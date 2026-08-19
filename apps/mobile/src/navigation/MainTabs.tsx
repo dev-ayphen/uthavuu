@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,6 +7,7 @@ import type { MainTabParamList } from './tabTypes';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
 import { COLORS, TYPE } from '../theme/tokens';
+import { registerForPushNotifications } from '../lib/push';
 import DashboardScreen from '../screens/tabs/DashboardScreen';
 import MyHelpsScreen from '../screens/tabs/MyHelpsScreen';
 import ReportCategoryScreen from '../screens/report/ReportCategoryScreen';
@@ -23,6 +24,12 @@ export default function MainTabs() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // MainTabs only renders once a session exists — a natural "user is
+  // logged in" hook point for registering this device's push token.
+  useEffect(() => {
+    registerForPushNotifications();
+  }, []);
 
   return (
     <Tab.Navigator
