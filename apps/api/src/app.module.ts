@@ -8,6 +8,7 @@ import { RedisModule } from './redis/redis.module';
 import { UsersModule } from './users/users.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { ReportsModule } from './reports/reports.module';
+import { MissionsModule } from './missions/missions.module';
 import { auth } from './auth/auth';
 
 @Module({
@@ -23,6 +24,7 @@ import { auth } from './auth/auth';
     UsersModule,
     UploadsModule,
     ReportsModule,
+    MissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_PIPE, useClass: ZodValidationPipe }],
