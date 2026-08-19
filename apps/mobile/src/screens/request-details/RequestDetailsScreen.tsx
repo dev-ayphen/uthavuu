@@ -16,6 +16,7 @@ import BackButton from '../../components/BackButton';
 import RosterSection from './RosterSection';
 import MissionChat from './MissionChat';
 import RequestDetailsSkeleton from './RequestDetailsSkeleton';
+import ErrorState from '../../components/ErrorState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RequestDetails'>;
 
@@ -29,6 +30,8 @@ export default function RequestDetailsScreen({ route }: Props) {
   const {
     data: report,
     isLoading: reportLoading,
+    isError: reportIsError,
+    isFetching: reportFetching,
     refetch: refetchReport,
   } = useQuery({
     queryKey: ['report', reportId],
@@ -37,6 +40,8 @@ export default function RequestDetailsScreen({ route }: Props) {
   const {
     data: roster,
     isLoading: rosterLoading,
+    isError: rosterIsError,
+    isFetching: rosterFetching,
     refetch: refetchRoster,
   } = useQuery({
     queryKey: ['roster', reportId],
@@ -60,7 +65,21 @@ export default function RequestDetailsScreen({ route }: Props) {
     setRefreshing(false);
   };
 
-  if (reportLoading || rosterLoading || !report || !roster) {
+  if (reportLoading || rosterLoading) {
+    return <RequestDetailsSkeleton />;
+  }
+  if ((reportIsError || rosterIsError) && (!report || !roster)) {
+    return (
+      <ErrorState
+        onRetry={() => {
+          refetchReport();
+          refetchRoster();
+        }}
+        retrying={reportFetching || rosterFetching}
+      />
+    );
+  }
+  if (!report || !roster) {
     return <RequestDetailsSkeleton />;
   }
 

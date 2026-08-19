@@ -12,6 +12,7 @@ import { clearToken } from '../../lib/session';
 import Avatar from '../../components/Avatar';
 import Button from '../../components/Button';
 import Skeleton from '../../components/Skeleton';
+import ErrorState from '../../components/ErrorState';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -19,7 +20,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
 
-  const { data: me, isLoading, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => {
     setRefreshing(true);
@@ -52,6 +53,10 @@ export default function ProfileScreen() {
         <Skeleton width={90} height={13} style={styles.skeletonLine} />
       </View>
     );
+  }
+
+  if (isError && !me) {
+    return <ErrorState onRetry={refetch} retrying={isFetching} />;
   }
 
   return (

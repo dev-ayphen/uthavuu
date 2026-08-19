@@ -14,6 +14,7 @@ import { CATEGORIES } from '../../data/categories';
 import { formatTimeRemaining, getUrgencyTone } from '../../lib/urgency';
 import BackButton from '../../components/BackButton';
 import Skeleton from '../../components/Skeleton';
+import ErrorState from '../../components/ErrorState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CategoryList'>;
 
@@ -28,7 +29,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
   const { categoryKey, lat, lng, radiusKm, locationLabel } = route.params;
   const categoryMeta = CATEGORIES.find((c) => c.id === categoryKey);
 
-  const { data: reportsList, isLoading, isFetching, refetch } = useQuery({
+  const { data: reportsList, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['reports', categoryKey, lat, lng, radiusKm],
     queryFn: () => listReports(categoryKey, lat, lng, radiusKm),
   });
@@ -57,6 +58,8 @@ export default function CategoryListScreen({ navigation, route }: Props) {
             <ReportRowSkeleton key={i} styles={styles} />
           ))}
         </View>
+      ) : isError && !reportsList ? (
+        <ErrorState onRetry={refetch} retrying={isFetching} />
       ) : (
         <FlatList
           data={reportsList ?? []}

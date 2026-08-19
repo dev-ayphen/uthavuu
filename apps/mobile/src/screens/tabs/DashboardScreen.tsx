@@ -29,6 +29,7 @@ import { CATEGORIES } from '../../data/categories';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
 import Skeleton from '../../components/Skeleton';
+import ErrorState from '../../components/ErrorState';
 
 const RADIUS_OPTIONS = [1, 3, 5, 10] as const;
 
@@ -57,7 +58,12 @@ export default function DashboardScreen() {
   >();
   const queryClient = useQueryClient();
 
-  const { data: me, refetch: refetchMe } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const {
+    data: me,
+    isError: meIsError,
+    isFetching: meFetching,
+    refetch: refetchMe,
+  } = useQuery({ queryKey: ['me'], queryFn: getMe });
   const radiusMutation = useMutation({
     mutationFn: updateRadiusApi,
     onSuccess: (updated) => queryClient.setQueryData(['me'], updated),
@@ -123,6 +129,15 @@ export default function DashboardScreen() {
       setSearching(false);
     }
   };
+
+  // `me` drives everything else on this screen (location, radius, the
+  // category grid's own lat/lng) — a real failure with no cached data to
+  // fall back on is worth a full-screen error, unlike `summary` alone
+  // failing (that already degrades gracefully: the grid just shows no count
+  // badges, still fully usable).
+  if (meIsError && !me) {
+    return <ErrorState onRetry={refetchMe} retrying={meFetching} />;
+  }
 
   return (
     <View style={styles.root}>
