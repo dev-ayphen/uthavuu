@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Uthavu",
+    "slug": "uthavu",
+    "scheme": "uthavu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#16A34A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Uthavu needs your location to show help requests near you and to attach a location to reports you post.",
+        "NSCameraUsageDescription": "Uthavu needs camera access so you can attach a live photo as proof when reporting a request."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Uthavu needs your location to show help requests near you."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Uthavu needs camera access so you can attach a live photo when reporting a request."
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}

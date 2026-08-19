@@ -1,0 +1,108 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { HeartHandshake } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
+import { COLORS, TYPE } from '../theme/tokens';
+import { hasSession, hasSeenOnboarding, clearAllForTesting } from '../lib/session';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
+
+// docs/mobile/01-splash-screen.md gap #2/#3: the documented prototype always routes to
+// Onboarding on a fixed 2000ms timer, even for a returning user with a stored session.
+// Fixed here — route by real session/onboarding state, with a short minimum display so
+// the brand isn't a one-frame flash on a fast device.
+const MIN_DISPLAY_MS = 800;
+
+export default function SplashScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(insets), [insets]);
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    if (resetting) return; // long-press reset in progress — don't race it with routing
+    let cancelled = false;
+
+    async function route() {
+      const [sessionExists, onboardingSeen] = await Promise.all([
+        hasSession(),
+        hasSeenOnboarding(),
+        new Promise((resolve) => setTimeout(resolve, MIN_DISPLAY_MS)),
+      ]);
+
+      if (cancelled) return;
+
+      if (sessionExists) {
+        navigation.replace('MainTabs');
+      } else if (onboardingSeen) {
+        navigation.replace('Login');
+      } else {
+        navigation.replace('Onboarding');
+      }
+    }
+
+    route();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation, resetting]);
+
+  // Dev-only: long-press the brand mark to clear session + onboarding-seen and
+  // force Onboarding. iOS Keychain (what expo-secure-store uses) often survives
+  // a plain app reinstall, so this is the only reliable reset during testing.
+  // __DEV__ means this is stripped from any production build.
+  const onLongPressReset = __DEV__
+    ? async () => {
+        setResetting(true);
+        await clearAllForTesting();
+        Alert.alert('Reset for testing', 'Session and onboarding state cleared.', [
+          { text: 'OK', onPress: () => navigation.replace('Onboarding') },
+        ]);
+      }
+    : undefined;
+
+  return (
+    <TouchableOpacity
+      style={styles.container}
+      activeOpacity={1}
+      onLongPress={onLongPressReset}
+      delayLongPress={1500}
+    >
+      <View style={styles.centerContent}>
+        <HeartHandshake size={80} color={COLORS.bgWhite} strokeWidth={1.5} />
+        <Text style={styles.title}>உதவு</Text>
+      </View>
+      <View style={styles.bottomContent}>
+        <Text style={styles.tagline}>Helping begins with one person.</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const createStyles = (insets: { top: number; bottom: number }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.primaryGreen,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    centerContent: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    title: {
+      ...TYPE.brandTitle,
+      marginTop: 16,
+      color: COLORS.bgWhite,
+    },
+    bottomContent: {
+      position: 'absolute',
+      bottom: insets.bottom + 30,
+    },
+    tagline: {
+      ...TYPE.subhead,
+      color: COLORS.whiteMuted,
+    },
+  });
