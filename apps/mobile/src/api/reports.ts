@@ -20,6 +20,7 @@ export type Report = {
   landmark: string | null;
   anonymous: boolean;
   phoneVisible: boolean;
+  neededVolunteers: number;
   photos: string[];
   expiryAt: string;
   closedAt: string | null;
@@ -42,6 +43,7 @@ export type CreateReportInput = {
   landmark?: string;
   anonymous: boolean;
   phoneVisible: boolean;
+  neededVolunteers?: number;
   photoUrls: string[];
 };
 
