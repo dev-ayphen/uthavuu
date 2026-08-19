@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { ColorScheme } from '../../../theme/colors';
 import { useTheme } from '../../../theme/ThemeProvider';
-import { SPACING, TYPE } from '../../../theme/tokens';
+import { RADIUS, SPACING, TYPE } from '../../../theme/tokens';
 import ToggleRow from '../../../components/ToggleRow';
 
 type Props = {
@@ -54,7 +54,7 @@ const createStyles = (colors: ColorScheme) =>
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       padding: SPACING.sm + 2,
       marginBottom: SPACING.sm,
     },

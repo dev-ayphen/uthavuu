@@ -330,7 +330,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     placeholder: { color: colors.textSecondary },
     toggleRow: { marginTop: SPACING.lg },
     error: { ...TYPE.body, color: colors.danger, marginTop: SPACING.xs, textAlign: 'center' },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.lg },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, marginTop: SPACING.lg },
     locationText: { ...TYPE.body, color: colors.textSecondary },
     completeButton: { marginTop: SPACING.xl },
   });

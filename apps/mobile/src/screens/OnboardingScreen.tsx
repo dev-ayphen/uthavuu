@@ -151,7 +151,13 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     scroll: { flex: 1 },
-    skipCorner: { position: 'absolute', top: insets.top + 12, right: 20, zIndex: 1, padding: 8 },
+    skipCorner: {
+      position: 'absolute',
+      top: insets.top + SPACING.sm,
+      right: SPACING.lg,
+      zIndex: 1,
+      padding: SPACING.xs,
+    },
     skipCornerText: { ...TYPE.subheadStrong, color: colors.textSecondary },
     slide: { flex: 1 },
     topSection: {
@@ -172,8 +178,8 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       ...TYPE.pageTitle,
       color: colors.textPrimary,
       textAlign: 'center',
-      marginTop: 10,
-      marginBottom: 10,
+      marginTop: SPACING.sm,
+      marginBottom: SPACING.sm,
     },
     description: {
       ...TYPE.subhead,
@@ -181,7 +187,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       textAlign: 'center',
       lineHeight: 20,
     },
-    dots: { flexDirection: 'row', gap: 8, marginTop: 20 },
+    dots: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.lg },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
     activeDot: { width: 24, backgroundColor: colors.primaryGreen },
     buttons: { marginTop: 'auto', width: '100%', gap: SPACING.xs, paddingTop: SPACING.xl },

@@ -8,7 +8,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeProvider';
-import { SPACING, TYPE } from '../../theme/tokens';
+import { RADIUS, SPACING, TYPE } from '../../theme/tokens';
 import { CATEGORIES } from '../../data/categories';
 import Card from '../../components/Card';
 
@@ -65,7 +65,7 @@ const createStyles = (colors: ColorScheme) =>
     iconBox: {
       width: 44,
       height: 44,
-      borderRadius: 14,
+      borderRadius: RADIUS.xl,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: SPACING.xs,

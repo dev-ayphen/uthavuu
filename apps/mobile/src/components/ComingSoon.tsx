@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
-import { TYPE } from '../theme/tokens';
+import { SPACING, TYPE } from '../theme/tokens';
 
 // Honest placeholder for tabs whose feature doc hasn't been built yet
 // (report-a-request, alerts, my-helps). No fabricated data — see
@@ -23,7 +23,14 @@ export function ComingSoon({ icon: Icon, title, subtitle }: { icon: LucideIcon; 
 
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },
-    title: { ...TYPE.screenTitle, color: colors.textPrimary, marginTop: 8 },
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.xxl,
+      gap: SPACING.xs,
+    },
+    title: { ...TYPE.screenTitle, color: colors.textPrimary, marginTop: SPACING.xs },
     subtitle: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
   });

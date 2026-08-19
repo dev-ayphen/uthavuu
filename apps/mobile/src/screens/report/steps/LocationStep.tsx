@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import type { ColorScheme } from '../../../theme/colors';
 import { useTheme } from '../../../theme/ThemeProvider';
-import { ICON_SIZE, SPACING, TYPE } from '../../../theme/tokens';
+import { ICON_SIZE, RADIUS, SPACING, TYPE } from '../../../theme/tokens';
 import TextField from '../../../components/TextField';
 
 type Props = {
@@ -62,7 +62,7 @@ const createStyles = (colors: ColorScheme) =>
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       padding: SPACING.sm + 2,
     },
     locationText: { ...TYPE.headline, color: colors.textPrimary, flexShrink: 1 },

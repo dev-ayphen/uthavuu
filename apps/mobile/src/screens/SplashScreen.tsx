@@ -4,7 +4,7 @@ import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { COLORS, TYPE } from '../theme/tokens';
+import { COLORS, SPACING, TYPE } from '../theme/tokens';
 import { hasSession, hasSeenOnboarding, clearAllForTesting } from '../lib/session';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
@@ -94,7 +94,7 @@ const createStyles = (insets: { top: number; bottom: number }) =>
     },
     title: {
       ...TYPE.brandTitle,
-      marginTop: 16,
+      marginTop: SPACING.md,
       color: COLORS.bgWhite,
     },
     bottomContent: {

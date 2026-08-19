@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { SIZES, SPACING, TYPE } from '../theme/tokens';
+import { RADIUS, SIZES, SPACING, TYPE } from '../theme/tokens';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
 import BackButton from '../components/BackButton';
@@ -166,16 +166,16 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       paddingBottom: insets.bottom + SIZES.padding,
     },
     backButton: { marginBottom: SPACING.md },
-    title: { ...TYPE.heroTitle, color: colors.textPrimary, marginBottom: 8 },
-    subtitle: { ...TYPE.headline, color: colors.textSecondary, marginBottom: 32 },
-    boxRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, position: 'relative' },
+    title: { ...TYPE.heroTitle, color: colors.textPrimary, marginBottom: SPACING.xs },
+    subtitle: { ...TYPE.headline, color: colors.textSecondary, marginBottom: SPACING.xxl },
+    boxRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.md, position: 'relative' },
     box: {
       width: 45,
       height: 56,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -186,8 +186,8 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     // menu and the OS's SMS-code autofill suggestion to have something to
     // target; the boxes above are purely visual.
     hiddenInput: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0 },
-    error: { ...TYPE.body, color: colors.danger, marginBottom: 8 },
-    timerRow: { alignItems: 'center', marginBottom: 16 },
+    error: { ...TYPE.body, color: colors.danger, marginBottom: SPACING.xs },
+    timerRow: { alignItems: 'center', marginBottom: SPACING.md },
     timerText: { ...TYPE.subhead, color: colors.textSecondary },
     timerDigits: { ...TYPE.subheadStrong, color: colors.textPrimary },
     resendLink: { ...TYPE.subheadStrong, color: colors.primaryGreen },
