@@ -19,7 +19,9 @@ fi
 
 create() {
   # $1 = name, $2 = color (hex, no #), $3 = description
-  gh label create "$1" --color "$2" --description "$3" --force "${REPO_FLAG[@]}"
+  # ${arr[@]+"${arr[@]}"} avoids "unbound variable" on an empty array under
+  # `set -u` in bash 3.2 (macOS's stock /bin/bash) — plain "${REPO_FLAG[@]}" fails there.
+  gh label create "$1" --color "$2" --description "$3" --force "${REPO_FLAG[@]+"${REPO_FLAG[@]}"}"
 }
 
 # ── type: what kind of work ────────────────────────────────────────────────

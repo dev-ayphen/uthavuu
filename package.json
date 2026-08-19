@@ -1,0 +1,15 @@
+{
+  "name": "uthavuu",
+  "private": true,
+  "packageManager": "pnpm@10.25.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "docs:viewer": "node scripts/build-docs-viewer.mjs"
+  },
+  "devDependencies": {
+    "marked": "^18.0.10"
+  }
+}

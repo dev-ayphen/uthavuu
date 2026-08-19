@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: uthavu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uthavu
+      POSTGRES_PASSWORD: uthavu
+      POSTGRES_DB: uthavu_dev
+    ports:
+      # Host 5433, not 5432 — this machine already runs other projects' Postgres
+      # natively on 5432. Don't change without checking for a real conflict first.
+      - '5433:5432'
+    volumes:
+      - uthavu_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U uthavu -d uthavu_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: uthavu-redis
+    restart: unless-stopped
+    ports:
+      # Host 6380, not 6379 — same reason as above.
+      - '6380:6379'
+    volumes:
+      - uthavu_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: uthavu-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Reuses apps/api/.env for BETTER_AUTH_SECRET/BETTER_AUTH_URL/PORT/msg91 —
+    # only the two networking values below need to differ (container-to-container
+    # DNS names + internal ports, not the host-mapped 5433/6380).
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DATABASE_URL: postgres://uthavu:uthavu@postgres:5432/uthavu_dev
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3001:3001'
+    volumes:
+      - uthavu_api_uploads:/repo/apps/api/uploads
+
+volumes:
+  uthavu_postgres_data:
+  uthavu_redis_data:
+  uthavu_api_uploads:
