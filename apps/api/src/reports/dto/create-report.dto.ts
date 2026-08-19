@@ -15,6 +15,8 @@ export const CreateReportSchema = z.object({
   anonymous: z.boolean().optional().default(false),
   phoneVisible: z.boolean().optional().default(false),
   expiryMinutes: z.number().int().positive().optional(),
+  // accept-and-mission-chat.md BR-1: 1–20, default 1 (solo mission), fixed after publish in v1.
+  neededVolunteers: z.number().int().min(1).max(20).optional().default(1),
   // BR-1: at least one, max 4 — URLs already come from POST /uploads.
   photoUrls: z
     .array(z.string().trim().url())

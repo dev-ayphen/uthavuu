@@ -83,6 +83,7 @@ export class ReportsService {
         landmark: input.landmark,
         anonymous: input.anonymous,
         phoneVisible: input.phoneVisible,
+        neededVolunteers: input.neededVolunteers,
         expiryAt,
       })
       .returning();
@@ -271,6 +272,7 @@ export class ReportsService {
       landmark: report.landmark,
       anonymous: report.anonymous,
       phoneVisible: report.phoneVisible,
+      neededVolunteers: report.neededVolunteers,
       photos: photoUrls,
       expiryAt: report.expiryAt,
       closedAt: report.closedAt,
