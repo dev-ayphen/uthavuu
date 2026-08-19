@@ -27,6 +27,7 @@ import { reverseGeocode } from '../../lib/geocode';
 import { CATEGORIES } from '../../data/categories';
 import Avatar from '../../components/Avatar';
 import Card from '../../components/Card';
+import Skeleton from '../../components/Skeleton';
 
 const RADIUS_OPTIONS = [1, 3, 5, 10] as const;
 
@@ -76,7 +77,7 @@ export default function DashboardScreen() {
   const effectiveLat = exploring ? exploring.lat : me?.lastLat;
   const effectiveLng = exploring ? exploring.lng : me?.lastLng;
 
-  const { data: summary } = useQuery({
+  const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['reportsSummary', effectiveLat, effectiveLng, radius],
     queryFn: () => getReportsSummary(effectiveLat!, effectiveLng!, radius),
     enabled: effectiveLat != null && effectiveLng != null,
@@ -199,10 +200,14 @@ export default function DashboardScreen() {
                   <View style={[styles.cardIconBox, { backgroundColor: cat.color + '20' }]}>
                     <Text style={styles.cardEmoji}>{cat.emoji}</Text>
                   </View>
-                  {!!counts?.activeCount && (
-                    <View style={[styles.countBadge, counts.urgentCount > 0 && styles.countBadgeUrgent]}>
-                      <Text style={styles.countBadgeText}>{counts.activeCount}</Text>
-                    </View>
+                  {summaryLoading ? (
+                    <Skeleton width={22} height={22} borderRadius={11} />
+                  ) : (
+                    !!counts?.activeCount && (
+                      <View style={[styles.countBadge, counts.urgentCount > 0 && styles.countBadgeUrgent]}>
+                        <Text style={styles.countBadgeText}>{counts.activeCount}</Text>
+                      </View>
+                    )
                   )}
                 </View>
                 <Text style={styles.cardTitle}>{cat.title}</Text>

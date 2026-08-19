@@ -7,6 +7,7 @@ import { RADIUS, SPACING, TYPE } from '../../theme/tokens';
 import { listMissionMessages, sendMissionMessage, type MissionMessage } from '../../api/missions';
 import TextField from '../../components/TextField';
 import Button from '../../components/Button';
+import Skeleton from '../../components/Skeleton';
 
 type Props = { reportId: string };
 
@@ -19,7 +20,7 @@ export default function MissionChat({ reportId }: Props) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
 
-  const { data: messages } = useQuery({
+  const { data: messages, isLoading } = useQuery({
     queryKey: ['missionMessages', reportId],
     queryFn: () => listMissionMessages(reportId),
   });
@@ -42,20 +43,27 @@ export default function MissionChat({ reportId }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>💬 Mission Chat</Text>
 
-      <FlatList
-        data={messages ?? []}
-        keyExtractor={(m) => m.id}
-        style={styles.list}
-        renderItem={({ item }: { item: MissionMessage }) => (
-          <View style={[styles.bubbleRow, item.isMine && styles.bubbleRowMine]}>
-            <View style={[styles.bubble, item.isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-              {!item.isMine && <Text style={styles.senderName}>{item.senderName}</Text>}
-              <Text style={item.isMine ? styles.bubbleTextMine : styles.bubbleText}>{item.body}</Text>
+      {isLoading ? (
+        <View style={styles.list}>
+          <Skeleton width="55%" height={32} borderRadius={RADIUS.md} style={styles.skeletonBubbleTheirs} />
+          <Skeleton width="45%" height={32} borderRadius={RADIUS.md} style={styles.skeletonBubbleMine} />
+        </View>
+      ) : (
+        <FlatList
+          data={messages ?? []}
+          keyExtractor={(m) => m.id}
+          style={styles.list}
+          renderItem={({ item }: { item: MissionMessage }) => (
+            <View style={[styles.bubbleRow, item.isMine && styles.bubbleRowMine]}>
+              <View style={[styles.bubble, item.isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                {!item.isMine && <Text style={styles.senderName}>{item.senderName}</Text>}
+                <Text style={item.isMine ? styles.bubbleTextMine : styles.bubbleText}>{item.body}</Text>
+              </View>
             </View>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={styles.empty}>No messages yet — say hello.</Text>}
-      />
+          )}
+          ListEmptyComponent={<Text style={styles.empty}>No messages yet — say hello.</Text>}
+        />
+      )}
 
       <View style={styles.composerRow}>
         <TextField
@@ -92,6 +100,8 @@ const createStyles = (colors: ColorScheme) =>
     senderName: { ...TYPE.caption, color: colors.textSecondary, marginBottom: 2 },
     bubbleText: { ...TYPE.body, color: colors.textPrimary },
     bubbleTextMine: { ...TYPE.body, color: colors.textOnTint },
+    skeletonBubbleTheirs: { marginBottom: SPACING.xs, alignSelf: 'flex-start' },
+    skeletonBubbleMine: { alignSelf: 'flex-end' },
     composerRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.sm, alignItems: 'center' },
     input: { flex: 1 },
   });

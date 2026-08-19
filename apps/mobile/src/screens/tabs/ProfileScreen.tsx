@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { LogOut } from 'lucide-react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import { logout as logoutApi } from '../../api/auth';
 import { clearToken } from '../../lib/session';
 import Avatar from '../../components/Avatar';
 import Button from '../../components/Button';
+import Skeleton from '../../components/Skeleton';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -38,8 +39,11 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.primaryGreen} />
+      <View style={styles.container}>
+        <Skeleton width={72} height={72} borderRadius={36} style={styles.avatar} />
+        <Skeleton width={140} height={16} />
+        <Skeleton width={110} height={13} style={styles.skeletonLine} />
+        <Skeleton width={90} height={13} style={styles.skeletonLine} />
       </View>
     );
   }
@@ -66,10 +70,10 @@ export default function ProfileScreen() {
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', padding: SPACING.xl, paddingTop: 64 },
-    centered: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' },
     avatar: { marginBottom: SPACING.md },
     name: { ...TYPE.display, color: colors.textPrimary },
     phone: { ...TYPE.subhead, color: colors.textSecondary, marginTop: SPACING.xxs },
     location: { ...TYPE.body, color: colors.textSecondary, marginTop: 2 },
+    skeletonLine: { marginTop: SPACING.xs },
     logoutButton: { marginTop: SPACING.xxl, paddingHorizontal: SPACING.xl },
   });

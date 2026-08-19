@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clock, MapPin, PackageOpen } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,6 +13,7 @@ import { listReports, type ReportWithDistance } from '../../api/reports';
 import { CATEGORIES } from '../../data/categories';
 import { formatTimeRemaining, getUrgencyTone } from '../../lib/urgency';
 import BackButton from '../../components/BackButton';
+import Skeleton from '../../components/Skeleton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CategoryList'>;
 
@@ -51,7 +52,11 @@ export default function CategoryListScreen({ navigation, route }: Props) {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={styles.loading} color={colors.primaryGreen} />
+        <View style={styles.list}>
+          {[0, 1, 2, 3].map((i) => (
+            <ReportRowSkeleton key={i} styles={styles} />
+          ))}
+        </View>
       ) : (
         <FlatList
           data={reportsList ?? []}
@@ -125,14 +130,30 @@ function ReportRow({
   );
 }
 
+// Mirrors ReportRow's real layout (photo + two text lines + a meta bar) so
+// the initial load doesn't jump when real content replaces it.
+function ReportRowSkeleton({ styles }: { styles: ReturnType<typeof createStyles> }) {
+  return (
+    <View style={styles.row}>
+      <Skeleton width={64} height={64} borderRadius={RADIUS.md} />
+      <View style={styles.rowBody}>
+        <Skeleton width="70%" height={13} />
+        <Skeleton width="90%" height={11} style={styles.skeletonLine} />
+        <Skeleton width={90} height={11} style={styles.skeletonMetaLine} />
+      </View>
+    </View>
+  );
+}
+
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     header: { paddingHorizontal: SIZES.padding, marginBottom: SPACING.sm },
     title: { ...TYPE.pageTitle, color: colors.textPrimary, marginTop: SPACING.xs },
     subtitle: { ...TYPE.subhead, color: colors.textSecondary, marginTop: 2 },
-    loading: { marginTop: SPACING.xxl },
     list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.sm },
+    skeletonLine: { marginTop: SPACING.xxs },
+    skeletonMetaLine: { marginTop: SPACING.xs },
     row: {
       flexDirection: 'row',
       gap: SPACING.sm,

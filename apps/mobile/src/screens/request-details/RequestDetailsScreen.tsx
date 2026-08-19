@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import Avatar from '../../components/Avatar';
 import BackButton from '../../components/BackButton';
 import RosterSection from './RosterSection';
 import MissionChat from './MissionChat';
+import RequestDetailsSkeleton from './RequestDetailsSkeleton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RequestDetails'>;
 
@@ -42,11 +43,7 @@ export default function RequestDetailsScreen({ route }: Props) {
   );
 
   if (reportLoading || rosterLoading || !report || !roster) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.primaryGreen} />
-      </View>
-    );
+    return <RequestDetailsSkeleton />;
   }
 
   const hasAccess = report.isOwner || roster.myStatus === 'joined' || roster.myStatus === 'active';
@@ -97,7 +94,6 @@ export default function RequestDetailsScreen({ route }: Props) {
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    loading: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' },
     header: { paddingHorizontal: SIZES.padding, marginBottom: SPACING.xs },
     photo: { width: '100%', height: 220 },
     content: { padding: SIZES.padding },
