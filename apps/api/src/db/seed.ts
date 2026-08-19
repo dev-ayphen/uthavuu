@@ -6,6 +6,7 @@ import { uuidv7 } from 'uuidv7';
 import { sql } from 'drizzle-orm';
 import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
+import { missionVolunteerStatuses } from './schema/missions-schema';
 
 // Matches apps/mobile/src/data/categories.ts exactly (id -> key) — see
 // docs/features/report-a-request.md BR-1 (the 8 citizen categories) and BR-2
@@ -27,6 +28,14 @@ const STATUSES = [
   { key: 'open', label: 'Open' },
   { key: 'closed', label: 'Closed' },
   { key: 'expired', label: 'Expired' },
+] as const;
+
+// accept-and-mission-chat.md — a volunteer's own participation state, not
+// the report's status.
+const MISSION_VOLUNTEER_STATUSES = [
+  { key: 'joined', label: 'Joined' },
+  { key: 'active', label: 'Active' },
+  { key: 'released', label: 'Released' },
 ] as const;
 
 async function seed() {
@@ -56,7 +65,19 @@ async function seed() {
       });
   }
 
-  console.log(`Seeded ${CATEGORIES.length} report categories and ${STATUSES.length} statuses.`);
+  for (const status of MISSION_VOLUNTEER_STATUSES) {
+    await db
+      .insert(missionVolunteerStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: missionVolunteerStatuses.key,
+        set: { label: status.label, updatedAt: sql`now()` },
+      });
+  }
+
+  console.log(
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, and ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses.`
+  );
   process.exit(0);
 }
 
