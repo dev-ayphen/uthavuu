@@ -17,6 +17,7 @@ export type ReportDraft = {
   landmark: string;
   anonymous: boolean;
   phoneVisible: boolean;
+  neededVolunteers: number;
 };
 
 // BR-2's default expiry is stored in minutes; this is purely a display label
@@ -40,4 +41,5 @@ export const EMPTY_DRAFT: ReportDraft = {
   landmark: '',
   anonymous: false,
   phoneVisible: false,
+  neededVolunteers: 1,
 };

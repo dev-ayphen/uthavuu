@@ -4,15 +4,26 @@ import type { ColorScheme } from '../../../theme/colors';
 import { useTheme } from '../../../theme/ThemeProvider';
 import { SPACING, TYPE } from '../../../theme/tokens';
 import TextField from '../../../components/TextField';
+import ToggleRow from '../../../components/ToggleRow';
+import Stepper from '../../../components/Stepper';
 
 type Props = {
   title: string;
   description: string;
   onChangeTitle: (value: string) => void;
   onChangeDescription: (value: string) => void;
+  neededVolunteers: number;
+  onChangeNeededVolunteers: (value: number) => void;
 };
 
-export default function DetailsStep({ title, description, onChangeTitle, onChangeDescription }: Props) {
+export default function DetailsStep({
+  title,
+  description,
+  onChangeTitle,
+  onChangeDescription,
+  neededVolunteers,
+  onChangeNeededVolunteers,
+}: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -38,6 +49,19 @@ export default function DetailsStep({ title, description, onChangeTitle, onChang
         accessibilityLabel="Description"
         style={styles.field}
       />
+
+      <ToggleRow
+        label="This needs more than one volunteer"
+        value={neededVolunteers > 1}
+        onValueChange={(needsTeam) => onChangeNeededVolunteers(needsTeam ? 2 : 1)}
+        style={styles.field}
+      />
+      {neededVolunteers > 1 && (
+        <View style={styles.stepperRow}>
+          <Text style={styles.stepperLabel}>Volunteers needed</Text>
+          <Stepper value={neededVolunteers} min={2} max={20} onChange={onChangeNeededVolunteers} />
+        </View>
+      )}
     </View>
   );
 }
@@ -47,4 +71,11 @@ const createStyles = (colors: ColorScheme) =>
     title: { ...TYPE.pageTitle, color: colors.textPrimary, marginBottom: SPACING.xxs },
     subtitle: { ...TYPE.subhead, color: colors.textSecondary, marginBottom: SPACING.lg, lineHeight: 20 },
     field: { marginTop: SPACING.sm },
+    stepperRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: SPACING.md,
+    },
+    stepperLabel: { ...TYPE.subhead, color: colors.textPrimary },
   });

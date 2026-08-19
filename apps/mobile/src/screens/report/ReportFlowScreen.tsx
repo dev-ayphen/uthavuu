@@ -129,6 +129,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         landmark: draft.landmark.trim() || undefined,
         anonymous: draft.anonymous,
         phoneVisible: draft.phoneVisible,
+        neededVolunteers: draft.neededVolunteers,
         photoUrls: draft.photos.map((p) => p.uploadedUrl).filter((url): url is string => Boolean(url)),
       });
       Alert.alert('Report published', 'Nearby volunteers can now see your request.', [
@@ -163,6 +164,8 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             description={draft.description}
             onChangeTitle={(title) => setDraft((d) => ({ ...d, title }))}
             onChangeDescription={(description) => setDraft((d) => ({ ...d, description }))}
+            neededVolunteers={draft.neededVolunteers}
+            onChangeNeededVolunteers={(neededVolunteers) => setDraft((d) => ({ ...d, neededVolunteers }))}
           />
         )}
         {step === 2 && (
