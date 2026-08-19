@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,7 +57,7 @@ export default function DashboardScreen() {
   >();
   const queryClient = useQueryClient();
 
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const { data: me, refetch: refetchMe } = useQuery({ queryKey: ['me'], queryFn: getMe });
   const radiusMutation = useMutation({
     mutationFn: updateRadiusApi,
     onSuccess: (updated) => queryClient.setQueryData(['me'], updated),
@@ -77,12 +78,25 @@ export default function DashboardScreen() {
   const effectiveLat = exploring ? exploring.lat : me?.lastLat;
   const effectiveLng = exploring ? exploring.lng : me?.lastLng;
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    refetch: refetchSummary,
+  } = useQuery({
     queryKey: ['reportsSummary', effectiveLat, effectiveLng, radius],
     queryFn: () => getReportsSummary(effectiveLat!, effectiveLng!, radius),
     enabled: effectiveLat != null && effectiveLng != null,
   });
   const countsByKey = new Map((summary ?? []).map((s) => [s.key, s]));
+
+  // BR-4 (discover-nearby-requests.md): no realtime — pull-to-refresh is the
+  // only way to get fresh nearby-help counts short of leaving and reopening.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchMe(), refetchSummary()]);
+    setRefreshing(false);
+  };
 
   const onSearchLocation = async () => {
     if (!searchQuery.trim()) return;
@@ -157,7 +171,13 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryGreen} />
+        }
+      >
         {exploring && (
           <View style={styles.exploringBanner}>
             <Text style={styles.exploringBannerText}>

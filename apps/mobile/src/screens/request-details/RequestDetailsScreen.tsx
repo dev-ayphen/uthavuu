@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,11 +26,19 @@ export default function RequestDetailsScreen({ route }: Props) {
   const { reportId } = route.params;
   const queryClient = useQueryClient();
 
-  const { data: report, isLoading: reportLoading } = useQuery({
+  const {
+    data: report,
+    isLoading: reportLoading,
+    refetch: refetchReport,
+  } = useQuery({
     queryKey: ['report', reportId],
     queryFn: () => getReport(reportId),
   });
-  const { data: roster, isLoading: rosterLoading } = useQuery({
+  const {
+    data: roster,
+    isLoading: rosterLoading,
+    refetch: refetchRoster,
+  } = useQuery({
     queryKey: ['roster', reportId],
     queryFn: () => getRoster(reportId),
   });
@@ -42,6 +50,16 @@ export default function RequestDetailsScreen({ route }: Props) {
     }, [queryClient, reportId])
   );
 
+  // BR-4 (accept-and-mission-chat.md): no realtime — pull-to-refresh is the
+  // only manual way to pick up a new volunteer/message/status while staying
+  // on this screen (refetch-on-focus above only fires when returning to it).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchReport(), refetchRoster()]);
+    setRefreshing(false);
+  };
+
   if (reportLoading || rosterLoading || !report || !roster) {
     return <RequestDetailsSkeleton />;
   }
@@ -49,7 +67,13 @@ export default function RequestDetailsScreen({ route }: Props) {
   const hasAccess = report.isOwner || roster.myStatus === 'joined' || roster.myStatus === 'active';
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={{ paddingTop: insets.top + SPACING.sm }}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={{ paddingTop: insets.top + SPACING.sm }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryGreen} />
+      }
+    >
       <View style={styles.header}>
         <BackButton />
       </View>

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LogOut } from 'lucide-react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +19,13 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
 
-  const { data: me, isLoading } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const { data: me, isLoading, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -49,7 +55,13 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryGreen} />
+      }
+    >
       <Avatar uri={me?.avatarUrl} label={me?.name || 'Uthavu user'} size={72} style={styles.avatar} />
       <Text style={styles.name}>{me?.name || 'Uthavu user'}</Text>
       <Text style={styles.phone}>{me?.phoneNumber}</Text>
@@ -63,13 +75,14 @@ export default function ProfileScreen() {
         loading={logoutMutation.isPending}
         style={styles.logoutButton}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', padding: SPACING.xl, paddingTop: 64 },
+    root: { flex: 1, backgroundColor: colors.bg },
+    container: { flexGrow: 1, backgroundColor: colors.bg, alignItems: 'center', padding: SPACING.xl, paddingTop: 64 },
     avatar: { marginBottom: SPACING.md },
     name: { ...TYPE.display, color: colors.textPrimary },
     phone: { ...TYPE.subhead, color: colors.textSecondary, marginTop: SPACING.xxs },
