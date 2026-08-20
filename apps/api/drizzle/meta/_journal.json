@@ -43,6 +43,13 @@
       "when": 1787201791635,
       "tag": "0005_foamy_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787205783400,
+      "tag": "0006_chief_earthquake",
+      "breakpoints": true
     }
   ]
 }

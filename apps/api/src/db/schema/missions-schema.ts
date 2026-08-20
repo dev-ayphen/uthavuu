@@ -69,10 +69,41 @@ export const missionMessages = pgTable(
   (table) => [index('mission_messages_mission_id_idx').on(table.missionId)]
 );
 
+export const missionCompletionStatuses = pgTable('mission_completion_statuses', {
+  id: uuid('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  label: text('label').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// docs/features/mission-completion.md BR-4: modeled as a real, distinct,
+// timestamped state even though today's verification is synchronous and
+// always resolves to 'verified' within the same request — so a future
+// pass can make verification genuinely asynchronous without a redesign.
+export const missionCompletions = pgTable('mission_completions', {
+  id: uuid('id').primaryKey(),
+  missionId: uuid('mission_id')
+    .notNull()
+    .unique()
+    .references(() => missions.id, { onDelete: 'cascade' }),
+  completedById: text('completed_by_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  photoUrl: text('photo_url').notNull(),
+  note: text('note').notNull(),
+  statusId: uuid('status_id')
+    .notNull()
+    .references(() => missionCompletionStatuses.id),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull(),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+});
+
 export const missionRelations = relations(missions, ({ one, many }) => ({
   report: one(reports, { fields: [missions.reportId], references: [reports.id] }),
   volunteers: many(missionVolunteers),
   messages: many(missionMessages),
+  completion: one(missionCompletions, { fields: [missions.id], references: [missionCompletions.missionId] }),
 }));
 
 export const missionVolunteerRelations = relations(missionVolunteers, ({ one }) => ({
@@ -87,4 +118,13 @@ export const missionVolunteerRelations = relations(missionVolunteers, ({ one }) 
 export const missionMessageRelations = relations(missionMessages, ({ one }) => ({
   mission: one(missions, { fields: [missionMessages.missionId], references: [missions.id] }),
   sender: one(user, { fields: [missionMessages.senderId], references: [user.id] }),
+}));
+
+export const missionCompletionRelations = relations(missionCompletions, ({ one }) => ({
+  mission: one(missions, { fields: [missionCompletions.missionId], references: [missions.id] }),
+  completedBy: one(user, { fields: [missionCompletions.completedById], references: [user.id] }),
+  status: one(missionCompletionStatuses, {
+    fields: [missionCompletions.statusId],
+    references: [missionCompletionStatuses.id],
+  }),
 }));

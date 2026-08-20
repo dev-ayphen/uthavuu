@@ -6,7 +6,7 @@ import { uuidv7 } from 'uuidv7';
 import { sql } from 'drizzle-orm';
 import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
-import { missionVolunteerStatuses } from './schema/missions-schema';
+import { missionCompletionStatuses, missionVolunteerStatuses } from './schema/missions-schema';
 
 // Matches apps/mobile/src/data/categories.ts exactly (id -> key) — see
 // docs/features/report-a-request.md BR-1 (the 8 citizen categories) and BR-2
@@ -28,6 +28,7 @@ const STATUSES = [
   { key: 'open', label: 'Open' },
   { key: 'closed', label: 'Closed' },
   { key: 'expired', label: 'Expired' },
+  { key: 'completed', label: 'Completed' },
 ] as const;
 
 // accept-and-mission-chat.md — a volunteer's own participation state, not
@@ -36,6 +37,15 @@ const MISSION_VOLUNTEER_STATUSES = [
   { key: 'joined', label: 'Joined' },
   { key: 'active', label: 'Active' },
   { key: 'released', label: 'Released' },
+] as const;
+
+// mission-completion.md — a mission's own completion state, distinct from
+// mission_volunteers.status (each volunteer's participation) and from
+// report_statuses (the report's own lifecycle).
+const MISSION_COMPLETION_STATUSES = [
+  { key: 'submitted', label: 'Submitted' },
+  { key: 'waiting_verification', label: 'Waiting Verification' },
+  { key: 'verified', label: 'Verified' },
 ] as const;
 
 async function seed() {
@@ -75,8 +85,18 @@ async function seed() {
       });
   }
 
+  for (const status of MISSION_COMPLETION_STATUSES) {
+    await db
+      .insert(missionCompletionStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: missionCompletionStatuses.key,
+        set: { label: status.label, updatedAt: sql`now()` },
+      });
+  }
+
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, and ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses.`
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, and ${MISSION_COMPLETION_STATUSES.length} mission completion statuses.`
   );
   process.exit(0);
 }
