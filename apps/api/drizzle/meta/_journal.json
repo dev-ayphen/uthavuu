@@ -36,6 +36,13 @@
       "when": 1787155649793,
       "tag": "0004_natural_thena",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787201791635,
+      "tag": "0005_foamy_micromacro",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,8 @@ import { UploadsModule } from './uploads/uploads.module';
 import { ReportsModule } from './reports/reports.module';
 import { MissionsModule } from './missions/missions.module';
 import { DevicesModule } from './devices/devices.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { CommentsModule } from './comments/comments.module';
 import { auth } from './auth/auth';
 
 @Module({
@@ -27,6 +29,8 @@ import { auth } from './auth/auth';
     ReportsModule,
     MissionsModule,
     DevicesModule,
+    AlertsModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_PIPE, useClass: ZodValidationPipe }],

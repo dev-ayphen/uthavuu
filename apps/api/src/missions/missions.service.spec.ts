@@ -6,9 +6,10 @@ import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
 import { missionVolunteers, missions } from '../db/schema/missions-schema';
 import { MissionsService } from './missions.service';
+import { AlertsService } from '../alerts/alerts.service';
 
 describe('MissionsService', () => {
-  const service = new MissionsService();
+  const service = new MissionsService(new AlertsService());
   let reporterId: string;
   let volunteerAId: string;
   let volunteerBId: string;

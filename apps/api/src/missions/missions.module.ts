@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MissionsController } from './missions.controller';
+import { MyMissionsController } from './my-missions.controller';
 import { MissionsService } from './missions.service';
+import { AlertsModule } from '../alerts/alerts.module';
 
 @Module({
-  controllers: [MissionsController],
+  imports: [AlertsModule],
+  controllers: [MissionsController, MyMissionsController],
   providers: [MissionsService],
   exports: [MissionsService],
 })

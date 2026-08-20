@@ -4,8 +4,17 @@ import * as authSchema from './schema/auth-schema';
 import * as reportsSchema from './schema/reports-schema';
 import * as missionsSchema from './schema/missions-schema';
 import * as devicesSchema from './schema/devices-schema';
+import * as alertsSchema from './schema/alerts-schema';
+import * as commentsSchema from './schema/comments-schema';
 
-const schema = { ...authSchema, ...reportsSchema, ...missionsSchema, ...devicesSchema };
+const schema = {
+  ...authSchema,
+  ...reportsSchema,
+  ...missionsSchema,
+  ...devicesSchema,
+  ...alertsSchema,
+  ...commentsSchema,
+};
 
 const client = postgres(process.env.DATABASE_URL!);
 

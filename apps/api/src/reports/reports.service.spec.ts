@@ -5,11 +5,12 @@ import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reports } from '../db/schema/reports-schema';
 import { MissionsService } from '../missions/missions.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { ReportsService } from './reports.service';
 import type { CreateReportDto } from './dto/create-report.dto';
 
 describe('ReportsService', () => {
-  const missionsService = new MissionsService();
+  const missionsService = new MissionsService(new AlertsService());
   const service = new ReportsService(missionsService);
 
   let reporterId: string;
