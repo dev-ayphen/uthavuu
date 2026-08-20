@@ -12,7 +12,7 @@ export type ReportCategory = {
 export type Report = {
   id: string;
   category: { key: CategoryId; label: string; emoji: string };
-  status: 'open' | 'closed' | 'expired';
+  status: 'open' | 'closed' | 'expired' | 'completed';
   title: string;
   description: string;
   lat: number;

@@ -13,11 +13,18 @@ export type RosterVolunteer = {
   joinedAt: string;
 };
 
+export type MissionCompletion = {
+  photoUrl: string;
+  note: string;
+  verifiedAt: string;
+};
+
 export type Roster = {
   neededVolunteers: number;
   volunteers: RosterVolunteer[];
   myStatus: VolunteerStatus | null;
   myConfirmDeadline: string | null;
+  completion: MissionCompletion | null;
 };
 
 export type MissionMessage = {
@@ -43,6 +50,14 @@ export function confirmRequest(reportId: string): Promise<Roster> {
 
 export function leaveRequest(reportId: string): Promise<Roster> {
   return apiRequest(`/reports/${reportId}/volunteers/me`, { method: 'DELETE', auth: true });
+}
+
+export function completeMission(reportId: string, photoUrl: string, note: string): Promise<Roster> {
+  return apiRequest(`/reports/${reportId}/complete`, {
+    method: 'POST',
+    auth: true,
+    body: { photoUrl, note },
+  });
 }
 
 export function listMissionMessages(reportId: string): Promise<MissionMessage[]> {
