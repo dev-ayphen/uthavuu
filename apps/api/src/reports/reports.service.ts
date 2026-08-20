@@ -4,6 +4,7 @@ import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
+import { reportLikes } from '../db/schema/likes-schema';
 import type { CreateReportDto } from './dto/create-report.dto';
 import type { UpdateReportDto } from './dto/update-report.dto';
 import type { ListReportsDto } from './dto/list-reports.dto';
@@ -112,6 +113,16 @@ export class ReportsService {
     const photos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
     const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(reportId, requestingUserId);
 
+    const [{ count: likeCount }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(reportLikes)
+      .where(eq(reportLikes.reportId, reportId));
+
+    const myLikeRows = await db
+      .select()
+      .from(reportLikes)
+      .where(and(eq(reportLikes.reportId, reportId), eq(reportLikes.userId, requestingUserId)));
+
     return this.toResponse(
       row.report,
       row.category,
@@ -119,7 +130,9 @@ export class ReportsService {
       photos.map((p) => p.url),
       row.reporter,
       requestingUserId,
-      hasActiveVolunteerAccess
+      hasActiveVolunteerAccess,
+      likeCount,
+      myLikeRows.length > 0
     );
   }
 
@@ -247,6 +260,30 @@ export class ReportsService {
     return this.findOne(reportId, requestingUserId);
   }
 
+  // impact-story.md BR-7: idempotent both ways — ON CONFLICT DO NOTHING
+  // means liking an already-liked report is a no-op, not a duplicate or
+  // an error.
+  async like(reportId: string, requestingUserId: string) {
+    await this.requireCompletedReport(reportId);
+
+    await db
+      .insert(reportLikes)
+      .values({ id: uuidv7(), reportId, userId: requestingUserId })
+      .onConflictDoNothing({ target: [reportLikes.reportId, reportLikes.userId] });
+
+    return this.findOne(reportId, requestingUserId);
+  }
+
+  // Deleting a non-existent like is a no-op (0 rows affected, no error) —
+  // idempotent by construction, no extra existence check needed.
+  async unlike(reportId: string, requestingUserId: string) {
+    await db
+      .delete(reportLikes)
+      .where(and(eq(reportLikes.reportId, reportId), eq(reportLikes.userId, requestingUserId)));
+
+    return this.findOne(reportId, requestingUserId);
+  }
+
   // Shared guard for the three write paths that only the reporter may use,
   // and only while the report is still open (BR-6).
   private async requireOwnedOpenReport(reportId: string, requestingUserId: string): Promise<ReportRow> {
@@ -260,6 +297,18 @@ export class ReportsService {
     return existing;
   }
 
+  // impact-story.md BR-6: a like only makes sense once a report is a
+  // finished Impact Story — enforced here, not just hidden client-side.
+  private async requireCompletedReport(reportId: string): Promise<ReportRow> {
+    const [existing] = await db.select().from(reports).where(eq(reports.id, reportId));
+    if (!existing) throw new NotFoundException('Report not found');
+
+    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, existing.statusId));
+    if (status?.key !== 'completed') throw new ForbiddenException('This report is not completed yet');
+
+    return existing;
+  }
+
   private toResponse(
     report: ReportRow,
     category: CategoryRow,
@@ -267,7 +316,9 @@ export class ReportsService {
     photoUrls: string[],
     reporter: typeof user.$inferSelect,
     requestingUserId: string,
-    hasActiveVolunteerAccess: boolean
+    hasActiveVolunteerAccess: boolean,
+    likeCount = 0,
+    likedByMe = false
   ) {
     const isOwner = report.reporterId === requestingUserId;
     return {
@@ -296,6 +347,8 @@ export class ReportsService {
       // BR-4: reporter always sees it; an active volunteer sees it only if
       // the reporter opted in — never from phoneVisible alone.
       reporterPhone: isOwner || (hasActiveVolunteerAccess && report.phoneVisible) ? reporter.phoneNumber : null,
+      likeCount,
+      likedByMe,
     };
   }
 }
