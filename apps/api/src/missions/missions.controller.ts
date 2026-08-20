@@ -3,6 +3,7 @@ import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { auth } from '../auth/auth';
 import { MissionsService } from './missions.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { CompleteMissionDto } from './dto/complete-mission.dto';
 
 @Controller('reports/:id')
 export class MissionsController {
@@ -21,6 +22,15 @@ export class MissionsController {
   @Delete('volunteers/me')
   leave(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
     return this.missionsService.leave(id, session.user.id);
+  }
+
+  @Post('complete')
+  complete(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+    @Body() body: CompleteMissionDto
+  ) {
+    return this.missionsService.complete(id, session.user.id, body.photoUrl, body.note);
   }
 
   @Get('volunteers')
