@@ -199,10 +199,12 @@ const createStyles = (colors: ColorScheme) =>
       alignItems: 'flex-start',
     },
     rowUnread: { borderColor: colors.primaryGreen },
+    // No icon/dot-size token this small exists — derived from SPACING.xxs
+    // rather than a bare literal so it still traces to the spacing scale.
     unreadDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: SPACING.xxs * 2,
+      height: SPACING.xxs * 2,
+      borderRadius: SPACING.xxs,
       backgroundColor: colors.primaryGreen,
       marginTop: SPACING.xxs,
     },

@@ -141,6 +141,9 @@ const createStyles = (colors: ColorScheme) =>
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.xs },
     title: { ...TYPE.bodyStrong, color: colors.textPrimary },
     count: { ...TYPE.caption, color: colors.textSecondary },
+    // 6px — deliberately thinner than any spacing token; this is a hairline
+    // progress-bar track, not a padding/margin/gap value the SPACING scale
+    // covers.
     progressTrack: {
       height: 6,
       borderRadius: RADIUS.pill,

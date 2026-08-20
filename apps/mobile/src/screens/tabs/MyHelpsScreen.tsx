@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMyMissions, type MyMission } from '@uthavu/libs-mobile/api/missions';
 import { formatTimeRemaining, getUrgencyTone } from '@uthavu/libs-mobile/lib/urgency';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
@@ -150,7 +150,7 @@ function MissionRow({
           {mission.title}
         </Text>
         <View style={[styles.badge, { backgroundColor: badge.fill, borderColor: badge.border }]}>
-          <Clock size={10} color={badge.fg} />
+          <Clock size={ICON_SIZE.xs} color={badge.fg} />
           <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
         </View>
       </View>
@@ -205,11 +205,11 @@ const createStyles = (colors: ColorScheme) =>
       flexDirection: 'row',
       alignItems: 'center',
       alignSelf: 'flex-start',
-      gap: 3,
+      gap: SPACING.xxs,
       borderWidth: 1,
       borderRadius: RADIUS.sm,
       paddingHorizontal: SPACING.xxs,
-      paddingVertical: 2,
+      paddingVertical: SPACING.xxs / 2,
       marginTop: SPACING.xs,
     },
     badgeText: { ...TYPE.caption, fontWeight: '700' },

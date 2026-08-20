@@ -164,6 +164,10 @@ const createStyles = (colors: ColorScheme) =>
     row: { paddingVertical: SPACING.xs, borderTopWidth: 1, borderTopColor: colors.border },
     rowHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs },
     authorName: { ...TYPE.captionStrong, color: colors.textPrimary },
+    // paddingVertical below the SPACING scale's floor (xxs=4) is deliberate —
+    // this badge sits inline with footnote-sized text and needs to stay
+    // visually flush with it; SPACING.xxs here would make it noticeably taller
+    // than the text next to it.
     reporterBadge: {
       backgroundColor: colors.primaryGreenLight,
       borderRadius: RADIUS.sm,
@@ -173,7 +177,13 @@ const createStyles = (colors: ColorScheme) =>
     reporterBadgeText: { ...TYPE.footnoteRegular, color: colors.primaryGreen },
     time: { ...TYPE.footnoteRegular, color: colors.textSecondary, marginLeft: 'auto' },
     body: { ...TYPE.body, color: colors.textPrimary, marginTop: SPACING.xxs },
-    flagButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.xxs, alignSelf: 'flex-start' },
+    flagButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xxs,
+      marginTop: SPACING.xxs,
+      alignSelf: 'flex-start',
+    },
     flagButtonText: { ...TYPE.footnoteRegular, color: colors.textSecondary },
     skeletonRow: { marginBottom: SPACING.xs },
     composerRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.sm, alignItems: 'center' },
