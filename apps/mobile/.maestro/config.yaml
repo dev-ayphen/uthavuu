@@ -1,0 +1,18 @@
+# Maestro workspace config for the mobile E2E suite.
+#
+# The `flows` glob deliberately matches only `flows/*.yaml` — the sub-flows
+# under `flows/utils/` are composed via `runFlow:` and are not runnable on
+# their own (they require env vars a parent flow supplies), so they must not
+# be picked up as top-level flows.
+flows:
+  - "flows/*.yaml"
+
+executionOrder:
+  # 01 and 02 exercise the UI end to end; 03 and 04 seed their setup over HTTP
+  # and test only the step they own. Ordering is for readability of the report —
+  # each flow provisions its own users, so none depends on an earlier one.
+  flowsOrder:
+    - 01-otp-login
+    - 02-report-a-request
+    - 03-accept-and-volunteer
+    - 04-complete-mission

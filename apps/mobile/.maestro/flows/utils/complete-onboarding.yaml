@@ -1,0 +1,39 @@
+appId: host.exp.Exponent
+---
+# Runs only after utils/login.yaml, and only for a brand-new phone number
+# (one that lands on Permissions, not straight on Home). Grants location +
+# notifications, then fills the one required Profile Setup field (full
+# name — everything else on that screen is optional per auth.md BR-5) and
+# submits. Requires FULL_NAME as an env var.
+#
+# Both permission rows are optional taps: clearKeychain resets the app's
+# own auth/session state but NOT OS-level permission grants (those live in
+# TCC, a separate store) — confirmed live, a simulator that already
+# granted these once (e.g. from earlier manual testing) shows both rows
+# already checked and disabled, which Maestro can't tap. A genuinely fresh
+# simulator/CI run would still see them enabled and grant them normally.
+- tapOn:
+    text: "Location Access"
+    optional: true
+- tapOn:
+    text: "Allow While Using App|OK|Allow"
+    optional: true
+- tapOn:
+    text: "Push Notifications"
+    optional: true
+- tapOn:
+    text: "Allow|OK"
+    optional: true
+- tapOn: "Continue"
+
+- waitForAnimationToEnd
+- tapOn: "Full name"
+- inputText: ${FULL_NAME}
+# hideKeyboard isn't supported on this screen's custom TextField (no
+# standard iOS dismiss action Maestro recognizes) — confirmed live.
+# Tapping a static, non-interactive element is Maestro's own documented
+# workaround.
+- tapOn: "Set up your profile"
+- scroll
+- tapOn: "Complete Profile"
+- waitForAnimationToEnd

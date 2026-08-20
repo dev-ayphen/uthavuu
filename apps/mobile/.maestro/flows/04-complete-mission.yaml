@@ -1,0 +1,76 @@
+appId: host.exp.Exponent
+---
+# Critical journey 4/4: an active volunteer completes a mission (proof
+# photo + note) and the report closes. Seeds a reporter + report + an
+# already-accepted-and-confirmed volunteer via HTTP (accept/confirm are
+# already covered by 03-accept-and-volunteer.yaml) so this flow stays
+# focused on completion. See ../README.md.
+- evalScript: ${output.reportTitle = 'Maestro complete test ' + Date.now()}
+
+- runScript:
+    file: utils/seed-user.js
+    env:
+      ROLE: reporter
+
+- runScript:
+    file: utils/seed-report.js
+    env:
+      REPORTER_TOKEN: ${output.reporterToken}
+      REPORT_TITLE: ${output.reportTitle}
+
+- runScript:
+    file: utils/seed-user.js
+    env:
+      ROLE: volunteer
+
+- runScript:
+    file: utils/accept-and-confirm.js
+    env:
+      REPORT_ID: ${output.reportId}
+      VOLUNTEER_TOKEN: ${output.volunteerToken}
+
+- runFlow:
+    file: utils/login.yaml
+    env:
+      PHONE_DIGITS: ${output.volunteerDigits}
+      EXPO_DEV_URL: ${EXPO_DEV_URL}
+
+- assertVisible: "Medical Help"
+- tapOn: "Medical Help"
+# The row's real accessibility label combines title + distance + time
+# into one string — same finding as 03-accept-and-volunteer.yaml. Also
+# scroll first: nothing cleans up reports seeded by earlier flow runs, so
+# this list grows over repeated runs and the newest report isn't always
+# in the initial viewport.
+- scrollUntilVisible:
+    element:
+      text: ".*${output.reportTitle}.*"
+    direction: DOWN
+- tapOn: ".*${output.reportTitle}.*"
+
+- assertVisible: "Complete Mission"
+- tapOn: "Complete Mission"
+
+# Same iOS Simulator camera caveat as 02-report-a-request.yaml — the
+# least-verified step in this suite. Real accessible label is
+# "Take completion photo" (accessibilityLabel differs from the rendered
+# "Take a photo" text — confirmed via a hierarchy dump).
+- tapOn: "Take completion photo"
+- tapOn:
+    text: "Allow|OK"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Take Picture"
+    optional: true
+- tapOn:
+    text: "Use Photo|Choose"
+    optional: true
+- waitForAnimationToEnd
+
+- tapOn: "Completion note"
+- inputText: "Delivered medical supplies. Seeded by a Maestro E2E flow."
+- hideKeyboard
+- tapOn: "Submit"
+
+- assertVisible: "Mission Completed"

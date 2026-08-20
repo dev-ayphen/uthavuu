@@ -1,0 +1,57 @@
+appId: host.exp.Exponent
+---
+# Critical journey 2/4: report a request end to end (category -> photo ->
+# details -> location -> privacy -> review -> publish). See ../README.md.
+- evalScript: ${output.phoneDigits = '8' + String(Date.now()).slice(-9)}
+
+- runFlow:
+    file: utils/login.yaml
+    env:
+      PHONE_DIGITS: ${output.phoneDigits}
+      EXPO_DEV_URL: ${EXPO_DEV_URL}
+
+- runFlow:
+    file: utils/complete-onboarding.yaml
+    env:
+      FULL_NAME: "Maestro Reporter"
+
+- tapOn: "Report a help request"
+- tapOn: "Medical Help"
+
+# Photo step — camera-only capture (report-a-request.md BR: a live photo
+# is required). Shutter button's real accessible name is "Take Picture"
+# (confirmed via a real screen-hierarchy dump — the class name
+# "PhotoCapture" shown there is not what Maestro's tapOn text selector
+# matches against, an earlier version of this flow guessed wrong).
+- tapOn: "Take a photo"
+- tapOn:
+    text: "Allow|OK"
+    optional: true
+- waitForAnimationToEnd
+- tapOn: "Take Picture"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Use Photo|Choose"
+    optional: true
+- waitForAnimationToEnd
+
+- tapOn: "Title"
+- inputText: "Maestro test — injured dog near the market"
+- tapOn: "Description"
+- inputText: "Seeded by the report-a-request Maestro flow. Safe to ignore/delete."
+- hideKeyboard
+- tapOn: "Next"
+
+# Location — auto-detected from the simulator's location (Features > Location
+# in the Simulator, or a scripted default); no input needed here.
+- tapOn: "Next"
+
+# Privacy — defaults are fine (not anonymous, phone private).
+- tapOn: "Next"
+
+- tapOn: "Publish Report"
+- assertVisible: "Report published"
+- tapOn: "OK"
+
+# Confirms the round trip actually worked, not just that the UI didn't crash.
+- assertVisible: "Maestro test — injured dog near the market"

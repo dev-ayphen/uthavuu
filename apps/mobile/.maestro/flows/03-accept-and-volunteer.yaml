@@ -1,0 +1,61 @@
+appId: host.exp.Exponent
+---
+# Critical journey 3/4: a volunteer discovers and accepts a request, then
+# confirms within the 15-minute window. Seeds a reporter + report via HTTP
+# (already covered by 02-report-a-request.yaml — no need to re-test report
+# creation here) so this flow stays focused on accept/confirm. See
+# ../README.md.
+- evalScript: ${output.reportTitle = 'Maestro accept test ' + Date.now()}
+
+- runScript:
+    file: utils/seed-user.js
+    env:
+      ROLE: reporter
+
+- runScript:
+    file: utils/seed-report.js
+    env:
+      REPORTER_TOKEN: ${output.reporterToken}
+      REPORT_TITLE: ${output.reportTitle}
+
+- runScript:
+    file: utils/seed-user.js
+    env:
+      ROLE: volunteer
+
+# The volunteer identity was fully onboarded via HTTP above, so logging in
+# through the UI lands straight on Home — no complete-onboarding sub-flow
+# needed here. seed-user.js already outputs the bare-digit form directly
+# (output.<role>Digits) — the UI field takes bare digits only, see
+# utils/login.yaml's own header comment.
+- runFlow:
+    file: utils/login.yaml
+    env:
+      PHONE_DIGITS: ${output.volunteerDigits}
+      EXPO_DEV_URL: ${EXPO_DEV_URL}
+
+- assertVisible: "Medical Help"
+- tapOn: "Medical Help"
+# The row's real accessibility label combines title + distance + time into
+# one string (e.g. "<title>, 0 km away, 6h left remaining") — confirmed
+# via a real screen-hierarchy dump. A bare-title selector doesn't match a
+# label it's only a prefix of; wildcard both sides to match regardless of
+# the distance/time suffix's exact (time-dependent) wording.
+# Nothing cleans up reports seeded by earlier flow runs, so this list
+# grows over repeated runs and the newest report isn't always in the
+# initial viewport — scroll to find it rather than assuming it's visible.
+- scrollUntilVisible:
+    element:
+      text: ".*${output.reportTitle}.*"
+    direction: DOWN
+- tapOn: ".*${output.reportTitle}.*"
+
+- assertVisible: "I'll Help"
+- tapOn: "I'll Help"
+- assertVisible: "Start Helping"
+- tapOn: "Start Helping"
+# Real text is emoji-prefixed ("🟢 You're helping with this mission.") —
+# confirmed via hierarchy dump. Maestro's plain-string match requires a
+# full match, not substring, same root cause as the report-row selector
+# above — wildcard both sides.
+- assertVisible: ".*You're helping with this mission.*"

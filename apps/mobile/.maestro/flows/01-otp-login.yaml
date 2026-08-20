@@ -1,0 +1,20 @@
+appId: host.exp.Exponent
+---
+# Critical journey 1/4: OTP login, first-time signup through Profile Setup
+# to Home. See ../README.md for how to set EXPO_DEV_URL and run this.
+- evalScript: ${output.phoneDigits = '9' + String(Date.now()).slice(-9)}
+
+- runFlow:
+    file: utils/login.yaml
+    env:
+      PHONE_DIGITS: ${output.phoneDigits}
+      EXPO_DEV_URL: ${EXPO_DEV_URL}
+
+- runFlow:
+    file: utils/complete-onboarding.yaml
+    env:
+      FULL_NAME: "Maestro Login Test"
+
+# A category card is only rendered on the real Home/Dashboard screen —
+# confirms onboarding completed and we actually landed there.
+- assertVisible: "Medical Help"

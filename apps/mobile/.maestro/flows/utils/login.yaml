@@ -1,0 +1,54 @@
+appId: host.exp.Exponent
+---
+# Shared login sub-flow — composed via `runFlow: utils/login.yaml` from any
+# top-level flow that needs to start authenticated. Requires:
+#   PHONE_DIGITS - bare 10-digit number, e.g. 9876543210. The phone field
+#                  on LoginScreen is bare digits only (maxLength=10) — the
+#                  screen itself prepends +91 at the API boundary
+#                  (libs-mobile/api/auth.ts's toE164()), never store or
+#                  type a +91-prefixed string into this field directly.
+#   EXPO_DEV_URL - the exp:// URL Expo Go should open (see ../../README.md)
+- launchApp:
+    clearKeychain: true
+- openLink: ${EXPO_DEV_URL}
+
+# Expo Go only starts fetching and executing the JS bundle once the deep
+# link resolves, and SplashScreen then holds for MIN_DISPLAY_MS on top of
+# that — a cold start is tens of seconds. `waitForAnimationToEnd` does not
+# cover it (there is no animation running while Metro is still bundling),
+# so this needs an explicit gate. Without one every step below races the
+# loading screen and the failure surfaces much further down as a confusing
+# "Phone number not found" — observed live before this wait was added.
+- extendedWaitUntil:
+    visible: "Skip onboarding"
+    timeout: 120000
+
+# `clearKeychain: true` wipes uthavu_onboarding_seen, which lives in
+# SecureStore/Keychain (libs-mobile/lib/session.ts), so SplashScreen always
+# routes to the Onboarding carousel here. That makes this a deterministic
+# step, not an optional branch — if it ever stops appearing, something
+# genuinely regressed and the flow should fail loudly.
+#
+# The selector is the accessibility label "Skip onboarding", not the
+# visible "Skip" text alone — confirmed via a real screen-hierarchy dump.
+# Don't "simplify" it back to "Skip".
+- tapOn: "Skip onboarding"
+- waitForAnimationToEnd
+
+- tapOn: "Phone number"
+- inputText: ${PHONE_DIGITS}
+- tapOn: "Continue"
+
+- evalScript: ${output.fullPhone = '+91' + PHONE_DIGITS}
+- runScript:
+    file: get-otp.js
+    env:
+      PHONE: ${output.fullPhone}
+
+- tapOn: "6-digit verification code"
+- inputText: ${output.otpCode}
+- waitForAnimationToEnd
+
+# Lands on Permissions (fresh number) or Home (returning, already-onboarded
+# number) — the flows that build on this one branch from here rather than
+# this sub-flow assuming a specific destination.
