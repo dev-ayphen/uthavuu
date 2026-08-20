@@ -38,7 +38,12 @@ export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
               </View>
             )}
             {photo.error ? (
-              <TouchableOpacity style={styles.overlay} onPress={() => onRemove(index)}>
+              <TouchableOpacity
+                style={styles.overlay}
+                onPress={() => onRemove(index)}
+                accessibilityRole="button"
+                accessibilityLabel={`Upload failed: ${photo.error}. Double tap to remove.`}
+              >
                 <Text style={styles.errorText} numberOfLines={2}>
                   {photo.error} — tap to remove
                 </Text>

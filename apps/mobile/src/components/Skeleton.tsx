@@ -36,7 +36,13 @@ export default function Skeleton({ width = '100%', height = 16, borderRadius = R
     return () => loop.stop();
   }, [opacity]);
 
-  return <Animated.View style={[styles.block, { width, height, borderRadius, opacity }, style]} />;
+  return (
+    <Animated.View
+      style={[styles.block, { width, height, borderRadius, opacity }, style]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    />
+  );
 }
 
 const createStyles = (colors: ColorScheme) =>

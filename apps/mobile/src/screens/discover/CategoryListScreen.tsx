@@ -105,7 +105,13 @@ function ReportRow({
   const toneStyle = TONES[tone];
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} accessibilityRole="button">
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${report.title}, ${report.distanceKm} km away, ${formatTimeRemaining(report.expiryAt)} remaining`}
+      accessibilityHint="View request details"
+    >
       {report.photos[0] ? (
         <Image source={{ uri: report.photos[0] }} style={styles.photo} />
       ) : (

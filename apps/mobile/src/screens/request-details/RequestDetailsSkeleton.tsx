@@ -18,7 +18,7 @@ export default function RequestDetailsSkeleton() {
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Skeleton width="100%" height={220} borderRadius={0} />
       <View style={styles.content}>
         <Skeleton width={100} height={11} />

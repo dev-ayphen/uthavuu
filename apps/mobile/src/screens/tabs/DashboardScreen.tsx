@@ -169,6 +169,8 @@ export default function DashboardScreen() {
           style={styles.locationRow}
           onPress={() => setRadiusModalOpen(true)}
           accessibilityRole="button"
+          accessibilityLabel={`${displayCity}${displayDistrict ? `, ${displayDistrict}` : ''}. Search radius ${radius} kilometers.`}
+          accessibilityHint="Change search radius"
         >
           {exploring ? (
             <Globe size={14} color={COLORS.info} />
@@ -198,7 +200,11 @@ export default function DashboardScreen() {
             <Text style={styles.exploringBannerText}>
               🌍 Exploring {exploring.city} — not your current location
             </Text>
-            <TouchableOpacity onPress={() => setExploring(null)}>
+            <TouchableOpacity
+              onPress={() => setExploring(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Reset to current location"
+            >
               <Text style={styles.exploringReset}>Reset</Text>
             </TouchableOpacity>
           </View>
@@ -263,6 +269,9 @@ export default function DashboardScreen() {
                   key={km}
                   style={[styles.radiusOption, radius === km && styles.radiusOptionActive]}
                   onPress={() => radiusMutation.mutate(km)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${km} kilometers`}
+                  accessibilityState={{ selected: radius === km }}
                 >
                   <Text style={[styles.radiusOptionText, radius === km && styles.radiusOptionTextActive]}>
                     {km} km
@@ -276,11 +285,18 @@ export default function DashboardScreen() {
                 setRadiusModalOpen(false);
                 setExploreModalOpen(true);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Explore another location"
             >
               <Compass size={ICON_SIZE.sm} color={colors.primaryGreen} />
               <Text style={styles.exploreButtonText}>Explore Another Location</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.doneButton} onPress={() => setRadiusModalOpen(false)}>
+            <TouchableOpacity
+              style={styles.doneButton}
+              onPress={() => setRadiusModalOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+            >
               <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </TouchableOpacity>
@@ -302,6 +318,7 @@ export default function DashboardScreen() {
                 onChangeText={setSearchQuery}
                 onSubmitEditing={onSearchLocation}
                 returnKeyType="search"
+                accessibilityLabel="Search a location"
               />
               {searching && <ActivityIndicator size="small" color={colors.primaryGreen} />}
             </View>
@@ -309,6 +326,8 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[styles.doneButton, styles.cancelButtonSpacing]}
               onPress={() => setExploreModalOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
             >
               <Text style={styles.doneButtonText}>Cancel</Text>
             </TouchableOpacity>

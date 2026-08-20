@@ -30,6 +30,8 @@ export default function ToggleRow({ label, subtitle, value, onValueChange, style
         onValueChange={onValueChange}
         trackColor={{ false: colors.border, true: colors.primaryGreen }}
         thumbColor={colors.textOnTint}
+        accessibilityLabel={label}
+        accessibilityHint={subtitle}
       />
     </View>
   );

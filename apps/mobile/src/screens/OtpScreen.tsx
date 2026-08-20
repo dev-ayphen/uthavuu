@@ -110,14 +110,20 @@ export default function OtpScreen({ navigation, route }: Props) {
       </Text>
 
       <Pressable style={styles.boxRow} onPress={() => inputRef.current?.focus()}>
-        {Array.from({ length: CODE_LENGTH }).map((_, index) => {
-          const isNextToFill = focused && index === code.length;
-          return (
-            <View key={index} style={[styles.box, isNextToFill && styles.boxFocused]}>
-              <Text style={styles.boxText}>{code[index] ?? ''}</Text>
-            </View>
-          );
-        })}
+        <View
+          style={styles.boxesLayer}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          {Array.from({ length: CODE_LENGTH }).map((_, index) => {
+            const isNextToFill = focused && index === code.length;
+            return (
+              <View key={index} style={[styles.box, isNextToFill && styles.boxFocused]}>
+                <Text style={styles.boxText}>{code[index] ?? ''}</Text>
+              </View>
+            );
+          })}
+        </View>
         <TextInput
           ref={inputRef}
           style={styles.hiddenInput}
@@ -131,6 +137,7 @@ export default function OtpScreen({ navigation, route }: Props) {
           autoComplete="one-time-code"
           caretHidden
           autoFocus
+          accessibilityLabel="6-digit verification code"
         />
       </Pressable>
 
@@ -143,7 +150,13 @@ export default function OtpScreen({ navigation, route }: Props) {
             <Text style={styles.timerDigits}>00:{timer.toString().padStart(2, '0')}</Text>
           </Text>
         ) : (
-          <TouchableOpacity onPress={onResend} disabled={resending}>
+          <TouchableOpacity
+            onPress={onResend}
+            disabled={resending}
+            accessibilityRole="button"
+            accessibilityLabel="Resend code"
+            accessibilityState={{ disabled: resending }}
+          >
             <Text style={styles.resendLink}>{resending ? 'Sending…' : 'Resend Code'}</Text>
           </TouchableOpacity>
         )}
@@ -169,6 +182,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     title: { ...TYPE.heroTitle, color: colors.textPrimary, marginBottom: SPACING.xs },
     subtitle: { ...TYPE.headline, color: colors.textSecondary, marginBottom: SPACING.xxl },
     boxRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.md, position: 'relative' },
+    boxesLayer: { flexDirection: 'row', justifyContent: 'space-between', flex: 1 },
     box: {
       width: 45,
       height: 56,
