@@ -10,8 +10,8 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import { getMe } from '@uthavu/libs-mobile/api/users';
+import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { getMe, getMyStats } from '@uthavu/libs-mobile/api/users';
 import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
 import { clearToken } from '@uthavu/libs-mobile/lib/session';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
@@ -32,10 +32,17 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
 
   const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  // Non-fatal secondary query, same treatment as DashboardScreen's `summary`:
+  // `me` is what this screen can't render without; a failed stats fetch just
+  // means the stats row doesn't show, not a full-screen error.
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+    queryKey: ['myStats'],
+    queryFn: getMyStats,
+  });
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchStats()]);
     setRefreshing(false);
   };
 
@@ -83,6 +90,30 @@ export default function ProfileScreen() {
       <Text style={styles.phone}>{me?.phoneNumber}</Text>
       {me?.city ? <Text style={styles.location}>{me.city}, {me.district}</Text> : null}
 
+      {statsLoading ? (
+        <View style={styles.statsRow}>
+          <Skeleton width={70} height={36} />
+          <View style={styles.statsDivider} />
+          <Skeleton width={70} height={36} />
+        </View>
+      ) : stats ? (
+        <View
+          style={styles.statsRow}
+          accessible
+          accessibilityLabel={`${stats.reportsCount} reports posted, ${stats.missionsCount} missions joined`}
+        >
+          <View style={styles.statCell}>
+            <Text style={styles.statValue}>{stats.reportsCount}</Text>
+            <Text style={styles.statLabel}>Reports Posted</Text>
+          </View>
+          <View style={styles.statsDivider} />
+          <View style={styles.statCell}>
+            <Text style={styles.statValue}>{stats.missionsCount}</Text>
+            <Text style={styles.statLabel}>Missions Joined</Text>
+          </View>
+        </View>
+      ) : null}
+
       <Button
         label="Edit Profile"
         variant="secondary"
@@ -126,6 +157,22 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     phone: { ...TYPE.subhead, color: colors.textSecondary, marginTop: SPACING.xxs },
     location: { ...TYPE.body, color: colors.textSecondary, marginTop: 2 },
     skeletonLine: { marginTop: SPACING.xs },
+    statsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.lg,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.xl,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.xl,
+      gap: SPACING.xl,
+    },
+    statCell: { alignItems: 'center', minWidth: 90 },
+    statValue: { ...TYPE.title, color: colors.textPrimary },
+    statLabel: { ...TYPE.caption, color: colors.textSecondary, marginTop: SPACING.xxs },
+    statsDivider: { width: 1, height: 32, backgroundColor: colors.border },
     editButton: { marginTop: SPACING.xl, paddingHorizontal: SPACING.xl },
     logoutButton: { marginTop: SPACING.md, paddingHorizontal: SPACING.xl },
   });

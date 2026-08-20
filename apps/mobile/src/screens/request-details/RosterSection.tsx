@@ -62,6 +62,20 @@ export default function RosterSection({ reportId, report, roster }: Props) {
         </Text>
       </View>
 
+      <View
+        style={styles.progressTrack}
+        accessibilityRole="progressbar"
+        accessibilityLabel={`${activeCount} of ${roster.neededVolunteers} volunteers joined`}
+        accessibilityValue={{ min: 0, max: roster.neededVolunteers, now: activeCount }}
+      >
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${Math.min(100, (activeCount / roster.neededVolunteers) * 100)}%` },
+          ]}
+        />
+      </View>
+
       {roster.volunteers.map((v) => (
         <View key={v.id} style={[styles.row, v.status === 'released' && styles.rowReleased]}>
           <Avatar uri={v.avatarUrl} label={v.name} size={32} />
@@ -127,6 +141,18 @@ const createStyles = (colors: ColorScheme) =>
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.xs },
     title: { ...TYPE.bodyStrong, color: colors.textPrimary },
     count: { ...TYPE.caption, color: colors.textSecondary },
+    progressTrack: {
+      height: 6,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.border,
+      overflow: 'hidden',
+      marginBottom: SPACING.sm,
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.primaryGreen,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

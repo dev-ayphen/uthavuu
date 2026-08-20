@@ -15,6 +15,7 @@ import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import RosterSection from './RosterSection';
 import MissionChat from './MissionChat';
+import CommunityComments from './CommunityComments';
 import RequestDetailsSkeleton from './RequestDetailsSkeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
@@ -129,6 +130,8 @@ export default function RequestDetailsScreen({ route }: Props) {
             </Text>
           </View>
         )}
+
+        <CommunityComments reportId={reportId} />
       </View>
     </ScrollView>
   );
