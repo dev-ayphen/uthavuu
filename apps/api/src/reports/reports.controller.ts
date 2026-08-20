@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { auth } from '../auth/auth';
 import { ReportsService } from './reports.service';
@@ -59,5 +59,15 @@ export class ReportsController {
   @Post(':id/close')
   close(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
     return this.reportsService.close(id, session.user.id);
+  }
+
+  @Post(':id/like')
+  like(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+    return this.reportsService.like(id, session.user.id);
+  }
+
+  @Delete(':id/like')
+  unlike(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+    return this.reportsService.unlike(id, session.user.id);
   }
 }
