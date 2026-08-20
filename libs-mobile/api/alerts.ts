@@ -1,7 +1,7 @@
 // Matches apps/api/src/alerts/*.
 import { apiRequest } from '../lib/api';
 
-export type AlertType = 'volunteer_accepted' | 'volunteer_released';
+export type AlertType = 'volunteer_accepted' | 'volunteer_released' | 'mission_completed';
 
 export type Alert = {
   id: string;

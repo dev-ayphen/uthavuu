@@ -1,11 +1,21 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
-import { missionMessages, missionVolunteerStatuses, missionVolunteers, missions } from '../db/schema/missions-schema';
+import {
+  missionCompletions,
+  missionCompletionStatuses,
+  missionMessages,
+  missionVolunteerStatuses,
+  missionVolunteers,
+  missions,
+} from '../db/schema/missions-schema';
 import { AlertsService } from '../alerts/alerts.service';
+import { UPLOADS_DIR } from '../uploads/multer.config';
 
 type VolunteerStatusKey = 'joined' | 'active' | 'released';
 
@@ -35,6 +45,7 @@ type RosterResponse = {
   volunteers: RosterVolunteer[];
   myStatus: VolunteerStatusKey | null;
   myConfirmDeadline: string | null;
+  completion: { photoUrl: string; note: string; verifiedAt: string } | null;
 };
 
 const CONFIRM_WINDOW_MS = 15 * 60_000;
@@ -50,6 +61,35 @@ export class MissionsService {
       .where(eq(missionVolunteerStatuses.key, key));
     if (!status) throw new Error(`mission_volunteer_statuses row missing for key "${key}" — did db:seed run?`);
     return status.id;
+  }
+
+  private async getReportStatusIdByKey(key: 'open' | 'closed' | 'expired' | 'completed'): Promise<string> {
+    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, key));
+    if (!status) throw new Error(`report_statuses row missing for key "${key}" — did db:seed run?`);
+    return status.id;
+  }
+
+  private async getCompletionStatusIdByKey(
+    key: 'submitted' | 'waiting_verification' | 'verified'
+  ): Promise<string> {
+    const [status] = await db
+      .select()
+      .from(missionCompletionStatuses)
+      .where(eq(missionCompletionStatuses.key, key));
+    if (!status) throw new Error(`mission_completion_statuses row missing for key "${key}" — did db:seed run?`);
+    return status.id;
+  }
+
+  // BR-3: real verification, not fabricated ML content analysis — confirms
+  // the submitted photo actually came from this app's own upload store
+  // (matches the URL shape POST /uploads returns, and the file genuinely
+  // exists on disk) rather than trusting an arbitrary client-supplied URL.
+  private isGenuineUpload(photoUrl: string): boolean {
+    const prefix = `${process.env.BETTER_AUTH_URL}/uploads/`;
+    if (!photoUrl.startsWith(prefix)) return false;
+    const filename = photoUrl.slice(prefix.length);
+    if (!filename || filename.includes('/') || filename.includes('..')) return false;
+    return existsSync(join(UPLOADS_DIR, filename));
   }
 
   private async getOrCreateMission(reportId: string): Promise<string> {
@@ -207,13 +247,75 @@ export class MissionsService {
     return this.getRoster(reportId, volunteerId);
   }
 
+  // docs/features/mission-completion.md US-1/US-2/BR-1..BR-6.
+  async complete(reportId: string, volunteerId: string, photoUrl: string, note: string): Promise<RosterResponse> {
+    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+    if (!report) throw new NotFoundException('Report not found');
+    if (report.reporterId === volunteerId) {
+      throw new BadRequestException('You cannot complete your own report');
+    }
+
+    const missionId = await this.requireMissionId(reportId);
+    const rows = await this.expireStaleAndListVolunteers(missionId);
+    const mine = rows.find((r) => r.mv.volunteerId === volunteerId);
+    if (!mine || mine.status.key !== 'active') {
+      throw new BadRequestException('You must be an active volunteer on this mission to complete it');
+    }
+
+    const [existingCompletion] = await db
+      .select()
+      .from(missionCompletions)
+      .where(eq(missionCompletions.missionId, missionId));
+    if (existingCompletion) {
+      throw new BadRequestException('This mission has already been completed');
+    }
+
+    if (!this.isGenuineUpload(photoUrl)) {
+      throw new BadRequestException('The completion photo must be one uploaded through this app');
+    }
+
+    const verifiedStatusId = await this.getCompletionStatusIdByKey('verified');
+    const completedReportStatusId = await this.getReportStatusIdByKey('completed');
+    const now = new Date();
+
+    await db.insert(missionCompletions).values({
+      id: uuidv7(),
+      missionId,
+      completedById: volunteerId,
+      photoUrl,
+      note,
+      statusId: verifiedStatusId,
+      submittedAt: now,
+      verifiedAt: now,
+    });
+
+    await db.update(reports).set({ statusId: completedReportStatusId, closedAt: now }).where(eq(reports.id, reportId));
+
+    const [volunteer] = await db.select().from(user).where(eq(user.id, volunteerId));
+    await this.alertsService.create(
+      report.reporterId,
+      'mission_completed',
+      'Mission Completed',
+      `${volunteer?.name ?? 'A volunteer'} marked "${report.title}" as complete.`,
+      reportId
+    );
+
+    return this.getRoster(reportId, volunteerId);
+  }
+
   async getRoster(reportId: string, requestingUserId: string): Promise<RosterResponse> {
     const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
     if (!report) throw new NotFoundException('Report not found');
 
     const missionId = await this.findMissionId(reportId);
     if (!missionId) {
-      return { neededVolunteers: report.neededVolunteers, volunteers: [], myStatus: null, myConfirmDeadline: null };
+      return {
+        neededVolunteers: report.neededVolunteers,
+        volunteers: [],
+        myStatus: null,
+        myConfirmDeadline: null,
+        completion: null,
+      };
     }
 
     const rows = await this.expireStaleAndListVolunteers(missionId);
@@ -223,6 +325,11 @@ export class MissionsService {
       : [];
     const userById = new Map(volunteerUsers.map((u) => [u.id, u]));
     const mine = rows.find((r) => r.mv.volunteerId === requestingUserId);
+
+    const [completionRow] = await db
+      .select()
+      .from(missionCompletions)
+      .where(eq(missionCompletions.missionId, missionId));
 
     return {
       neededVolunteers: report.neededVolunteers,
@@ -237,6 +344,9 @@ export class MissionsService {
       })),
       myStatus: mine ? (mine.status.key as VolunteerStatusKey) : null,
       myConfirmDeadline: mine && mine.status.key === 'joined' ? mine.mv.confirmDeadline.toISOString() : null,
+      completion: completionRow
+        ? { photoUrl: completionRow.photoUrl, note: completionRow.note, verifiedAt: completionRow.verifiedAt!.toISOString() }
+        : null,
     };
   }
 
@@ -268,6 +378,15 @@ export class MissionsService {
     if (!(await this.hasActiveAccess(reportId, senderId))) {
       throw new ForbiddenException('You need to accept this request to post in Mission Chat');
     }
+
+    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+    if (report) {
+      const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, report.statusId));
+      if (status?.key === 'completed') {
+        throw new ForbiddenException('This mission is complete — Mission Chat is read-only');
+      }
+    }
+
     const missionId = await this.requireMissionId(reportId);
     await db.insert(missionMessages).values({ id: uuidv7(), missionId, senderId, body });
     return this.listMessages(reportId, senderId);

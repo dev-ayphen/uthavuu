@@ -6,7 +6,7 @@ import { alerts } from '../db/schema/alerts-schema';
 
 // Known type tags — not DB-enforced (see alerts-schema.ts), just documented
 // here so callers stay consistent.
-export type AlertType = 'volunteer_accepted' | 'volunteer_released';
+export type AlertType = 'volunteer_accepted' | 'volunteer_released' | 'mission_completed';
 
 @Injectable()
 export class AlertsService {
