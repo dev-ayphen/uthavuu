@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { writeFileSync, unlinkSync } from 'fs';
+import { join } from 'path';
 import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
@@ -7,6 +9,7 @@ import { reportCategories, reportStatuses, reports } from '../db/schema/reports-
 import { missionVolunteers, missions } from '../db/schema/missions-schema';
 import { MissionsService } from './missions.service';
 import { AlertsService } from '../alerts/alerts.service';
+import { UPLOADS_DIR } from '../uploads/multer.config';
 
 describe('MissionsService', () => {
   const service = new MissionsService(new AlertsService());
@@ -134,5 +137,99 @@ describe('MissionsService', () => {
     await expect(service.sendMessage(reportId, volunteerAId, 'still there?')).rejects.toThrow(
       'You need to accept this request'
     );
+  });
+
+  describe('complete()', () => {
+    const fixtureFilename = 'test-completion-photo.jpg';
+    const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
+
+    beforeAll(() => {
+      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    });
+
+    afterAll(() => {
+      unlinkSync(join(UPLOADS_DIR, fixtureFilename));
+    });
+
+    it('rejects a volunteer who is only joined, not active', async () => {
+      await service.accept(reportId, volunteerAId);
+      await expect(service.complete(reportId, volunteerAId, fixturePhotoUrl, 'done')).rejects.toThrow(
+        'You must be an active volunteer'
+      );
+    });
+
+    it('rejects the reporter completing their own report', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+      await expect(service.complete(reportId, reporterId, fixturePhotoUrl, 'done')).rejects.toThrow(
+        'cannot complete your own report'
+      );
+    });
+
+    it('rejects a photoUrl that was never actually uploaded', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+      await expect(
+        service.complete(
+          reportId,
+          volunteerAId,
+          `${process.env.BETTER_AUTH_URL}/uploads/nonexistent-${uuidv7()}.jpg`,
+          'done'
+        )
+      ).rejects.toThrow('must be one uploaded through this app');
+    });
+
+    it('completes successfully with a real upload and closes the report', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+
+      const roster = await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'Delivered the packets.');
+      expect(roster.completion).toEqual({
+        photoUrl: fixturePhotoUrl,
+        note: 'Delivered the packets.',
+        verifiedAt: expect.any(String),
+      });
+
+      const [updatedReport] = await db.select().from(reports).where(eq(reports.id, reportId));
+      const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, updatedReport.statusId));
+      expect(status.key).toBe('completed');
+      expect(updatedReport.closedAt).not.toBeNull();
+    });
+
+    it('rejects completing an already-completed mission', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+      await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'first completion');
+
+      await expect(service.complete(reportId, volunteerAId, fixturePhotoUrl, 'again')).rejects.toThrow(
+        'already been completed'
+      );
+    });
+  });
+
+  describe('sendMessage() after completion', () => {
+    const fixtureFilename = 'test-completion-photo-2.jpg';
+    const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
+
+    beforeAll(() => {
+      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    });
+
+    afterAll(() => {
+      unlinkSync(join(UPLOADS_DIR, fixtureFilename));
+    });
+
+    it('rejects sending once the report is completed, but still allows reading', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+      await service.sendMessage(reportId, volunteerAId, 'before completion');
+      await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'done');
+
+      await expect(service.sendMessage(reportId, volunteerAId, 'after completion')).rejects.toThrow('read-only');
+
+      const messages = await service.listMessages(reportId, volunteerAId);
+      expect(messages).toHaveLength(1);
+      expect(messages[0].body).toBe('before completion');
+    });
   });
 });
