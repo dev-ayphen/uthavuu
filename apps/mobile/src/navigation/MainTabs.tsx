@@ -3,11 +3,13 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Bell, Heart, Home, Plus, User } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 import type { MainTabParamList } from './tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { registerForPushNotifications } from '@uthavu/libs-mobile/lib/push';
+import { getAlerts } from '@uthavu/libs-mobile/api/alerts';
 import DashboardScreen from '../screens/tabs/DashboardScreen';
 import MyHelpsScreen from '../screens/tabs/MyHelpsScreen';
 import ReportCategoryScreen from '../screens/report/ReportCategoryScreen';
@@ -30,6 +32,12 @@ export default function MainTabs() {
   useEffect(() => {
     registerForPushNotifications();
   }, []);
+
+  // Same ['alerts'] query key AlertsScreen uses — shares its cache, so
+  // opening the tab doesn't trigger a second fetch and the badge updates
+  // the moment AlertsScreen's own query resolves (e.g. after mark-all-read).
+  const { data: alerts } = useQuery({ queryKey: ['alerts'], queryFn: getAlerts });
+  const unreadCount = alerts?.filter((a) => !a.read).length ?? 0;
 
   return (
     <Tab.Navigator
@@ -86,6 +94,8 @@ export default function MainTabs() {
         component={AlertsScreen}
         options={{
           title: 'Alerts',
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.danger },
           tabBarIcon: ({ color, focused }) => (
             <Bell size={22} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
