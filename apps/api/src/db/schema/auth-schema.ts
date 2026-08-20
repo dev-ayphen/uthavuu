@@ -40,6 +40,10 @@ export const user = pgTable("user", {
   organization: text("organization"),
   showProfession: boolean("show_profession").default(true),
   avatarUrl: text("avatar_url"),
+  // 'en' | 'ta' — see the locale note in ../../auth/auth.ts. Not a lookup-table
+  // FK: the valid values are whichever locales the message catalog ships, which
+  // is a code fact, not a data one.
+  locale: text("locale"),
 });
 
 export const session = pgTable(
