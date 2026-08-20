@@ -19,8 +19,11 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Session | Lane (`area:`) | Issue / branch | Working copy | Started |
 |---|---|---|---|---|
-| claude-code (this session) | mobile | board backlog, one-by-one — currently between items | main clone | 2026-08-20 |
-| uthavuu-db (peer, per `ListAgents`) | api (inferred from working-tree diff) | likely #9 (alert-templates.ts, update-locale.dto.ts, drizzle/0007_* present uncommitted) — unconfirmed, no row registered by that session itself | main clone (same working copy — no worktree split seen) | 2026-08-20 |
+| claude-code (this session) | mobile+api | #2 Impact Story — executing docs/superpowers/plans/2026-08-20-impact-story.md | main clone | 2026-08-20 |
+| uthavuu-e9 (per uthavuu-db, relayed — not directly visible to this session's `ListAgents`) | api | #9, backend alert-content i18n (alert-templates.ts, update-locale.dto.ts, auth-schema.ts, alerts-schema.ts, users.controller.ts/service.ts, libs-mobile/api/alerts.ts, en/ta tabs.json all dirty) | main clone (same working copy — no worktree split) | 2026-08-20 |
+| uthavuu-db (per `ListAgents`, socket 82857) | none — CLI install fix + a docs question, explicitly zero file edits this session and staying off apps/api/, drizzle/, .maestro/, the dev DB, and the simulator | n/a | main clone | 2026-08-20 |
+
+**Correction (2026-08-20):** an earlier version of this row misattributed the #9/migration work to `uthavuu-db` — confirmed wrong by `uthavuu-db` itself. The real owner is `uthavuu-e9`, which this session cannot reach directly (not listed by its own `ListAgents`) — only via `uthavuu-db` relaying.
 
 ## Offset registry
 
@@ -38,7 +41,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | uthavuu-db (peer) | uncommitted `apps/api/drizzle/0007_blushing_katie_power.sql` seen in the working tree — claude-code session will not run `db:generate`/`db:migrate` until this is committed or released |
+| migration series | uthavuu-e9 (peer, see correction above) | uncommitted `apps/api/drizzle/0007_blushing_katie_power.sql` (adds `alerts.params` jsonb + `user.locale` text, per uthavuu-db's read of the file) — claude-code session has a `report_likes` table ready (schema written, not yet migrated) and will not run `db:generate`/`db:migrate` until 0007 is committed or e9 confirms it's safe |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
