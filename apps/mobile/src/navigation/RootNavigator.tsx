@@ -11,6 +11,7 @@ import MainTabs from './MainTabs';
 import ReportFlowScreen from '../screens/report/ReportFlowScreen';
 import CategoryListScreen from '../screens/discover/CategoryListScreen';
 import RequestDetailsScreen from '../screens/request-details/RequestDetailsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -38,6 +39,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="RequestDetails"
           component={RequestDetailsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

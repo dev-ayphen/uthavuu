@@ -8,6 +8,7 @@ export type RootStackParamList = {
   Permissions: undefined;
   ProfileSetup: { lat: number; lng: number; city: string; district: string };
   MainTabs: undefined;
+  EditProfile: undefined;
   ReportFlow: { categoryKey: CategoryId };
   CategoryList: {
     categoryKey: CategoryId;

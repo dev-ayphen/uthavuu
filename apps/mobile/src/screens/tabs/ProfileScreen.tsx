@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LogOut } from 'lucide-react-native';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { LogOut, Pencil } from 'lucide-react-native';
+import { useNavigation, CommonActions, type CompositeNavigationProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { RootStackParamList } from '../../navigation/types';
+import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -19,7 +23,12 @@ export default function ProfileScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
-  const navigation = useNavigation();
+  const navigation = useNavigation<
+    CompositeNavigationProp<
+      BottomTabNavigationProp<MainTabParamList>,
+      NativeStackNavigationProp<RootStackParamList>
+    >
+  >();
   const queryClient = useQueryClient();
 
   const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
@@ -75,6 +84,14 @@ export default function ProfileScreen() {
       {me?.city ? <Text style={styles.location}>{me.city}, {me.district}</Text> : null}
 
       <Button
+        label="Edit Profile"
+        variant="secondary"
+        icon={<Pencil size={ICON_SIZE.sm} color={colors.textPrimary} />}
+        onPress={() => navigation.navigate('EditProfile')}
+        style={styles.editButton}
+      />
+
+      <Button
         label={logoutMutation.isPending ? 'Logging out…' : 'Log out'}
         variant="dangerOutline"
         icon={<LogOut size={ICON_SIZE.sm} color={colors.danger} />}
@@ -101,5 +118,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     phone: { ...TYPE.subhead, color: colors.textSecondary, marginTop: SPACING.xxs },
     location: { ...TYPE.body, color: colors.textSecondary, marginTop: 2 },
     skeletonLine: { marginTop: SPACING.xs },
-    logoutButton: { marginTop: SPACING.xxl, paddingHorizontal: SPACING.xl },
+    editButton: { marginTop: SPACING.xl, paddingHorizontal: SPACING.xl },
+    logoutButton: { marginTop: SPACING.md, paddingHorizontal: SPACING.xl },
   });
