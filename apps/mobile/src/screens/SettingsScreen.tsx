@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Bell, Check, Info, Laptop, Moon, Sun } from 'lucide-react-native';
+import { Bell, Check, Info, Languages, Laptop, Moon, Sun } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -8,6 +8,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme, type ThemeMode } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { useAppLocale } from '@uthavu/libs-mobile/i18n/useAppLocale';
+import type { AppLocale } from '@uthavu/libs-mobile/i18n';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import Button from '@uthavu/libs-mobile/components/Button';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
@@ -20,8 +22,14 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
   { mode: 'dark', label: 'Dark', icon: Moon },
 ];
 
+const LANGUAGE_OPTIONS: { locale: AppLocale; label: string }[] = [
+  { locale: 'en', label: 'English' },
+  { locale: 'ta', label: 'தமிழ்' },
+];
+
 export default function SettingsScreen(_props: Props) {
   const { colors, mode, setMode } = useTheme();
+  const { locale, setLocale } = useAppLocale();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
@@ -56,6 +64,29 @@ export default function SettingsScreen(_props: Props) {
             >
               <View style={styles.iconBox}>
                 <Icon size={ICON_SIZE.md} color={selected ? colors.primaryGreen : colors.textSecondary} />
+              </View>
+              <Text style={styles.rowText}>{option.label}</Text>
+              {selected && <Check size={ICON_SIZE.sm} color={colors.primaryGreen} strokeWidth={3} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text style={styles.sectionLabel}>Language</Text>
+      <View style={styles.card}>
+        {LANGUAGE_OPTIONS.map((option, index) => {
+          const selected = locale === option.locale;
+          return (
+            <TouchableOpacity
+              key={option.locale}
+              style={[styles.row, index < LANGUAGE_OPTIONS.length - 1 && styles.rowDivider]}
+              onPress={() => setLocale(option.locale)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={option.label}
+            >
+              <View style={styles.iconBox}>
+                <Languages size={ICON_SIZE.md} color={selected ? colors.primaryGreen : colors.textSecondary} />
               </View>
               <Text style={styles.rowText}>{option.label}</Text>
               {selected && <Check size={ICON_SIZE.sm} color={colors.primaryGreen} strokeWidth={3} />}

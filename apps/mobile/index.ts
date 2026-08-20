@@ -1,3 +1,8 @@
+// Must load before anything touches i18next: Hermes still doesn't implement
+// Intl.PluralRules, and i18next v24+ has no fallback for it.
+import 'intl-pluralrules';
+import '@uthavu/libs-mobile/i18n';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

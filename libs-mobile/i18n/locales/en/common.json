@@ -1,0 +1,13 @@
+{
+  "cancel": "Cancel",
+  "save": "Save",
+  "saveChanges": "Save changes",
+  "retry": "Retry",
+  "loading": "Loading…",
+  "submit": "Submit",
+  "done": "Done",
+  "close": "Close",
+  "tryAgain": "Try again.",
+  "somethingWentWrong": "Something went wrong. Please try again.",
+  "noInternet": "You appear to be offline. Check your connection and try again."
+}
