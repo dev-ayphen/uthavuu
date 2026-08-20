@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -10,6 +10,7 @@ import { formatTimeRemaining } from '@uthavu/libs-mobile/lib/urgency';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Button from '@uthavu/libs-mobile/components/Button';
+import CompleteMissionSheet from './CompleteMissionSheet';
 
 type Props = {
   reportId: string;
@@ -25,6 +26,7 @@ export default function RosterSection({ reportId, report, roster }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
+  const [completeSheetOpen, setCompleteSheetOpen] = useState(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['roster', reportId] });
@@ -118,12 +120,27 @@ export default function RosterSection({ reportId, report, roster }: Props) {
         </View>
       )}
 
-      {roster.myStatus === 'active' && (
+      {roster.myStatus === 'active' && !roster.completion && (
         <View style={styles.confirmBox}>
           <Text style={styles.activeText}>🟢 You're helping with this mission.</Text>
+          <Button
+            label="Complete Mission"
+            onPress={() => setCompleteSheetOpen(true)}
+            style={styles.actionButton}
+          />
           <Button label="Leave Mission" variant="ghost" onPress={onLeave} loading={leaveMutation.isPending} />
         </View>
       )}
+
+      <CompleteMissionSheet
+        visible={completeSheetOpen}
+        reportId={reportId}
+        onClose={() => setCompleteSheetOpen(false)}
+        onComplete={() => {
+          setCompleteSheetOpen(false);
+          invalidate();
+        }}
+      />
     </View>
   );
 }
