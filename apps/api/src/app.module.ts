@@ -12,7 +12,14 @@ import { MissionsModule } from './missions/missions.module';
 import { DevicesModule } from './devices/devices.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { CommentsModule } from './comments/comments.module';
+import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
+
+// Mirrors auth.ts's own guard exactly — DevModule (the OTP-retrieval
+// endpoint Maestro E2E flows use) only ever exists alongside the dev OTP
+// fallback itself, never in production.
+const hasMsg91Credentials = Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_TEMPLATE_ID);
+const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'production';
 
 @Module({
   imports: [
@@ -31,6 +38,7 @@ import { auth } from './auth/auth';
     DevicesModule,
     AlertsModule,
     CommentsModule,
+    ...(devOtpFallbackActive ? [DevModule] : []),
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_PIPE, useClass: ZodValidationPipe }],
