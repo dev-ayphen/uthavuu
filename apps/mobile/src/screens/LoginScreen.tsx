@@ -12,12 +12,12 @@ import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { ICON_SIZE, SIZES, SPACING, TYPE } from '../theme/tokens';
-import type { ColorScheme } from '../theme/colors';
-import { useTheme } from '../theme/ThemeProvider';
-import { requestOtp } from '../api/auth';
-import { ApiError } from '../lib/api';
-import Button from '../components/Button';
+import { ICON_SIZE, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { requestOtp } from '@uthavu/libs-mobile/api/auth';
+import { ApiError } from '@uthavu/libs-mobile/lib/api';
+import Button from '@uthavu/libs-mobile/components/Button';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 

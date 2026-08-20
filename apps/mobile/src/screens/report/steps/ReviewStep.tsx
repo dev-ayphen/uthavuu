@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Clock, Eye, EyeOff, MapPin, Phone, PhoneOff } from 'lucide-react-native';
-import type { ColorScheme } from '../../../theme/colors';
-import { useTheme } from '../../../theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '../../../theme/tokens';
-import type { ReportCategory } from '../../../api/reports';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import type { ReportCategory } from '@uthavu/libs-mobile/api/reports';
 import type { ReportDraft } from '../reportDraft';
 import { formatExpiryMinutes } from '../reportDraft';
 

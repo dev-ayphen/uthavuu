@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { ColorScheme } from '../../../theme/colors';
-import { useTheme } from '../../../theme/ThemeProvider';
-import { SPACING, TYPE } from '../../../theme/tokens';
-import TextField from '../../../components/TextField';
-import ToggleRow from '../../../components/ToggleRow';
-import Stepper from '../../../components/Stepper';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import TextField from '@uthavu/libs-mobile/components/TextField';
+import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
+import Stepper from '@uthavu/libs-mobile/components/Stepper';
 
 type Props = {
   title: string;

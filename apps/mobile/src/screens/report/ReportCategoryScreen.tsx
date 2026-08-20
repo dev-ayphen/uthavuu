@@ -6,11 +6,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
-import type { ColorScheme } from '../../theme/colors';
-import { useTheme } from '../../theme/ThemeProvider';
-import { RADIUS, SPACING, TYPE } from '../../theme/tokens';
-import { CATEGORIES } from '../../data/categories';
-import Card from '../../components/Card';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
+import Card from '@uthavu/libs-mobile/components/Card';
 
 // docs/features/report-a-request.md US-1 — category selection is Step 1 (the
 // Report tab itself); picking one pushes ReportFlow for the rest. Disaster

@@ -3,14 +3,14 @@ import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { RADIUS, SIZES, SPACING, TYPE } from '../theme/tokens';
-import type { ColorScheme } from '../theme/colors';
-import { useTheme } from '../theme/ThemeProvider';
-import BackButton from '../components/BackButton';
-import Button from '../components/Button';
-import { requestOtp, verifyOtp, isProfileIncomplete } from '../api/auth';
-import { setToken } from '../lib/session';
-import { ApiError } from '../lib/api';
+import { RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import Button from '@uthavu/libs-mobile/components/Button';
+import { requestOtp, verifyOtp, isProfileIncomplete } from '@uthavu/libs-mobile/api/auth';
+import { setToken } from '@uthavu/libs-mobile/lib/session';
+import { ApiError } from '@uthavu/libs-mobile/lib/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Otp'>;
 

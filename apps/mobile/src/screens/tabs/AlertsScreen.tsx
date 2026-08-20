@@ -1,5 +1,5 @@
 import { Bell } from 'lucide-react-native';
-import { ComingSoon } from '../../components/ComingSoon';
+import { ComingSoon } from '@uthavu/libs-mobile/components/ComingSoon';
 
 export default function AlertsScreen() {
   return (

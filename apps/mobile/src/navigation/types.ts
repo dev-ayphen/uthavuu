@@ -1,4 +1,4 @@
-import type { CategoryId } from '../data/categories';
+import type { CategoryId } from '@uthavu/libs-mobile/data/categories';
 
 export type RootStackParamList = {
   Splash: undefined;

@@ -4,8 +4,8 @@ import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { COLORS, SPACING, TYPE } from '../theme/tokens';
-import { hasSession, hasSeenOnboarding, clearAllForTesting } from '../lib/session';
+import { COLORS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { hasSession, hasSeenOnboarding, clearAllForTesting } from '@uthavu/libs-mobile/lib/session';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 

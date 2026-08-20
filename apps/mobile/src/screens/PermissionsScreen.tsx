@@ -15,11 +15,11 @@ import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import type { ColorScheme } from '../theme/colors';
-import { useTheme } from '../theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '../theme/tokens';
-import { reverseGeocode } from '../lib/geocode';
-import Button from '../components/Button';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
+import Button from '@uthavu/libs-mobile/components/Button';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 

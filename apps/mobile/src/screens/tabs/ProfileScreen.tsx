@@ -4,16 +4,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LogOut } from 'lucide-react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ColorScheme } from '../../theme/colors';
-import { useTheme } from '../../theme/ThemeProvider';
-import { ICON_SIZE, SPACING, TYPE } from '../../theme/tokens';
-import { getMe } from '../../api/users';
-import { logout as logoutApi } from '../../api/auth';
-import { clearToken } from '../../lib/session';
-import Avatar from '../../components/Avatar';
-import Button from '../../components/Button';
-import Skeleton from '../../components/Skeleton';
-import ErrorState from '../../components/ErrorState';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { ICON_SIZE, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { getMe } from '@uthavu/libs-mobile/api/users';
+import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
+import { clearToken } from '@uthavu/libs-mobile/lib/session';
+import Avatar from '@uthavu/libs-mobile/components/Avatar';
+import Button from '@uthavu/libs-mobile/components/Button';
+import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
+import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { ColorScheme } from '../../../theme/colors';
-import { useTheme } from '../../../theme/ThemeProvider';
-import { RADIUS, SPACING, TYPE } from '../../../theme/tokens';
-import ToggleRow from '../../../components/ToggleRow';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
 
 type Props = {
   anonymous: boolean;

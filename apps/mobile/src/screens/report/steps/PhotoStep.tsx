@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, X } from 'lucide-react-native';
-import type { ColorScheme } from '../../../theme/colors';
-import { useTheme } from '../../../theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '../../../theme/tokens';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import type { PhotoDraft } from '../reportDraft';
 
 const MAX_PHOTOS = 4;

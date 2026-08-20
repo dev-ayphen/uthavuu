@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ColorScheme } from '../../theme/colors';
-import { useTheme } from '../../theme/ThemeProvider';
-import { RADIUS, SIZES, SPACING } from '../../theme/tokens';
-import Skeleton from '../../components/Skeleton';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { RADIUS, SIZES, SPACING } from '@uthavu/libs-mobile/theme/tokens';
+import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 
 // Mirrors RequestDetailsScreen's real layout (photo, category label, title,
 // description lines, location, reporter row, roster card) so the initial

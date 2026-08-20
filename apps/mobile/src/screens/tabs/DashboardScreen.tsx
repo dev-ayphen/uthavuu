@@ -19,17 +19,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
-import type { ColorScheme } from '../../theme/colors';
-import { useTheme } from '../../theme/ThemeProvider';
-import { COLORS, ICON_SIZE, RADIUS, SPACING, TONES, TYPE } from '../../theme/tokens';
-import { getMe, updateRadius as updateRadiusApi } from '../../api/users';
-import { getReportsSummary } from '../../api/reports';
-import { reverseGeocode } from '../../lib/geocode';
-import { CATEGORIES } from '../../data/categories';
-import Avatar from '../../components/Avatar';
-import Card from '../../components/Card';
-import Skeleton from '../../components/Skeleton';
-import ErrorState from '../../components/ErrorState';
+import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
+import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { COLORS, ICON_SIZE, RADIUS, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { getMe, updateRadius as updateRadiusApi } from '@uthavu/libs-mobile/api/users';
+import { getReportsSummary } from '@uthavu/libs-mobile/api/reports';
+import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
+import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
+import Avatar from '@uthavu/libs-mobile/components/Avatar';
+import Card from '@uthavu/libs-mobile/components/Card';
+import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
+import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
 const RADIUS_OPTIONS = [1, 3, 5, 10] as const;
 
