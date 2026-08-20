@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LogOut, Pencil } from 'lucide-react-native';
+import { LogOut, Pencil, Settings as SettingsIcon } from 'lucide-react-native';
 import { useNavigation, CommonActions, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -88,6 +88,14 @@ export default function ProfileScreen() {
         variant="secondary"
         icon={<Pencil size={ICON_SIZE.sm} color={colors.textPrimary} />}
         onPress={() => navigation.navigate('EditProfile')}
+        style={styles.editButton}
+      />
+
+      <Button
+        label="Settings"
+        variant="secondary"
+        icon={<SettingsIcon size={ICON_SIZE.sm} color={colors.textPrimary} />}
+        onPress={() => navigation.navigate('Settings')}
         style={styles.editButton}
       />
 

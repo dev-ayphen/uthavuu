@@ -56,3 +56,18 @@ export function sendMissionMessage(reportId: string, body: string): Promise<Miss
     body: { body },
   });
 }
+
+export type MyMission = {
+  reportId: string;
+  title: string;
+  category: { key: string; label: string; emoji: string };
+  reportStatus: string;
+  photo: string | null;
+  myStatus: VolunteerStatus;
+  myConfirmDeadline: string | null;
+  joinedAt: string;
+};
+
+export function getMyMissions(): Promise<MyMission[]> {
+  return apiRequest('/users/me/missions', { method: 'GET', auth: true });
+}
