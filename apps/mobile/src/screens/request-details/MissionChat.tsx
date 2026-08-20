@@ -10,12 +10,12 @@ import TextField from '@uthavu/libs-mobile/components/TextField';
 import Button from '@uthavu/libs-mobile/components/Button';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 
-type Props = { reportId: string };
+type Props = { reportId: string; locked?: boolean };
 
 // docs/features/accept-and-mission-chat.md US-5/BR-4 — REST poll/refresh
 // only, no realtime transport (ADR 0005). Refetches on send; the screen's
 // own useFocusEffect (RequestDetailsScreen) covers refresh-on-return.
-export default function MissionChat({ reportId }: Props) {
+export default function MissionChat({ reportId, locked = false }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
@@ -72,16 +72,20 @@ export default function MissionChat({ reportId }: Props) {
         />
       )}
 
-      <View style={styles.composerRow}>
-        <TextField
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Message…"
-          style={styles.input}
-          accessibilityLabel="Message"
-        />
-        <Button label="Send" onPress={onSend} loading={sendMutation.isPending} disabled={!draft.trim()} />
-      </View>
+      {locked ? (
+        <Text style={styles.lockedNote}>🔒 This mission is complete — chat is read-only.</Text>
+      ) : (
+        <View style={styles.composerRow}>
+          <TextField
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Message…"
+            style={styles.input}
+            accessibilityLabel="Message"
+          />
+          <Button label="Send" onPress={onSend} loading={sendMutation.isPending} disabled={!draft.trim()} />
+        </View>
+      )}
     </View>
   );
 }
@@ -111,4 +115,5 @@ const createStyles = (colors: ColorScheme) =>
     skeletonBubbleMine: { alignSelf: 'flex-end' },
     composerRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.sm, alignItems: 'center' },
     input: { flex: 1 },
+    lockedNote: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm },
   });

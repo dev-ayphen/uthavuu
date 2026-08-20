@@ -121,8 +121,16 @@ export default function RequestDetailsScreen({ route }: Props) {
 
         <RosterSection reportId={reportId} report={report} roster={roster} />
 
+        {roster.completion && (
+          <View style={styles.completionBox}>
+            <Text style={styles.completionTitle}>✅ Mission Completed</Text>
+            <Image source={{ uri: roster.completion.photoUrl }} style={styles.completionPhoto} />
+            <Text style={styles.completionNote}>{roster.completion.note}</Text>
+          </View>
+        )}
+
         {hasAccess ? (
-          <MissionChat reportId={reportId} />
+          <MissionChat reportId={reportId} locked={report.status === 'completed'} />
         ) : (
           <View style={styles.chatLocked}>
             <Text style={styles.chatLockedText}>
@@ -159,4 +167,15 @@ const createStyles = (colors: ColorScheme) =>
       borderColor: colors.border,
     },
     chatLockedText: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
+    completionBox: {
+      marginTop: SPACING.md,
+      padding: SPACING.md,
+      borderRadius: RADIUS.lg,
+      backgroundColor: colors.primaryGreenLight,
+      borderWidth: 1,
+      borderColor: colors.primaryGreen,
+    },
+    completionTitle: { ...TYPE.bodyStrong, color: colors.primaryGreen, marginBottom: SPACING.xs },
+    completionPhoto: { width: '100%', height: 160, borderRadius: RADIUS.md, marginBottom: SPACING.xs },
+    completionNote: { ...TYPE.body, color: colors.textPrimary },
   });
