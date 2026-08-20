@@ -19,8 +19,8 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Session | Lane (`area:`) | Issue / branch | Working copy | Started |
 |---|---|---|---|---|
-| {{s1}} | {{api}} | {{#123 · feat/123-invite-flow}} | {{../app / main clone}} | {{2026-01-01}} |
-| {{s2}} | {{web}} | {{#124 · feat/124-invite-ui}} | {{../app-s2 worktree}} | {{2026-01-01}} |
+| claude-code (this session) | mobile | board backlog, one-by-one — currently between items | main clone | 2026-08-20 |
+| uthavuu-db (peer, per `ListAgents`) | api (inferred from working-tree diff) | likely #9 (alert-templates.ts, update-locale.dto.ts, drizzle/0007_* present uncommitted) — unconfirmed, no row registered by that session itself | main clone (same working copy — no worktree split seen) | 2026-08-20 |
 
 ## Offset registry
 
@@ -38,9 +38,9 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| {{migration series}} | {{s1}} | {{#123 migration pushed}} |
-| {{pnpm-lock.yaml}} | {{—}} | {{—}} |
-| {{App Profile / shared lib}} | {{—}} | {{—}} |
+| migration series | uthavuu-db (peer) | uncommitted `apps/api/drizzle/0007_blushing_katie_power.sql` seen in the working tree — claude-code session will not run `db:generate`/`db:migrate` until this is committed or released |
+| pnpm-lock.yaml | — | — |
+| App Profile / shared lib | — | — |
 
 ## Handoffs — clear when consumed
 
