@@ -28,4 +28,9 @@ export class UsersController {
   async updateRadius(@Session() session: UserSession<typeof auth>, @Body() body: UpdateRadiusDto) {
     return this.usersService.updateRadius(session.user.id, body);
   }
+
+  @Get('me/stats')
+  async getStats(@Session() session: UserSession<typeof auth>) {
+    return this.usersService.getStats(session.user.id);
+  }
 }

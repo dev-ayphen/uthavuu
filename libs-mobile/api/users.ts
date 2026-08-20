@@ -50,3 +50,12 @@ export function updateRadius(radius: 1 | 3 | 5 | 10): Promise<AuthUser> {
 export function registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void> {
   return apiRequest('/devices', { method: 'POST', auth: true, body: { token, platform } });
 }
+
+export type UserStats = {
+  reportsCount: number;
+  missionsCount: number;
+};
+
+export function getMyStats(): Promise<UserStats> {
+  return apiRequest('/users/me/stats', { method: 'GET', auth: true });
+}

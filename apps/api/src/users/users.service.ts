@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
+import { reports } from '../db/schema/reports-schema';
+import { missionVolunteers } from '../db/schema/missions-schema';
 import type { CompleteProfileDto } from './dto/complete-profile.dto';
 import type { UpdateRadiusDto } from './dto/update-radius.dto';
 
@@ -41,5 +43,24 @@ export class UsersService {
       .returning();
 
     return updated;
+  }
+
+  // docs/PRODUCT-DECISIONS.md Decision 1 endorses "successful reports" /
+  // "resolution reliability" as real trust indicators — but reliability
+  // needs completion data that doesn't exist yet (mission completion is a
+  // deliberately separate, not-yet-built feature). These two counts are
+  // exactly what's honestly computable today: real totals, no invented
+  // success/reliability rate.
+  async getStats(userId: string) {
+    const [reportsRow] = await db.select({ value: count() }).from(reports).where(eq(reports.reporterId, userId));
+    const [missionsRow] = await db
+      .select({ value: count() })
+      .from(missionVolunteers)
+      .where(eq(missionVolunteers.volunteerId, userId));
+
+    return {
+      reportsCount: reportsRow?.value ?? 0,
+      missionsCount: missionsRow?.value ?? 0,
+    };
   }
 }
