@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -24,6 +25,7 @@ type Props = {
 // resolves synchronously, the caller finds out success/failure immediately.
 export default function CompleteMissionSheet({ visible, reportId, onComplete, onClose }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['requestDetails', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
     setPhotoError('');
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setPhotoError('Camera access is needed to submit a completion photo.');
+      setPhotoError(t('cameraPermissionError'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -55,7 +57,7 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
       const uploaded = await uploadImage(uri);
       setPhotoUrl(uploaded.url);
     } catch {
-      setPhotoError('Could not upload the photo. Tap to try again.');
+      setPhotoError(t('photoUploadError'));
       setPhotoUrl(null);
     } finally {
       setUploadingPhoto(false);
@@ -72,9 +74,9 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
       await completeMission(reportId, photoUrl!, note.trim());
       onComplete();
     } catch (e) {
-      const message = e instanceof ApiError ? e.message : 'Could not submit completion. Try again.';
+      const message = e instanceof ApiError ? e.message : t('submitCompletionError');
       setError(message);
-      Alert.alert('Not completed', message);
+      Alert.alert(t('notCompletedTitle'), message);
     } finally {
       setSubmitting(false);
     }
@@ -85,8 +87,8 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
       <View style={styles.scrim}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Complete Mission</Text>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
+            <Text style={styles.title}>{t('completeMissionTitle')}</Text>
+            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel={t('common:close')}>
               <X size={ICON_SIZE.md} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -96,16 +98,16 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
             onPress={onTakePhoto}
             disabled={uploadingPhoto}
             accessibilityRole="button"
-            accessibilityLabel={photoUrl ? 'Retake completion photo' : 'Take completion photo'}
+            accessibilityLabel={photoUrl ? t('retakePhotoAccessibilityLabel') : t('takePhotoAccessibilityLabel')}
           >
             {uploadingPhoto ? (
               <ActivityIndicator color={colors.primaryGreen} />
             ) : localPhotoUri ? (
-              <Text style={styles.photoBoxText}>Photo captured — tap to retake</Text>
+              <Text style={styles.photoBoxText}>{t('photoCapturedText')}</Text>
             ) : (
               <>
                 <Camera size={ICON_SIZE.lg} color={colors.primaryGreen} />
-                <Text style={styles.photoBoxText}>Take a photo</Text>
+                <Text style={styles.photoBoxText}>{t('takeAPhoto')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -114,15 +116,15 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
           <TextField
             value={note}
             onChangeText={setNote}
-            placeholder="What did you do? (required)"
+            placeholder={t('notePlaceholder')}
             multiline
-            accessibilityLabel="Completion note"
+            accessibilityLabel={t('noteAccessibilityLabel')}
             style={styles.noteField}
           />
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button label="Submit" onPress={onSubmit} disabled={!isValid} loading={submitting} />
+          <Button label={t('common:submit')} onPress={onSubmit} disabled={!isValid} loading={submitting} />
         </View>
       </View>
     </Modal>

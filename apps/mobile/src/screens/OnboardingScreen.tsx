@@ -12,6 +12,7 @@ import {
   type NativeScrollEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -28,29 +29,17 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 // gap #1 warned about. `hasBakedInText` suppresses our own title/description for
 // those two slides so we don't stack two headings; the dots and buttons stay ours
 // (real/functional) regardless, since the baked-in ones are inert artwork.
-const SLIDES = [
-  {
-    image: require('../../assets/onboarding_1.png'),
-    title: 'See Something That Needs Help?',
-    description:
-      'If you see an injured animal, someone in need, excess food, or a roadside emergency, report it in less than 30 seconds.',
-    hasBakedInText: false,
-  },
-  {
-    image: require('../../assets/onboarding_2.png'),
-    title: 'Nearby Volunteers Respond',
-    description:
-      'Your report is shared only with nearby people who are willing to help, making responses fast and relevant.',
-    hasBakedInText: true,
-  },
-  {
-    image: require('../../assets/onboarding_3.png'),
-    title: 'Every Small Act Matters',
-    description:
-      'Together we can build safer streets, reduce waste, rescue animals, and support one another through everyday acts of kindness.',
-    hasBakedInText: true,
-  },
+//
+// Titles/descriptions come from the auth i18n namespace (slide1Title/
+// slide1Description etc.) even for the two baked-in-text slides — kept
+// translated and in the data model in case the artwork approach changes
+// later, even though they're not rendered today.
+const SLIDE_IMAGES = [
+  require('../../assets/onboarding_1.png'),
+  require('../../assets/onboarding_2.png'),
+  require('../../assets/onboarding_3.png'),
 ] as const;
+const SLIDE_HAS_BAKED_IN_TEXT = [false, true, true] as const;
 
 const { width } = Dimensions.get('window');
 
@@ -60,6 +49,14 @@ export default function OnboardingScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const { t } = useTranslation('auth');
+
+  const SLIDES = SLIDE_IMAGES.map((image, index) => ({
+    image,
+    title: t(`slide${index + 1}Title` as 'slide1Title'),
+    description: t(`slide${index + 1}Description` as 'slide1Description'),
+    hasBakedInText: SLIDE_HAS_BAKED_IN_TEXT[index],
+  }));
 
   const finish = useCallback(async () => {
     await markOnboardingSeen();
@@ -97,7 +94,7 @@ export default function OnboardingScreen({ navigation }: Props) {
         accessibilityRole="button"
         accessibilityLabel="Skip onboarding"
       >
-        <Text style={styles.skipCornerText}>Skip</Text>
+        <Text style={styles.skipCornerText}>{t('skip')}</Text>
       </TouchableOpacity>
 
       <ScrollView
@@ -132,11 +129,11 @@ export default function OnboardingScreen({ navigation }: Props) {
 
               <View style={styles.buttons}>
                 <Button
-                  label={isLast ? 'Get Started' : 'Next'}
+                  label={isLast ? t('getStarted') : t('next')}
                   onPress={() => (isLast ? finish() : goToSlide(currentSlide + 1))}
                 />
                 {currentSlide > 0 && (
-                  <Button label="Back" variant="ghost" onPress={() => goToSlide(currentSlide - 1)} />
+                  <Button label={t('back')} variant="ghost" onPress={() => goToSlide(currentSlide - 1)} />
                 )}
               </View>
             </View>

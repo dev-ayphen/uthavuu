@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clock, MapPin, PackageOpen } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -24,6 +26,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CategoryList'>;
 // comes from pull-to-refresh + refetch-on-focus only, both wired below.
 export default function CategoryListScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { categoryKey, lat, lng, radiusKm, locationLabel } = route.params;
@@ -48,7 +51,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
           {categoryMeta?.emoji} {categoryMeta?.title}
         </Text>
         <Text style={styles.subtitle}>
-          Within {radiusKm} km · {locationLabel}
+          {t('categoryList.withinKm', { radius: radiusKm, location: locationLabel })}
         </Text>
       </View>
 
@@ -70,9 +73,12 @@ export default function CategoryListScreen({ navigation, route }: Props) {
           ListEmptyComponent={
             <View style={styles.empty}>
               <PackageOpen size={40} color={colors.textSecondary} strokeWidth={1.5} />
-              <Text style={styles.emptyTitle}>Nothing open right now</Text>
+              <Text style={styles.emptyTitle}>{t('categoryList.emptyTitle')}</Text>
               <Text style={styles.emptySubtitle}>
-                No {categoryMeta?.title.toLowerCase()} requests within {radiusKm} km. Pull to refresh.
+                {t('categoryList.emptySubtitle', {
+                  category: categoryMeta?.title.toLowerCase(),
+                  radius: radiusKm,
+                })}
               </Text>
             </View>
           }
@@ -81,6 +87,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
               report={item}
               colors={colors}
               styles={styles}
+              t={t}
               onPress={() => navigation.navigate('RequestDetails', { reportId: item.id })}
             />
           )}
@@ -94,11 +101,13 @@ function ReportRow({
   report,
   colors,
   styles,
+  t,
   onPress,
 }: {
   report: ReportWithDistance;
   colors: ColorScheme;
   styles: ReturnType<typeof createStyles>;
+  t: TFunction;
   onPress: () => void;
 }) {
   const tone = getUrgencyTone(report.expiryAt);
@@ -109,8 +118,12 @@ function ReportRow({
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${report.title}, ${report.distanceKm} km away, ${formatTimeRemaining(report.expiryAt)} remaining`}
-      accessibilityHint="View request details"
+      accessibilityLabel={t('categoryList.rowLabel', {
+        title: report.title,
+        distance: report.distanceKm,
+        time: formatTimeRemaining(report.expiryAt),
+      })}
+      accessibilityHint={t('common:viewDetailsHint')}
     >
       {report.photos[0] ? (
         <Image source={{ uri: report.photos[0] }} style={styles.photo} />
@@ -126,7 +139,7 @@ function ReportRow({
         </Text>
         <View style={styles.rowMeta}>
           <MapPin size={ICON_SIZE.xs} color={colors.textSecondary} />
-          <Text style={styles.rowMetaText}>{report.distanceKm} km away</Text>
+          <Text style={styles.rowMetaText}>{t('categoryList.distanceAway', { distance: report.distanceKm })}</Text>
           <View style={[styles.toneBadge, { backgroundColor: toneStyle.fill, borderColor: toneStyle.border }]}>
             <Clock size={10} color={toneStyle.fg} />
             <Text style={[styles.toneBadgeText, { color: toneStyle.fg }]}>

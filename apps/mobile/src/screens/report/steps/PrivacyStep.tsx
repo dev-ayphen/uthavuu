@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -21,23 +22,24 @@ export default function PrivacyStep({
   onTogglePhoneVisible,
 }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View>
-      <Text style={styles.title}>Privacy</Text>
-      <Text style={styles.subtitle}>Control what's exposed about you on this report.</Text>
+      <Text style={styles.title}>{t('privacy.title')}</Text>
+      <Text style={styles.subtitle}>{t('privacy.subtitle')}</Text>
 
       <ToggleRow
-        label="Post anonymously"
-        subtitle="Hides your name, photo, and profession on the public report card"
+        label={t('privacy.anonymousLabel')}
+        subtitle={t('privacy.anonymousSubtitle')}
         value={anonymous}
         onValueChange={onToggleAnonymous}
         style={styles.row}
       />
       <ToggleRow
-        label="Share phone number with volunteers"
-        subtitle="Only visible to someone who accepts your request"
+        label={t('privacy.phoneVisibleLabel')}
+        subtitle={t('privacy.phoneVisibleSubtitle')}
         value={phoneVisible}
         onValueChange={onTogglePhoneVisible}
         style={styles.row}

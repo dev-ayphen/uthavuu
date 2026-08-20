@@ -6,6 +6,7 @@ import { useNavigation, type CompositeNavigationProp } from '@react-navigation/n
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -28,6 +29,7 @@ type Navigation = CompositeNavigationProp<
 // no change here.
 export default function AlertsScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Navigation>();
@@ -49,7 +51,7 @@ export default function AlertsScreen() {
     return (
       <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Alerts</Text>
+          <Text style={styles.title}>{t('alerts.title')}</Text>
         </View>
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
@@ -67,17 +69,17 @@ export default function AlertsScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Alerts</Text>
+        <Text style={styles.title}>{t('alerts.title')}</Text>
         {unreadCount > 0 && (
           <TouchableOpacity
             style={styles.markReadButton}
             onPress={() => markReadMutation.mutate()}
             disabled={markReadMutation.isPending}
             accessibilityRole="button"
-            accessibilityLabel="Mark all alerts as read"
+            accessibilityLabel={t('alerts.markAllReadLabel')}
           >
             <CheckCheck size={ICON_SIZE.xs} color={colors.primaryGreen} />
-            <Text style={styles.markReadText}>Mark all read</Text>
+            <Text style={styles.markReadText}>{t('alerts.markAllRead')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -91,10 +93,8 @@ export default function AlertsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <BellOff size={40} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.emptyTitle}>No alerts yet</Text>
-            <Text style={styles.emptySubtitle}>
-              You'll see updates here when a volunteer responds to your reports.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('alerts.emptyTitle')}</Text>
+            <Text style={styles.emptySubtitle}>{t('alerts.emptySubtitle')}</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -102,6 +102,7 @@ export default function AlertsScreen() {
             alert={item}
             colors={colors}
             styles={styles}
+            viewDetailsHint={t('common:viewDetailsHint')}
             onPress={
               item.reportId
                 ? () => navigation.navigate('RequestDetails', { reportId: item.reportId! })
@@ -118,11 +119,13 @@ function AlertRow({
   alert,
   colors,
   styles,
+  viewDetailsHint,
   onPress,
 }: {
   alert: Alert;
   colors: ColorScheme;
   styles: ReturnType<typeof createStyles>;
+  viewDetailsHint: string;
   onPress?: () => void;
 }) {
   const content = (
@@ -150,7 +153,7 @@ function AlertRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${alert.title}. ${alert.body}`}
-      accessibilityHint="View request details"
+      accessibilityHint={viewDetailsHint}
     >
       {content}
     </TouchableOpacity>

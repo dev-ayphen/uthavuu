@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -19,14 +20,13 @@ type Props = {
 // expo-image-picker's launchCameraAsync).
 export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View>
-      <Text style={styles.title}>Add a photo</Text>
-      <Text style={styles.subtitle}>
-        A live photo is required — it's what makes your report trustworthy to nearby volunteers.
-      </Text>
+      <Text style={styles.title}>{t('photo.title')}</Text>
+      <Text style={styles.subtitle}>{t('photo.subtitle')}</Text>
 
       <View style={styles.grid}>
         {photos.map((photo, index) => (
@@ -42,10 +42,10 @@ export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
                 style={styles.overlay}
                 onPress={() => onRemove(index)}
                 accessibilityRole="button"
-                accessibilityLabel={`Upload failed: ${photo.error}. Double tap to remove.`}
+                accessibilityLabel={t('photo.uploadFailedLabel', { error: photo.error })}
               >
                 <Text style={styles.errorText} numberOfLines={2}>
-                  {photo.error} — tap to remove
+                  {t('photo.tapToRemove', { error: photo.error })}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -53,7 +53,7 @@ export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
               style={styles.removeBadge}
               onPress={() => onRemove(index)}
               accessibilityRole="button"
-              accessibilityLabel="Remove photo"
+              accessibilityLabel={t('photo.removePhoto')}
             >
               <X size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />
             </TouchableOpacity>
@@ -65,10 +65,10 @@ export default function PhotoStep({ photos, onAdd, onRemove }: Props) {
             style={styles.addTile}
             onPress={onAdd}
             accessibilityRole="button"
-            accessibilityLabel="Take a photo"
+            accessibilityLabel={t('photo.takePhotoLabel')}
           >
             <Camera size={ICON_SIZE.lg} color={colors.textSecondary} />
-            <Text style={styles.addLabel}>{photos.length === 0 ? 'Take Photo' : 'Add Another'}</Text>
+            <Text style={styles.addLabel}>{photos.length === 0 ? t('photo.takePhoto') : t('photo.addAnother')}</Text>
           </TouchableOpacity>
         )}
       </View>

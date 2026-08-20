@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { ICON_SIZE, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -29,6 +30,7 @@ export default function LoginScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const { t } = useTranslation('auth');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +50,7 @@ export default function LoginScreen({ navigation }: Props) {
       await requestOtp(phone);
       navigation.navigate('Otp', { phone });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not send code. Try again.');
+      setError(e instanceof ApiError ? e.message : t('sendCodeError'));
     } finally {
       setSubmitting(false);
     }
@@ -68,8 +70,8 @@ export default function LoginScreen({ navigation }: Props) {
           resizeMode="cover"
         />
 
-        <Text style={styles.title}>Enter your number to continue</Text>
-        <Text style={styles.subtitle}>We'll text you a one-time code to verify it's you.</Text>
+        <Text style={styles.title}>{t('loginTitle')}</Text>
+        <Text style={styles.subtitle}>{t('loginSubtitle')}</Text>
 
         <View style={styles.inputRow}>
           <View style={styles.prefix}>
@@ -77,21 +79,21 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
           <TextInput
             style={styles.input}
-            placeholder="Phone number"
+            placeholder={t('phoneNumberPlaceholder')}
             placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
             maxLength={10}
             value={phone}
             onChangeText={onChangePhone}
-            accessibilityLabel="Phone number"
+            accessibilityLabel={t('phoneNumberLabel')}
           />
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.spacer} />
 
-        <Text style={styles.terms}>By continuing, you agree to our Terms and Privacy Policy.</Text>
-        <Button label="Continue" onPress={onContinue} disabled={!isValid} loading={submitting} />
+        <Text style={styles.terms}>{t('terms')}</Text>
+        <Button label={t('continue')} onPress={onContinue} disabled={!isValid} loading={submitting} />
       </View>
     </KeyboardAvoidingView>
   );

@@ -6,6 +6,8 @@ import { useNavigation, type CompositeNavigationProp } from '@react-navigation/n
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -29,6 +31,7 @@ type Section = { title: string; data: MyMission[] };
 // verification are a deliberately separate, not-yet-built feature.
 export default function MyHelpsScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Nav>();
@@ -43,15 +46,15 @@ export default function MyHelpsScreen() {
     const active = missions.filter((m) => m.myStatus === 'joined' || m.myStatus === 'active');
     const past = missions.filter((m) => m.myStatus === 'released');
     const out: Section[] = [];
-    if (active.length) out.push({ title: 'Active', data: active });
-    if (past.length) out.push({ title: 'Past', data: past });
+    if (active.length) out.push({ title: t('myHelps.sectionActive'), data: active });
+    if (past.length) out.push({ title: t('myHelps.sectionPast'), data: past });
     return out;
-  }, [missions]);
+  }, [missions, t]);
 
   if (isLoading) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-        <Text style={styles.header}>My Helps</Text>
+        <Text style={styles.header}>{t('myHelps.header')}</Text>
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
             <MissionRowSkeleton key={i} styles={styles} />
@@ -67,7 +70,7 @@ export default function MyHelpsScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-      <Text style={styles.header}>My Helps</Text>
+      <Text style={styles.header}>{t('myHelps.header')}</Text>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.reportId}
@@ -79,10 +82,8 @@ export default function MyHelpsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <HeartHandshake size={40} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.emptyTitle}>No missions yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Missions you volunteer for will show up here once you accept a request.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('myHelps.emptyTitle')}</Text>
+            <Text style={styles.emptySubtitle}>{t('myHelps.emptySubtitle')}</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -90,6 +91,7 @@ export default function MyHelpsScreen() {
             mission={item}
             colors={colors}
             styles={styles}
+            t={t}
             onPress={() => navigation.navigate('RequestDetails', { reportId: item.reportId })}
           />
         )}
@@ -98,42 +100,55 @@ export default function MyHelpsScreen() {
   );
 }
 
-function statusBadge(mission: MyMission, colors: ColorScheme) {
+function statusBadge(mission: MyMission, colors: ColorScheme, t: TFunction) {
   if (mission.myStatus === 'joined') {
     const tone = TONES[getUrgencyTone(mission.myConfirmDeadline ?? new Date().toISOString())];
     return {
-      label: `Joined — ${formatTimeRemaining(mission.myConfirmDeadline ?? new Date().toISOString())}`,
+      label: t('myHelps.statusJoined', {
+        time: formatTimeRemaining(mission.myConfirmDeadline ?? new Date().toISOString()),
+      }),
       fg: tone.fg,
       fill: tone.fill,
       border: tone.border,
     };
   }
   if (mission.myStatus === 'active') {
-    return { label: 'Active', fg: colors.primaryGreen, fill: colors.primaryGreenLight, border: colors.primaryGreen };
+    return {
+      label: t('myHelps.statusActive'),
+      fg: colors.primaryGreen,
+      fill: colors.primaryGreenLight,
+      border: colors.primaryGreen,
+    };
   }
-  return { label: 'Released', fg: colors.textSecondary, fill: colors.bgElevated, border: colors.border };
+  return { label: t('myHelps.statusReleased'), fg: colors.textSecondary, fill: colors.bgElevated, border: colors.border };
 }
 
 function MissionRow({
   mission,
   colors,
   styles,
+  t,
   onPress,
 }: {
   mission: MyMission;
   colors: ColorScheme;
   styles: ReturnType<typeof createStyles>;
+  t: TFunction;
   onPress: () => void;
 }) {
-  const badge = statusBadge(mission, colors);
+  const badge = statusBadge(mission, colors, t);
 
   return (
     <TouchableOpacity
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${mission.title}, ${mission.category.label}, ${badge.label}`}
-      accessibilityHint="View request details"
+      accessibilityLabel={t('myHelps.rowLabel', {
+        title: mission.title,
+        category: mission.category.label,
+        status: badge.label,
+      })}
+      accessibilityHint={t('common:viewDetailsHint')}
     >
       {mission.photo ? (
         <Image source={{ uri: mission.photo }} style={styles.photo} />

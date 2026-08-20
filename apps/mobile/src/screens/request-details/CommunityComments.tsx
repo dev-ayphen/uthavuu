@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Flag } from 'lucide-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -21,23 +22,27 @@ import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 
 type Props = { reportId: string };
 
-const FLAG_REASON_LABELS: Record<FlagReason, string> = {
-  spam: 'Spam',
-  abuse: 'Abuse',
-  false_information: 'False information',
-  duplicate: 'Duplicate',
-  other: 'Other',
-};
-
 // docs/PRODUCT-DECISIONS.md Decision 2 — public, unlike Mission Chat
 // (MissionChat.tsx): every user who can view this request can read and
 // post here, not just the reporter + accepted volunteers. No
 // hasActiveAccess-style gating.
 export default function CommunityComments({ reportId }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['requestDetails', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
+
+  const flagReasonLabels: Record<FlagReason, string> = useMemo(
+    () => ({
+      spam: t('flagReasonSpam'),
+      abuse: t('flagReasonAbuse'),
+      false_information: t('flagReasonFalseInformation'),
+      duplicate: t('flagReasonDuplicate'),
+      other: t('flagReasonOther'),
+    }),
+    [t]
+  );
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
   const { data: comments, isLoading } = useQuery({
@@ -52,7 +57,7 @@ export default function CommunityComments({ reportId }: Props) {
       setDraft('');
     },
     onError: (e) => {
-      Alert.alert('Comment not posted', e instanceof ApiError ? e.message : 'Try again.');
+      Alert.alert(t('commentNotPostedTitle'), e instanceof ApiError ? e.message : t('common:tryAgain'));
     },
   });
 
@@ -60,10 +65,10 @@ export default function CommunityComments({ reportId }: Props) {
     mutationFn: ({ commentId, reason }: { commentId: string; reason: FlagReason }) =>
       flagComment(reportId, commentId, reason),
     onSuccess: () => {
-      Alert.alert('Thanks', "We'll review this.");
+      Alert.alert(t('flagThanksTitle'), t('flagThanksMessage'));
     },
     onError: (e) => {
-      Alert.alert('Could not flag this', e instanceof ApiError ? e.message : 'Try again.');
+      Alert.alert(t('flagFailedTitle'), e instanceof ApiError ? e.message : t('common:tryAgain'));
     },
   });
 
@@ -75,14 +80,14 @@ export default function CommunityComments({ reportId }: Props) {
 
   const onFlag = (commentId: string) => {
     Alert.alert(
-      'Flag this comment',
-      'What is the issue?',
+      t('flagPromptTitle'),
+      t('flagPromptMessage'),
       [
-        ...(Object.entries(FLAG_REASON_LABELS) as [FlagReason, string][]).map(([reason, label]) => ({
+        ...(Object.entries(flagReasonLabels) as [FlagReason, string][]).map(([reason, label]) => ({
           text: label,
           onPress: () => flagMutation.mutate({ commentId, reason }),
         })),
-        { text: 'Cancel', style: 'cancel' as const },
+        { text: t('common:cancel'), style: 'cancel' as const },
       ],
       { cancelable: true }
     );
@@ -90,8 +95,8 @@ export default function CommunityComments({ reportId }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>💬 Community Comments</Text>
-      <Text style={styles.subtitle}>Public — visible to anyone viewing this request.</Text>
+      <Text style={styles.title}>{t('communityCommentsTitle')}</Text>
+      <Text style={styles.subtitle}>{t('communityCommentsSubtitle')}</Text>
 
       {isLoading ? (
         <View style={styles.list}>
@@ -110,7 +115,7 @@ export default function CommunityComments({ reportId }: Props) {
                 <Text style={styles.authorName}>{item.authorName}</Text>
                 {item.authorIsReporter && (
                   <View style={styles.reporterBadge}>
-                    <Text style={styles.reporterBadgeText}>Reporter</Text>
+                    <Text style={styles.reporterBadgeText}>{t('reporterBadge')}</Text>
                   </View>
                 )}
                 <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
@@ -121,15 +126,15 @@ export default function CommunityComments({ reportId }: Props) {
                   style={styles.flagButton}
                   onPress={() => onFlag(item.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Flag comment from ${item.authorName}`}
+                  accessibilityLabel={t('flagAccessibilityLabel', { name: item.authorName })}
                 >
                   <Flag size={ICON_SIZE.xs} color={colors.textSecondary} />
-                  <Text style={styles.flagButtonText}>Report</Text>
+                  <Text style={styles.flagButtonText}>{t('flagAction')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.empty}>No comments yet — be the first to share something useful.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('emptyComments')}</Text>}
         />
       )}
 
@@ -137,11 +142,11 @@ export default function CommunityComments({ reportId }: Props) {
         <TextField
           value={draft}
           onChangeText={setDraft}
-          placeholder="Share something helpful…"
+          placeholder={t('commentPlaceholder')}
           style={styles.input}
-          accessibilityLabel="Add a comment"
+          accessibilityLabel={t('commentPlaceholder')}
         />
-        <Button label="Post" onPress={onSend} loading={postMutation.isPending} disabled={!draft.trim()} />
+        <Button label={t('post')} onPress={onSend} loading={postMutation.isPending} disabled={!draft.trim()} />
       </View>
     </View>
   );

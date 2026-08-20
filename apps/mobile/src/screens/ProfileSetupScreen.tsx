@@ -13,6 +13,7 @@ import {
 import { Briefcase, Building2, Camera, ChevronDown, Globe, Mail, MapPin, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { ICON_SIZE, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -41,6 +42,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const { t } = useTranslation('auth');
   const { lat, lng, city, district } = route.params;
 
   const [name, setName] = useState('');
@@ -89,7 +91,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setPhotoError(`Permission needed to access your ${source === 'camera' ? 'camera' : 'photos'}.`);
+      setPhotoError(source === 'camera' ? t('cameraPermissionNeeded') : t('photosPermissionNeeded'));
       return;
     }
 
@@ -114,7 +116,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
       setAvatarUrl(uploaded.url);
     } catch {
       // US-3a AC3 — the rest of the form still works without a photo.
-      setPhotoError('Could not upload photo. Tap to try again, or continue without one.');
+      setPhotoError(t('photoUploadError'));
     } finally {
       setUploadingPhoto(false);
     }
@@ -122,10 +124,10 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
 
   const onPickPhoto = () => {
     if (uploadingPhoto) return;
-    Alert.alert('Profile Photo', 'Add a photo so others can recognize you.', [
-      { text: 'Take Photo', onPress: () => launchPicker('camera') },
-      { text: 'Choose from Library', onPress: () => launchPicker('library') },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profilePhotoAlertTitle'), t('profilePhotoAlertMessage'), [
+      { text: t('takePhoto'), onPress: () => launchPicker('camera') },
+      { text: t('chooseFromLibrary'), onPress: () => launchPicker('library') },
+      { text: t('common:cancel'), style: 'cancel' },
     ]);
   };
 
@@ -150,7 +152,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
       await markOnboardingSeen();
       navigation.replace('MainTabs');
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not save your profile. Try again.');
+      setError(e instanceof ApiError ? e.message : t('saveProfileError'));
     } finally {
       setSubmitting(false);
     }
@@ -159,16 +161,14 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Set up your profile</Text>
-        <Text style={styles.subtitle}>
-          Your name is shown on reports you post, unless you choose to post anonymously.
-        </Text>
+        <Text style={styles.title}>{t('profileSetupTitle')}</Text>
+        <Text style={styles.subtitle}>{t('profileSetupSubtitle')}</Text>
 
         <TouchableOpacity
           style={styles.avatarWrap}
           onPress={onPickPhoto}
           accessibilityRole="button"
-          accessibilityLabel="Add profile photo"
+          accessibilityLabel={t('addProfilePhoto')}
         >
           <Avatar uri={localPhotoUri} label={name} size={84} />
           <View style={styles.avatarBadge}>
@@ -179,39 +179,39 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
             )}
           </View>
         </TouchableOpacity>
-        <Text style={styles.avatarLabel}>{uploadingPhoto ? 'Uploading…' : 'Add profile photo'}</Text>
+        <Text style={styles.avatarLabel}>{uploadingPhoto ? t('uploadingPhoto') : t('addProfilePhoto')}</Text>
         {photoError ? <Text style={styles.error}>{photoError}</Text> : null}
 
         <TextField
           value={name}
           onChangeText={setName}
-          placeholder="Full name"
+          placeholder={t('fullNamePlaceholder')}
           icon={<User size={ICON_SIZE.sm} color={colors.textSecondary} />}
           autoCapitalize="words"
           autoFocus
-          accessibilityLabel="Full name"
+          accessibilityLabel={t('fullNameLabel')}
           style={styles.field}
         />
 
         <TextField
           value={email}
           onChangeText={setEmail}
-          placeholder="Email address (optional)"
+          placeholder={t('emailPlaceholder')}
           icon={<Mail size={ICON_SIZE.sm} color={colors.textSecondary} />}
           keyboardType="email-address"
           autoCapitalize="none"
-          error={!emailValid ? 'Enter a valid email' : undefined}
-          accessibilityLabel="Email address"
+          error={!emailValid ? t('invalidEmailError') : undefined}
+          accessibilityLabel={t('emailLabel')}
           style={styles.field}
         />
 
         <TextField
           value={language}
           onChangeText={setLanguage}
-          placeholder="Preferred language (optional)"
+          placeholder={t('languagePlaceholder')}
           icon={<Globe size={ICON_SIZE.sm} color={colors.textSecondary} />}
           autoCapitalize="words"
-          accessibilityLabel="Preferred language"
+          accessibilityLabel={t('languageLabel')}
           style={styles.field}
         />
 
@@ -219,11 +219,11 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           style={styles.pickerRow}
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="Profession"
+          accessibilityLabel={t('professionLabel')}
         >
           <Briefcase size={ICON_SIZE.sm} color={colors.textSecondary} />
           <Text style={[styles.pickerRowText, !professionId && styles.placeholder]}>
-            {professionId ? `${selectedProfession?.emoji} ${selectedProfession?.label}` : 'Profession (optional)'}
+            {professionId ? `${selectedProfession?.emoji} ${selectedProfession?.label}` : t('professionPlaceholder')}
           </Text>
           <ChevronDown size={ICON_SIZE.sm} color={colors.textSecondary} />
         </TouchableOpacity>
@@ -232,8 +232,8 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           <TextField
             value={professionOtherText}
             onChangeText={setProfessionOtherText}
-            placeholder="Enter your profession"
-            accessibilityLabel="Enter your profession"
+            placeholder={t('enterProfessionPlaceholder')}
+            accessibilityLabel={t('enterProfessionPlaceholder')}
             style={styles.field}
           />
         )}
@@ -241,15 +241,15 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         <TextField
           value={organization}
           onChangeText={setOrganization}
-          placeholder="Organization (optional)"
+          placeholder={t('organizationPlaceholder')}
           icon={<Building2 size={ICON_SIZE.sm} color={colors.textSecondary} />}
           autoCapitalize="words"
-          accessibilityLabel="Organization"
+          accessibilityLabel={t('organizationLabel')}
           style={styles.field}
         />
 
         <ToggleRow
-          label="Show profession on public profile"
+          label={t('showProfessionToggle')}
           value={showProfession}
           onValueChange={setShowProfession}
           style={styles.toggleRow}
@@ -260,12 +260,12 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         <View style={styles.locationRow}>
           <MapPin size={14} color={colors.textSecondary} />
           <Text style={styles.locationText}>
-            {city ? `${city}, ${district}` : district || 'Detecting your area…'}
+            {city ? `${city}, ${district}` : district || t('detectingArea')}
           </Text>
         </View>
 
         <Button
-          label="Complete Profile"
+          label={t('completeProfile')}
           onPress={onComplete}
           disabled={!isValid}
           loading={submitting}

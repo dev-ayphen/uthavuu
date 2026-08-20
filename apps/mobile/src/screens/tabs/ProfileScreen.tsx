@@ -6,6 +6,7 @@ import { useNavigation, CommonActions, type CompositeNavigationProp } from '@rea
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -21,6 +22,7 @@ import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation('tabs');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const navigation = useNavigation<
@@ -85,8 +87,8 @@ export default function ProfileScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryGreen} />
       }
     >
-      <Avatar uri={me?.avatarUrl} label={me?.name || 'Uthavu user'} size={72} style={styles.avatar} />
-      <Text style={styles.name}>{me?.name || 'Uthavu user'}</Text>
+      <Avatar uri={me?.avatarUrl} label={me?.name || t('profile.defaultName')} size={72} style={styles.avatar} />
+      <Text style={styles.name}>{me?.name || t('profile.defaultName')}</Text>
       <Text style={styles.phone}>{me?.phoneNumber}</Text>
       {me?.city ? <Text style={styles.location}>{me.city}, {me.district}</Text> : null}
 
@@ -100,22 +102,22 @@ export default function ProfileScreen() {
         <View
           style={styles.statsRow}
           accessible
-          accessibilityLabel={`${stats.reportsCount} reports posted, ${stats.missionsCount} missions joined`}
+          accessibilityLabel={`${t('profile.reportsPostedCount', { count: stats.reportsCount })}, ${t('profile.missionsJoinedCount', { count: stats.missionsCount })}`}
         >
           <View style={styles.statCell}>
             <Text style={styles.statValue}>{stats.reportsCount}</Text>
-            <Text style={styles.statLabel}>Reports Posted</Text>
+            <Text style={styles.statLabel}>{t('profile.reportsPostedLabel')}</Text>
           </View>
           <View style={styles.statsDivider} />
           <View style={styles.statCell}>
             <Text style={styles.statValue}>{stats.missionsCount}</Text>
-            <Text style={styles.statLabel}>Missions Joined</Text>
+            <Text style={styles.statLabel}>{t('profile.missionsJoinedLabel')}</Text>
           </View>
         </View>
       ) : null}
 
       <Button
-        label="Edit Profile"
+        label={t('profile.editProfileButton')}
         variant="secondary"
         icon={<Pencil size={ICON_SIZE.sm} color={colors.textPrimary} />}
         onPress={() => navigation.navigate('EditProfile')}
@@ -123,7 +125,7 @@ export default function ProfileScreen() {
       />
 
       <Button
-        label="Settings"
+        label={t('profile.settingsButton')}
         variant="secondary"
         icon={<SettingsIcon size={ICON_SIZE.sm} color={colors.textPrimary} />}
         onPress={() => navigation.navigate('Settings')}
@@ -131,7 +133,7 @@ export default function ProfileScreen() {
       />
 
       <Button
-        label={logoutMutation.isPending ? 'Logging out…' : 'Log out'}
+        label={logoutMutation.isPending ? t('profile.loggingOut') : t('profile.logOut')}
         variant="dangerOutline"
         icon={<LogOut size={ICON_SIZE.sm} color={colors.danger} />}
         onPress={() => logoutMutation.mutate()}

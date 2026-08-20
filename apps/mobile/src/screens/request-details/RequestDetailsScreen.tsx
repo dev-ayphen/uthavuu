@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -23,6 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'RequestDetails'>;
 
 export default function RequestDetailsScreen({ route }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('requestDetails');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { reportId } = route.params;
@@ -109,7 +111,7 @@ export default function RequestDetailsScreen({ route }: Props) {
 
         <View style={styles.locationRow}>
           <MapPin size={ICON_SIZE.sm} color={colors.textSecondary} />
-          <Text style={styles.locationText}>{report.landmark || 'Location shared'}</Text>
+          <Text style={styles.locationText}>{report.landmark || t('locationSharedFallback')}</Text>
         </View>
 
         {report.reporter && (
@@ -123,7 +125,7 @@ export default function RequestDetailsScreen({ route }: Props) {
 
         {roster.completion && (
           <View style={styles.completionBox}>
-            <Text style={styles.completionTitle}>✅ Mission Completed</Text>
+            <Text style={styles.completionTitle}>{t('completionTitle')}</Text>
             <Image source={{ uri: roster.completion.photoUrl }} style={styles.completionPhoto} />
             <Text style={styles.completionNote}>{roster.completion.note}</Text>
           </View>
@@ -133,9 +135,7 @@ export default function RequestDetailsScreen({ route }: Props) {
           <MissionChat reportId={reportId} locked={report.status === 'completed'} />
         ) : (
           <View style={styles.chatLocked}>
-            <Text style={styles.chatLockedText}>
-              🔒 Mission Chat is available after you accept this request.
-            </Text>
+            <Text style={styles.chatLockedText}>{t('chatLockedMessage')}</Text>
           </View>
         )}
 

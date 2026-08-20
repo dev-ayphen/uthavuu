@@ -1,1 +1,67 @@
-{}
+{
+  "categoryScreen": {
+    "title": "Report a Request",
+    "subtitle": "What kind of help is needed?"
+  },
+  "flow": {
+    "stepPhoto": "Photo",
+    "stepDetails": "Details",
+    "stepLocation": "Location",
+    "stepPrivacy": "Privacy",
+    "stepReview": "Review",
+    "next": "Next",
+    "publish": "Publish Report",
+    "cameraNeededTitle": "Camera needed",
+    "cameraNeededMessage": "Uthavu needs camera access to attach a live photo to your report.",
+    "uploadFailed": "Upload failed",
+    "publishedTitle": "Report published",
+    "publishedMessage": "Nearby volunteers can now see your request.",
+    "ok": "OK",
+    "publishError": "Could not publish your report. Try again."
+  },
+  "details": {
+    "title": "Describe the situation",
+    "subtitle": "Keep it short and specific — this is what people see first.",
+    "titlePlaceholder": "Title, e.g. 'Injured dog near the market'",
+    "titleLabel": "Title",
+    "descriptionPlaceholder": "What's happening, and what kind of help is needed?",
+    "descriptionLabel": "Description",
+    "needsTeamLabel": "This needs more than one volunteer",
+    "volunteersNeededLabel": "Volunteers needed"
+  },
+  "location": {
+    "title": "Confirm your location",
+    "subtitle": "Nearby volunteers use this to find the situation.",
+    "detecting": "Detecting your location…",
+    "unavailable": "Location unavailable",
+    "landmarkPlaceholder": "Landmark, e.g. 'Opposite the bus stop' (optional)",
+    "landmarkLabel": "Landmark"
+  },
+  "photo": {
+    "title": "Add a photo",
+    "subtitle": "A live photo is required — it's what makes your report trustworthy to nearby volunteers.",
+    "uploadFailedLabel": "Upload failed: {{error}}. Double tap to remove.",
+    "tapToRemove": "{{error}} — tap to remove",
+    "removePhoto": "Remove photo",
+    "takePhotoLabel": "Take a photo",
+    "takePhoto": "Take Photo",
+    "addAnother": "Add Another"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "subtitle": "Control what's exposed about you on this report.",
+    "anonymousLabel": "Post anonymously",
+    "anonymousSubtitle": "Hides your name, photo, and profession on the public report card",
+    "phoneVisibleLabel": "Share phone number with volunteers",
+    "phoneVisibleSubtitle": "Only visible to someone who accepts your request"
+  },
+  "review": {
+    "title": "Review & publish",
+    "subtitle": "This is exactly what nearby volunteers will see.",
+    "expiresIn": "Expires in {{time}}",
+    "postingAnonymously": "Posting anonymously",
+    "postingWithName": "Posting with your name",
+    "phoneShared": "Phone shared with the volunteer who accepts",
+    "phonePrivate": "Phone number stays private"
+  }
+}

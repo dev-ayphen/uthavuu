@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -25,6 +26,7 @@ export default function OtpScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const { t } = useTranslation('auth');
   const { phone } = route.params;
   const [code, setCode] = useState('');
   const [focused, setFocused] = useState(false);
@@ -58,13 +60,13 @@ export default function OtpScreen({ navigation, route }: Props) {
       // source, not guessed. All but TOO_MANY_ATTEMPTS come back as HTTP 400, so
       // branch on `code`, not status.
       if (e instanceof ApiError && e.code === 'OTP_EXPIRED') {
-        setError('OTP expired. Request a new one.');
+        setError(t('otpExpiredError'));
       } else if (e instanceof ApiError && e.code === 'TOO_MANY_ATTEMPTS') {
-        setError('Too many attempts. Request a new code.');
+        setError(t('tooManyAttemptsError'));
       } else if (e instanceof ApiError && (e.code === 'INVALID_OTP' || e.code === 'OTP_NOT_FOUND')) {
-        setError('Invalid OTP. Please try again.');
+        setError(t('invalidOtpError'));
       } else {
-          setError('Something went wrong. Please try again.');
+          setError(t('common:somethingWentWrong'));
       }
       setCode('');
       inputRef.current?.focus();
@@ -94,7 +96,7 @@ export default function OtpScreen({ navigation, route }: Props) {
       await requestOtp(phone);
       setTimer(RESEND_COOLDOWN_S);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not resend code.');
+      setError(e instanceof ApiError ? e.message : t('resendError'));
     } finally {
       setResending(false);
     }
@@ -104,10 +106,8 @@ export default function OtpScreen({ navigation, route }: Props) {
     <View style={styles.container}>
       <BackButton style={styles.backButton} />
 
-      <Text style={styles.title}>Verify number</Text>
-      <Text style={styles.subtitle}>
-        Enter the 6-digit code sent to {formatPhone(phone)}.
-      </Text>
+      <Text style={styles.title}>{t('otpTitle')}</Text>
+      <Text style={styles.subtitle}>{t('otpSubtitleSentTo', { phone: formatPhone(phone) })}</Text>
 
       <Pressable style={styles.boxRow} onPress={() => inputRef.current?.focus()}>
         <View
@@ -137,7 +137,7 @@ export default function OtpScreen({ navigation, route }: Props) {
           autoComplete="one-time-code"
           caretHidden
           autoFocus
-          accessibilityLabel="6-digit verification code"
+          accessibilityLabel={t('codeInputLabel')}
         />
       </Pressable>
 
@@ -146,7 +146,7 @@ export default function OtpScreen({ navigation, route }: Props) {
       <View style={styles.timerRow}>
         {timer > 0 ? (
           <Text style={styles.timerText}>
-            Resend code in{' '}
+            {t('resendCodeIn')}{' '}
             <Text style={styles.timerDigits}>00:{timer.toString().padStart(2, '0')}</Text>
           </Text>
         ) : (
@@ -154,17 +154,17 @@ export default function OtpScreen({ navigation, route }: Props) {
             onPress={onResend}
             disabled={resending}
             accessibilityRole="button"
-            accessibilityLabel="Resend code"
+            accessibilityLabel={t('resendCodeLabel')}
             accessibilityState={{ disabled: resending }}
           >
-            <Text style={styles.resendLink}>{resending ? 'Sending…' : 'Resend Code'}</Text>
+            <Text style={styles.resendLink}>{resending ? t('sending') : t('resendCode')}</Text>
           </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.spacer} />
 
-      <Button label="Verify" onPress={() => submit(code)} disabled={!isComplete} loading={verifying} />
+      <Button label={t('verify')} onPress={() => submit(code)} disabled={!isComplete} loading={verifying} />
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -24,6 +25,7 @@ type Props = {
 // guessing the new state.
 export default function RosterSection({ reportId, report, roster }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['requestDetails', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [completeSheetOpen, setCompleteSheetOpen] = useState(false);
@@ -34,7 +36,7 @@ export default function RosterSection({ reportId, report, roster }: Props) {
   };
 
   const onError = (e: unknown) => {
-    Alert.alert('Could not complete that', e instanceof ApiError ? e.message : 'Try again.');
+    Alert.alert(t('couldNotCompleteThat'), e instanceof ApiError ? e.message : t('common:tryAgain'));
   };
 
   const acceptMutation = useMutation({ mutationFn: () => acceptRequest(reportId), onSuccess: invalidate, onError });
@@ -49,25 +51,25 @@ export default function RosterSection({ reportId, report, roster }: Props) {
   const isFull = activeCount >= roster.neededVolunteers;
 
   const onLeave = () => {
-    Alert.alert('Leave this mission?', 'You will lose your volunteer slot and another volunteer can join.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => leaveMutation.mutate() },
+    Alert.alert(t('leaveConfirmTitle'), t('leaveConfirmMessage'), [
+      { text: t('common:cancel'), style: 'cancel' },
+      { text: t('leaveConfirmAction'), style: 'destructive', onPress: () => leaveMutation.mutate() },
     ]);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Volunteers</Text>
+        <Text style={styles.title}>{t('volunteersTitle')}</Text>
         <Text style={styles.count}>
-          {activeCount} / {roster.neededVolunteers} joined
+          {t('countLabel', { activeCount, count: roster.neededVolunteers })}
         </Text>
       </View>
 
       <View
         style={styles.progressTrack}
         accessibilityRole="progressbar"
-        accessibilityLabel={`${activeCount} of ${roster.neededVolunteers} volunteers joined`}
+        accessibilityLabel={t('progressAccessibilityLabel', { activeCount, count: roster.neededVolunteers })}
         accessibilityValue={{ min: 0, max: roster.neededVolunteers, now: activeCount }}
       >
         <View
@@ -85,14 +87,14 @@ export default function RosterSection({ reportId, report, roster }: Props) {
             {v.name}
           </Text>
           <Text style={styles.status}>
-            {v.status === 'active' ? '🟢 Active' : v.status === 'joined' ? '🟡 Joined' : 'Released'}
+            {v.status === 'active' ? t('statusActive') : v.status === 'joined' ? t('statusJoined') : t('statusReleased')}
           </Text>
         </View>
       ))}
 
       {roster.myStatus === null && !report.isOwner && (
         <Button
-          label={isFull ? 'Volunteer limit reached' : "I'll Help"}
+          label={isFull ? t('volunteerLimitReached') : t('illHelp')}
           onPress={() => acceptMutation.mutate()}
           disabled={isFull}
           loading={acceptMutation.isPending}
@@ -103,16 +105,18 @@ export default function RosterSection({ reportId, report, roster }: Props) {
       {roster.myStatus === 'joined' && (
         <View style={styles.confirmBox}>
           <Text style={styles.confirmText}>
-            ⏱ Confirm within {roster.myConfirmDeadline ? formatTimeRemaining(roster.myConfirmDeadline) : '15m'}
+            {t('confirmWithin', {
+              time: roster.myConfirmDeadline ? formatTimeRemaining(roster.myConfirmDeadline) : t('confirmWithinFallback'),
+            })}
           </Text>
           <Button
-            label="Start Helping"
+            label={t('startHelping')}
             onPress={() => confirmMutation.mutate()}
             loading={confirmMutation.isPending}
             style={styles.actionButton}
           />
           <Button
-            label="Leave Mission"
+            label={t('leaveMission')}
             variant="ghost"
             onPress={onLeave}
             loading={leaveMutation.isPending}
@@ -122,13 +126,13 @@ export default function RosterSection({ reportId, report, roster }: Props) {
 
       {roster.myStatus === 'active' && !roster.completion && (
         <View style={styles.confirmBox}>
-          <Text style={styles.activeText}>🟢 You're helping with this mission.</Text>
+          <Text style={styles.activeText}>{t('activeHelping')}</Text>
           <Button
-            label="Complete Mission"
+            label={t('completeMission')}
             onPress={() => setCompleteSheetOpen(true)}
             style={styles.actionButton}
           />
-          <Button label="Leave Mission" variant="ghost" onPress={onLeave} loading={leaveMutation.isPending} />
+          <Button label={t('leaveMission')} variant="ghost" onPress={onLeave} loading={leaveMutation.isPending} />
         </View>
       )}
 

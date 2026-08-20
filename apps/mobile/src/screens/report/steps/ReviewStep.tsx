@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Clock, Eye, EyeOff, MapPin, Phone, PhoneOff } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -15,12 +16,13 @@ type Props = {
 
 export default function ReviewStep({ draft, category }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View>
-      <Text style={styles.title}>Review &amp; publish</Text>
-      <Text style={styles.subtitle}>This is exactly what nearby volunteers will see.</Text>
+      <Text style={styles.title}>{t('review.title')}</Text>
+      <Text style={styles.subtitle}>{t('review.subtitle')}</Text>
 
       <View style={styles.card}>
         <View style={styles.categoryRow}>
@@ -48,7 +50,9 @@ export default function ReviewStep({ draft, category }: Props) {
         {category && (
           <View style={styles.metaRow}>
             <Clock size={ICON_SIZE.xs} color={colors.textSecondary} />
-            <Text style={styles.metaText}>Expires in {formatExpiryMinutes(category.defaultExpiryMinutes)}</Text>
+            <Text style={styles.metaText}>
+              {t('review.expiresIn', { time: formatExpiryMinutes(category.defaultExpiryMinutes) })}
+            </Text>
           </View>
         )}
 
@@ -58,7 +62,9 @@ export default function ReviewStep({ draft, category }: Props) {
           ) : (
             <Eye size={ICON_SIZE.xs} color={colors.textSecondary} />
           )}
-          <Text style={styles.metaText}>{draft.anonymous ? 'Posting anonymously' : 'Posting with your name'}</Text>
+          <Text style={styles.metaText}>
+            {draft.anonymous ? t('review.postingAnonymously') : t('review.postingWithName')}
+          </Text>
         </View>
 
         <View style={styles.metaRow}>
@@ -68,7 +74,7 @@ export default function ReviewStep({ draft, category }: Props) {
             <PhoneOff size={ICON_SIZE.xs} color={colors.textSecondary} />
           )}
           <Text style={styles.metaText}>
-            {draft.phoneVisible ? 'Phone shared with the volunteer who accepts' : 'Phone number stays private'}
+            {draft.phoneVisible ? t('review.phoneShared') : t('review.phonePrivate')}
           </Text>
         </View>
       </View>

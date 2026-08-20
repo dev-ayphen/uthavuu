@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -17,6 +18,7 @@ type Props = { reportId: string; locked?: boolean };
 // own useFocusEffect (RequestDetailsScreen) covers refresh-on-return.
 export default function MissionChat({ reportId, locked = false }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['requestDetails', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
@@ -36,7 +38,7 @@ export default function MissionChat({ reportId, locked = false }: Props) {
     // loses what the user typed — this just makes sure they're told it failed
     // rather than silently doing nothing.
     onError: (e) => {
-      Alert.alert('Message not sent', e instanceof ApiError ? e.message : 'Try again.');
+      Alert.alert(t('messageNotSentTitle'), e instanceof ApiError ? e.message : t('common:tryAgain'));
     },
   });
 
@@ -48,7 +50,7 @@ export default function MissionChat({ reportId, locked = false }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>💬 Mission Chat</Text>
+      <Text style={styles.title}>{t('missionChatTitle')}</Text>
 
       {isLoading ? (
         <View style={styles.list}>
@@ -68,22 +70,22 @@ export default function MissionChat({ reportId, locked = false }: Props) {
               </View>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.empty}>No messages yet — say hello.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('emptyMessages')}</Text>}
         />
       )}
 
       {locked ? (
-        <Text style={styles.lockedNote}>🔒 This mission is complete — chat is read-only.</Text>
+        <Text style={styles.lockedNote}>{t('chatLockedNote')}</Text>
       ) : (
         <View style={styles.composerRow}>
           <TextField
             value={draft}
             onChangeText={setDraft}
-            placeholder="Message…"
+            placeholder={t('messagePlaceholder')}
             style={styles.input}
-            accessibilityLabel="Message"
+            accessibilityLabel={t('messagePlaceholder')}
           />
-          <Button label="Send" onPress={onSend} loading={sendMutation.isPending} disabled={!draft.trim()} />
+          <Button label={t('send')} onPress={onSend} loading={sendMutation.isPending} disabled={!draft.trim()} />
         </View>
       )}
     </View>

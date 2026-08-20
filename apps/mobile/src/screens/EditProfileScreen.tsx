@@ -14,6 +14,7 @@ import { Briefcase, Building2, Camera, ChevronDown, Globe, Mail, MapPin, Phone, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { ICON_SIZE, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -70,6 +71,7 @@ function EditProfileForm({
   navigation: Props['navigation'];
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
+  const { t } = useTranslation(['tabs', 'common']);
   const [name, setName] = useState(me.name ?? '');
   const [email, setEmail] = useState(me.contactEmail ?? '');
   const [language, setLanguage] = useState(me.language ?? '');
@@ -145,7 +147,7 @@ function EditProfileForm({
       const uploaded = await uploadImage(uri);
       setAvatarUrl(uploaded.url);
     } catch {
-      setPhotoError('Could not upload photo. Tap to try again, or continue without one.');
+      setPhotoError(t('editProfile.photoUploadFailed'));
     } finally {
       setUploadingPhoto(false);
     }
@@ -153,10 +155,10 @@ function EditProfileForm({
 
   const onPickPhoto = () => {
     if (uploadingPhoto) return;
-    Alert.alert('Profile Photo', 'Add a photo so others can recognize you.', [
-      { text: 'Take Photo', onPress: () => launchPicker('camera') },
-      { text: 'Choose from Library', onPress: () => launchPicker('library') },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('editProfile.photoAlertTitle'), t('editProfile.photoAlertMessage'), [
+      { text: t('editProfile.takePhoto'), onPress: () => launchPicker('camera') },
+      { text: t('editProfile.chooseFromLibrary'), onPress: () => launchPicker('library') },
+      { text: t('common:cancel'), style: 'cancel' },
     ]);
   };
 
@@ -181,7 +183,7 @@ function EditProfileForm({
       queryClient.setQueryData(['me'], updated);
       navigation.goBack();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not save your profile. Try again.');
+      setError(e instanceof ApiError ? e.message : t('editProfile.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -191,14 +193,14 @@ function EditProfileForm({
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <BackButton style={styles.backButton} />
-        <Text style={styles.title}>Edit profile</Text>
-        <Text style={styles.subtitle}>Your name is shown on reports you post, unless you post anonymously.</Text>
+        <Text style={styles.title}>{t('editProfile.title')}</Text>
+        <Text style={styles.subtitle}>{t('editProfile.subtitle')}</Text>
 
         <TouchableOpacity
           style={styles.avatarWrap}
           onPress={onPickPhoto}
           accessibilityRole="button"
-          accessibilityLabel="Change profile photo"
+          accessibilityLabel={t('editProfile.changePhotoLabel')}
         >
           <Avatar uri={localPhotoUri ?? avatarUrl} label={name || me.name} size={84} />
           <View style={styles.avatarBadge}>
@@ -209,38 +211,38 @@ function EditProfileForm({
             )}
           </View>
         </TouchableOpacity>
-        <Text style={styles.avatarLabel}>{uploadingPhoto ? 'Uploading…' : 'Change photo'}</Text>
+        <Text style={styles.avatarLabel}>{uploadingPhoto ? t('editProfile.uploading') : t('editProfile.changePhoto')}</Text>
         {photoError ? <Text style={styles.error}>{photoError}</Text> : null}
 
         <TextField
           value={name}
           onChangeText={setName}
-          placeholder="Full name"
+          placeholder={t('editProfile.fullNamePlaceholder')}
           icon={<User size={ICON_SIZE.sm} color={colors.textSecondary} />}
           autoCapitalize="words"
-          accessibilityLabel="Full name"
+          accessibilityLabel={t('editProfile.fullNameLabel')}
           style={styles.field}
         />
 
         <TextField
           value={email}
           onChangeText={setEmail}
-          placeholder="Email address (optional)"
+          placeholder={t('editProfile.emailPlaceholder')}
           icon={<Mail size={ICON_SIZE.sm} color={colors.textSecondary} />}
           keyboardType="email-address"
           autoCapitalize="none"
-          error={!emailValid ? 'Enter a valid email' : undefined}
-          accessibilityLabel="Email address"
+          error={!emailValid ? t('editProfile.emailInvalid') : undefined}
+          accessibilityLabel={t('editProfile.emailLabel')}
           style={styles.field}
         />
 
         <TextField
           value={language}
           onChangeText={setLanguage}
-          placeholder="Preferred language (optional)"
+          placeholder={t('editProfile.languagePlaceholder')}
           icon={<Globe size={ICON_SIZE.sm} color={colors.textSecondary} />}
           autoCapitalize="words"
-          accessibilityLabel="Preferred language"
+          accessibilityLabel={t('editProfile.languageLabel')}
           style={styles.field}
         />
 
@@ -248,15 +250,15 @@ function EditProfileForm({
           style={styles.pickerRow}
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="Profession"
+          accessibilityLabel={t('editProfile.professionLabel')}
         >
           <Briefcase size={ICON_SIZE.sm} color={colors.textSecondary} />
           <Text style={[styles.pickerRowText, !professionId && styles.placeholder]}>
             {professionId
               ? professionId === 'other'
-                ? professionOtherText || 'Other'
+                ? professionOtherText || t('editProfile.professionOther')
                 : `${selectedProfession?.emoji} ${selectedProfession?.label}`
-              : 'Profession (optional)'}
+              : t('editProfile.professionPlaceholder')}
           </Text>
           <ChevronDown size={ICON_SIZE.sm} color={colors.textSecondary} />
         </TouchableOpacity>
@@ -265,8 +267,8 @@ function EditProfileForm({
           <TextField
             value={professionOtherText}
             onChangeText={setProfessionOtherText}
-            placeholder="Enter your profession"
-            accessibilityLabel="Enter your profession"
+            placeholder={t('editProfile.professionOtherPlaceholder')}
+            accessibilityLabel={t('editProfile.professionOtherPlaceholder')}
             style={styles.field}
           />
         )}
@@ -274,15 +276,15 @@ function EditProfileForm({
         <TextField
           value={organization}
           onChangeText={setOrganization}
-          placeholder="Organization (optional)"
+          placeholder={t('editProfile.organizationPlaceholder')}
           icon={<Building2 size={ICON_SIZE.sm} color={colors.textSecondary} />}
           autoCapitalize="words"
-          accessibilityLabel="Organization"
+          accessibilityLabel={t('editProfile.organizationLabel')}
           style={styles.field}
         />
 
         <ToggleRow
-          label="Show profession on public profile"
+          label={t('editProfile.showProfessionToggle')}
           value={showProfession}
           onValueChange={setShowProfession}
           style={styles.toggleRow}
@@ -298,12 +300,12 @@ function EditProfileForm({
           <View style={styles.readOnlyRow}>
             <MapPin size={14} color={colors.textSecondary} />
             <Text style={styles.readOnlyText}>
-              {me.city ? `${me.city}, ${me.district}` : 'Location not set'}
+              {me.city ? `${me.city}, ${me.district}` : t('editProfile.locationNotSet')}
             </Text>
           </View>
         </View>
 
-        <Button label="Save changes" onPress={onSave} disabled={!isValid} loading={submitting} style={styles.saveButton} />
+        <Button label={t('common:saveChanges')} onPress={onSave} disabled={!isValid} loading={submitting} style={styles.saveButton} />
       </ScrollView>
 
       <ProfessionPicker

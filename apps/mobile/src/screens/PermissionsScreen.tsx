@@ -13,6 +13,7 @@ import { Bell, Check, Lock, MapPin, ShieldCheck } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -31,6 +32,7 @@ export default function PermissionsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const { t } = useTranslation('auth');
   const [locationGranted, setLocationGranted] = useState(false);
   const [notificationsGranted, setNotificationsGranted] = useState(false);
   const [requesting, setRequesting] = useState(false);
@@ -52,14 +54,10 @@ export default function PermissionsScreen({ navigation }: Props) {
       const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
       setLocationGranted(status === 'granted');
       if (status !== 'granted' && !canAskAgain) {
-        Alert.alert(
-          'Location needed',
-          'Uthavu needs your location to show help requests near you. Enable it in Settings to continue.',
-          [
-            { text: 'Not now', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
+        Alert.alert(t('locationNeededAlertTitle'), t('locationNeededAlertMessage'), [
+          { text: t('notNow'), style: 'cancel' },
+          { text: t('openSettings'), onPress: () => Linking.openSettings() },
+        ]);
       }
     } finally {
       setRequesting(false);
@@ -85,7 +83,7 @@ export default function PermissionsScreen({ navigation }: Props) {
       const { city, district } = await reverseGeocode(lat, lng);
       navigation.replace('ProfileSetup', { lat, lng, city, district });
     } catch {
-      Alert.alert('Could not get your location', 'Please try again.');
+      Alert.alert(t('locationErrorTitle'), t('locationErrorMessage'));
     } finally {
       setLocating(false);
     }
@@ -96,11 +94,8 @@ export default function PermissionsScreen({ navigation }: Props) {
       <View style={styles.iconCircle}>
         <ShieldCheck size={ICON_SIZE.xl} color={colors.primaryGreen} />
       </View>
-      <Text style={styles.title}>App Permissions</Text>
-      <Text style={styles.subtitle}>
-        Enable permissions to view nearby emergency help requests and get alerted when someone
-        needs you.
-      </Text>
+      <Text style={styles.title}>{t('permissionsTitle')}</Text>
+      <Text style={styles.subtitle}>{t('permissionsSubtitle')}</Text>
 
       <TouchableOpacity
         style={[styles.row, locationGranted && styles.rowActive]}
@@ -113,8 +108,8 @@ export default function PermissionsScreen({ navigation }: Props) {
           <MapPin size={ICON_SIZE.md} color={locationGranted ? colors.primaryGreen : colors.textSecondary} />
         </View>
         <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Location Access</Text>
-          <Text style={styles.rowSubtitle}>Required to discover emergency help near you.</Text>
+          <Text style={styles.rowTitle}>{t('locationAccessTitle')}</Text>
+          <Text style={styles.rowSubtitle}>{t('locationAccessSubtitle')}</Text>
         </View>
         {requesting ? (
           <ActivityIndicator size="small" color={colors.primaryGreen} />
@@ -136,8 +131,8 @@ export default function PermissionsScreen({ navigation }: Props) {
           <Bell size={ICON_SIZE.md} color={notificationsGranted ? colors.primaryGreen : colors.textSecondary} />
         </View>
         <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Push Notifications</Text>
-          <Text style={styles.rowSubtitle}>Alerts you when someone accepts your report.</Text>
+          <Text style={styles.rowTitle}>{t('pushNotificationsTitle')}</Text>
+          <Text style={styles.rowSubtitle}>{t('pushNotificationsSubtitle')}</Text>
         </View>
         {notifRequesting ? (
           <ActivityIndicator size="small" color={colors.primaryGreen} />
@@ -150,21 +145,17 @@ export default function PermissionsScreen({ navigation }: Props) {
 
       <View style={styles.privacyRow}>
         <Lock size={ICON_SIZE.xs} color={colors.textSecondary} />
-        <Text style={styles.privacyText}>
-          Your location is only used while actively responding to or creating reports.
-        </Text>
+        <Text style={styles.privacyText}>{t('privacyNote')}</Text>
       </View>
 
       <Button
-        label="Continue"
+        label={t('continue')}
         onPress={onContinue}
         disabled={!locationGranted}
         loading={locating}
         style={styles.continueButton}
       />
-      {!locationGranted && (
-        <Text style={styles.blockedNote}>Location access is required to continue.</Text>
-      )}
+      {!locationGranted && <Text style={styles.blockedNote}>{t('locationRequiredNote')}</Text>}
     </ScrollView>
   );
 }

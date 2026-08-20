@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { MapPin } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -20,31 +21,32 @@ type Props = {
 // replacement for lat/lng in matching.
 export default function LocationStep({ locating, locationLabel, landmark, onChangeLandmark }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View>
-      <Text style={styles.title}>Confirm your location</Text>
-      <Text style={styles.subtitle}>Nearby volunteers use this to find the situation.</Text>
+      <Text style={styles.title}>{t('location.title')}</Text>
+      <Text style={styles.subtitle}>{t('location.subtitle')}</Text>
 
       <View style={styles.locationRow}>
         <MapPin size={ICON_SIZE.sm} color={colors.primaryGreen} />
         {locating ? (
           <>
             <ActivityIndicator size="small" color={colors.primaryGreen} />
-            <Text style={styles.locationText}>Detecting your location…</Text>
+            <Text style={styles.locationText}>{t('location.detecting')}</Text>
           </>
         ) : (
-          <Text style={styles.locationText}>{locationLabel || 'Location unavailable'}</Text>
+          <Text style={styles.locationText}>{locationLabel || t('location.unavailable')}</Text>
         )}
       </View>
 
       <TextField
         value={landmark}
         onChangeText={onChangeLandmark}
-        placeholder="Landmark, e.g. 'Opposite the bus stop' (optional)"
+        placeholder={t('location.landmarkPlaceholder')}
         autoCapitalize="sentences"
-        accessibilityLabel="Landmark"
+        accessibilityLabel={t('location.landmarkLabel')}
         style={styles.field}
       />
     </View>

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -25,10 +26,13 @@ import ReviewStep from './steps/ReviewStep';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportFlow'>;
 
-const STEPS = ['Photo', 'Details', 'Location', 'Privacy', 'Review'] as const;
+// Internal keys only — the displayed label is looked up via t(`flow.${key}`)
+// inside the component, since translation needs a live i18next instance.
+const STEPS = ['stepPhoto', 'stepDetails', 'stepLocation', 'stepPrivacy', 'stepReview'] as const;
 
 export default function ReportFlowScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const { categoryKey } = route.params;
@@ -61,7 +65,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
   const onAddPhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      Alert.alert('Camera needed', 'Uthavu needs camera access to attach a live photo to your report.');
+      Alert.alert(t('flow.cameraNeededTitle'), t('flow.cameraNeededMessage'));
       return;
     }
     // BR-1: camera capture only — launchImageLibraryAsync is never called here.
@@ -81,7 +85,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         photos: d.photos.map((p) => (p.localUri === localUri ? { ...p, uploadedUrl: uploaded.url, uploading: false } : p)),
       }));
     } catch (e) {
-      const message = e instanceof ApiError ? e.message : 'Upload failed';
+      const message = e instanceof ApiError ? e.message : t('flow.uploadFailed');
       setDraft((d) => ({
         ...d,
         photos: d.photos.map((p) => (p.localUri === localUri ? { ...p, uploading: false, error: message } : p)),
@@ -131,11 +135,11 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         neededVolunteers: draft.neededVolunteers,
         photoUrls: draft.photos.map((p) => p.uploadedUrl).filter((url): url is string => Boolean(url)),
       });
-      Alert.alert('Report published', 'Nearby volunteers can now see your request.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert(t('flow.publishedTitle'), t('flow.publishedMessage'), [
+        { text: t('flow.ok'), onPress: () => navigation.goBack() },
       ]);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not publish your report. Try again.');
+      setError(e instanceof ApiError ? e.message : t('flow.publishError'));
     } finally {
       setPublishing(false);
     }
@@ -151,7 +155,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
           ))}
         </View>
         <Text style={styles.stepLabel}>
-          {categoryMeta?.emoji} {STEPS[step]}
+          {categoryMeta?.emoji} {t(`flow.${STEPS[step]}`)}
         </Text>
       </View>
 
@@ -190,9 +194,9 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
         {step < STEPS.length - 1 ? (
-          <Button label="Next" onPress={() => setStep((s) => s + 1)} disabled={!canProceed} />
+          <Button label={t('flow.next')} onPress={() => setStep((s) => s + 1)} disabled={!canProceed} />
         ) : (
-          <Button label="Publish Report" onPress={onPublish} loading={publishing} />
+          <Button label={t('flow.publish')} onPress={onPublish} loading={publishing} />
         )}
       </View>
     </KeyboardAvoidingView>

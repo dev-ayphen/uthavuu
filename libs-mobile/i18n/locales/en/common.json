@@ -9,5 +9,6 @@
   "close": "Close",
   "tryAgain": "Try again.",
   "somethingWentWrong": "Something went wrong. Please try again.",
-  "noInternet": "You appear to be offline. Check your connection and try again."
+  "noInternet": "You appear to be offline. Check your connection and try again.",
+  "viewDetailsHint": "View request details"
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -19,6 +20,7 @@ export default function SplashScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(insets), [insets]);
   const [resetting, setResetting] = useState(false);
+  const { t } = useTranslation('auth');
 
   useEffect(() => {
     if (resetting) return; // long-press reset in progress — don't race it with routing
@@ -74,7 +76,7 @@ export default function SplashScreen({ navigation }: Props) {
         <Text style={styles.title}>உதவு</Text>
       </View>
       <View style={styles.bottomContent}>
-        <Text style={styles.tagline}>Helping begins with one person.</Text>
+        <Text style={styles.tagline}>{t('splashTagline')}</Text>
       </View>
     </TouchableOpacity>
   );

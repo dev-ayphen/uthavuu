@@ -4,6 +4,7 @@ import { Bell, Check, Info, Languages, Laptop, Moon, Sun } from 'lucide-react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -16,10 +17,10 @@ import BackButton from '@uthavu/libs-mobile/components/BackButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
-const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
-  { mode: 'system', label: 'Use device setting', icon: Laptop },
-  { mode: 'light', label: 'Light', icon: Sun },
-  { mode: 'dark', label: 'Dark', icon: Moon },
+const THEME_OPTIONS: { mode: ThemeMode; labelKey: string; icon: typeof Sun }[] = [
+  { mode: 'system', labelKey: 'settings.themeSystem', icon: Laptop },
+  { mode: 'light', labelKey: 'settings.themeLight', icon: Sun },
+  { mode: 'dark', labelKey: 'settings.themeDark', icon: Moon },
 ];
 
 const LANGUAGE_OPTIONS: { locale: AppLocale; label: string }[] = [
@@ -30,6 +31,7 @@ const LANGUAGE_OPTIONS: { locale: AppLocale; label: string }[] = [
 export default function SettingsScreen(_props: Props) {
   const { colors, mode, setMode } = useTheme();
   const { locale, setLocale } = useAppLocale();
+  const { t } = useTranslation('tabs');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
@@ -46,13 +48,14 @@ export default function SettingsScreen(_props: Props) {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <BackButton style={styles.backButton} />
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>{t('settings.title')}</Text>
 
-      <Text style={styles.sectionLabel}>Appearance</Text>
+      <Text style={styles.sectionLabel}>{t('settings.appearance')}</Text>
       <View style={styles.card}>
         {THEME_OPTIONS.map((option, index) => {
           const selected = mode === option.mode;
           const Icon = option.icon;
+          const label = t(option.labelKey);
           return (
             <TouchableOpacity
               key={option.mode}
@@ -60,19 +63,19 @@ export default function SettingsScreen(_props: Props) {
               onPress={() => setMode(option.mode)}
               accessibilityRole="radio"
               accessibilityState={{ checked: selected }}
-              accessibilityLabel={option.label}
+              accessibilityLabel={label}
             >
               <View style={styles.iconBox}>
                 <Icon size={ICON_SIZE.md} color={selected ? colors.primaryGreen : colors.textSecondary} />
               </View>
-              <Text style={styles.rowText}>{option.label}</Text>
+              <Text style={styles.rowText}>{label}</Text>
               {selected && <Check size={ICON_SIZE.sm} color={colors.primaryGreen} strokeWidth={3} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <Text style={styles.sectionLabel}>Language</Text>
+      <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
       <View style={styles.card}>
         {LANGUAGE_OPTIONS.map((option, index) => {
           const selected = locale === option.locale;
@@ -95,25 +98,25 @@ export default function SettingsScreen(_props: Props) {
         })}
       </View>
 
-      <Text style={styles.sectionLabel}>Notifications</Text>
+      <Text style={styles.sectionLabel}>{t('settings.notifications')}</Text>
       <View style={styles.card}>
         <View style={styles.row}>
           <View style={styles.iconBox}>
             <Bell size={ICON_SIZE.md} color={notifGranted ? colors.primaryGreen : colors.textSecondary} />
           </View>
           <View style={styles.rowTextGroup}>
-            <Text style={styles.rowText}>Push notifications</Text>
+            <Text style={styles.rowText}>{t('settings.pushNotifications')}</Text>
             <Text style={styles.rowSubtext}>
               {notifStatus === null
-                ? 'Checking…'
+                ? t('settings.notifChecking')
                 : notifGranted
-                  ? 'Enabled'
-                  : 'Off — enable in your device settings'}
+                  ? t('settings.notifEnabled')
+                  : t('settings.notifDisabled')}
             </Text>
           </View>
           {!notifGranted && notifStatus !== null && (
             <Button
-              label="Open Settings"
+              label={t('settings.openSettings')}
               variant="secondary"
               onPress={() => Linking.openSettings()}
               style={styles.inlineButton}
@@ -122,7 +125,7 @@ export default function SettingsScreen(_props: Props) {
         </View>
       </View>
 
-      <Text style={styles.sectionLabel}>About</Text>
+      <Text style={styles.sectionLabel}>{t('settings.about')}</Text>
       <View style={styles.card}>
         <View style={styles.row}>
           <View style={styles.iconBox}>
@@ -130,7 +133,7 @@ export default function SettingsScreen(_props: Props) {
           </View>
           <View style={styles.rowTextGroup}>
             <Text style={styles.rowText}>{appName}</Text>
-            <Text style={styles.rowSubtext}>Version {appVersion}</Text>
+            <Text style={styles.rowSubtext}>{t('settings.version', { version: appVersion })}</Text>
           </View>
         </View>
       </View>

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -18,6 +19,7 @@ import Card from '@uthavu/libs-mobile/components/Card';
 // filter out here.
 export default function ReportCategoryScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<
@@ -32,8 +34,8 @@ export default function ReportCategoryScreen() {
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.lg }]}
     >
-      <Text style={styles.title}>Report a Request</Text>
-      <Text style={styles.subtitle}>What kind of help is needed?</Text>
+      <Text style={styles.title}>{t('categoryScreen.title')}</Text>
+      <Text style={styles.subtitle}>{t('categoryScreen.subtitle')}</Text>
 
       <View style={styles.grid}>
         {CATEGORIES.map((cat) => (

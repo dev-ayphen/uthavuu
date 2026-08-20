@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -33,10 +34,10 @@ import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
 const RADIUS_OPTIONS = [1, 3, 5, 10] as const;
 
-function greetingForHour(hour: number): string {
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
+function greetingKeyForHour(hour: number): string {
+  if (hour < 12) return 'dashboard.greetingMorning';
+  if (hour < 17) return 'dashboard.greetingAfternoon';
+  return 'dashboard.greetingEvening';
 }
 
 // docs/mobile/08-dashboard-screen.md is 728 lines describing stats strips, an
@@ -48,6 +49,7 @@ function greetingForHour(hour: number): string {
 // call), and category navigation.
 export default function DashboardScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<
@@ -144,21 +146,23 @@ export default function DashboardScreen() {
       <View style={[styles.header, { paddingTop: insets.top + SPACING.sm }]}>
         <View style={styles.headerTop}>
           <Text style={styles.greeting}>
-            {greetingForHour(new Date().getHours())}, {me?.name?.split(' ')[0] || 'there'} 👋
+            {t(greetingKeyForHour(new Date().getHours()), {
+              name: me?.name?.split(' ')[0] || t('dashboard.defaultName'),
+            })}
           </Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('AlertsTab')}
               accessibilityRole="button"
-              accessibilityLabel="Alerts"
+              accessibilityLabel={t('dashboard.alertsLabel')}
             >
               <Bell size={18} color={COLORS.textOnTint} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate('ProfileTab')}
               accessibilityRole="button"
-              accessibilityLabel="Profile"
+              accessibilityLabel={t('dashboard.profileLabel')}
             >
               <Avatar uri={me?.avatarUrl} label={me?.name || 'U'} size={36} tone="inverse" />
             </TouchableOpacity>
@@ -169,8 +173,11 @@ export default function DashboardScreen() {
           style={styles.locationRow}
           onPress={() => setRadiusModalOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={`${displayCity}${displayDistrict ? `, ${displayDistrict}` : ''}. Search radius ${radius} kilometers.`}
-          accessibilityHint="Change search radius"
+          accessibilityLabel={t('dashboard.locationRadiusLabel', {
+            location: `${displayCity}${displayDistrict ? `, ${displayDistrict}` : ''}`,
+            radius,
+          })}
+          accessibilityHint={t('dashboard.changeRadiusHint')}
         >
           {exploring ? (
             <Globe size={14} color={COLORS.info} />
@@ -183,7 +190,7 @@ export default function DashboardScreen() {
           </Text>
           <View style={styles.radiusPill}>
             <SlidersHorizontal size={10} color={COLORS.textOnTint} />
-            <Text style={styles.radiusPillText}>{radius} km</Text>
+            <Text style={styles.radiusPillText}>{t('dashboard.kmUnit', { km: radius })}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -198,23 +205,23 @@ export default function DashboardScreen() {
         {exploring && (
           <View style={styles.exploringBanner}>
             <Text style={styles.exploringBannerText}>
-              🌍 Exploring {exploring.city} — not your current location
+              {t('dashboard.exploringBanner', { city: exploring.city })}
             </Text>
             <TouchableOpacity
               onPress={() => setExploring(null)}
               accessibilityRole="button"
-              accessibilityLabel="Reset to current location"
+              accessibilityLabel={t('dashboard.resetLocationLabel')}
             >
-              <Text style={styles.exploringReset}>Reset</Text>
+              <Text style={styles.exploringReset}>{t('dashboard.reset')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <Text style={styles.sectionTitle}>
-          {exploring ? `Help Requests in ${exploring.city}` : 'Help Requests Nearby'}
+          {exploring ? t('dashboard.helpRequestsIn', { city: exploring.city }) : t('dashboard.helpRequestsNearby')}
         </Text>
         <Text style={styles.sectionSubtitle}>
-          Within {radius} km · {displayCity}
+          {t('dashboard.withinKm', { radius, location: displayCity })}
         </Text>
 
         <View style={styles.grid}>
@@ -262,7 +269,7 @@ export default function DashboardScreen() {
       <Modal visible={radiusModalOpen} transparent animationType="slide" onRequestClose={() => setRadiusModalOpen(false)}>
         <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => setRadiusModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sheet}>
-            <Text style={styles.sheetTitle}>📍 Nearby Search Radius</Text>
+            <Text style={styles.sheetTitle}>{t('dashboard.radiusSheetTitle')}</Text>
             <View style={styles.radiusRow}>
               {RADIUS_OPTIONS.map((km) => (
                 <TouchableOpacity
@@ -270,11 +277,11 @@ export default function DashboardScreen() {
                   style={[styles.radiusOption, radius === km && styles.radiusOptionActive]}
                   onPress={() => radiusMutation.mutate(km)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${km} kilometers`}
+                  accessibilityLabel={t('dashboard.kilometersLabel', { km })}
                   accessibilityState={{ selected: radius === km }}
                 >
                   <Text style={[styles.radiusOptionText, radius === km && styles.radiusOptionTextActive]}>
-                    {km} km
+                    {t('dashboard.kmUnit', { km })}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -286,18 +293,18 @@ export default function DashboardScreen() {
                 setExploreModalOpen(true);
               }}
               accessibilityRole="button"
-              accessibilityLabel="Explore another location"
+              accessibilityLabel={t('dashboard.exploreAnotherLocationLabel')}
             >
               <Compass size={ICON_SIZE.sm} color={colors.primaryGreen} />
-              <Text style={styles.exploreButtonText}>Explore Another Location</Text>
+              <Text style={styles.exploreButtonText}>{t('dashboard.exploreAnotherLocationButton')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.doneButton}
               onPress={() => setRadiusModalOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="Done"
+              accessibilityLabel={t('common:done')}
             >
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Text style={styles.doneButtonText}>{t('common:done')}</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -307,18 +314,18 @@ export default function DashboardScreen() {
       <Modal visible={exploreModalOpen} transparent animationType="slide" onRequestClose={() => setExploreModalOpen(false)}>
         <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => setExploreModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Search a location</Text>
+            <Text style={styles.sheetTitle}>{t('dashboard.searchLocationTitle')}</Text>
             <View style={styles.searchBox}>
               <Search size={ICON_SIZE.sm} color={colors.textSecondary} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search city, area or town…"
+                placeholder={t('dashboard.searchLocationPlaceholder')}
                 placeholderTextColor={colors.textSecondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmitEditing={onSearchLocation}
                 returnKeyType="search"
-                accessibilityLabel="Search a location"
+                accessibilityLabel={t('dashboard.searchLocationTitle')}
               />
               {searching && <ActivityIndicator size="small" color={colors.primaryGreen} />}
             </View>
@@ -327,9 +334,9 @@ export default function DashboardScreen() {
               style={[styles.doneButton, styles.cancelButtonSpacing]}
               onPress={() => setExploreModalOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('common:cancel')}
             >
-              <Text style={styles.doneButtonText}>Cancel</Text>
+              <Text style={styles.doneButtonText}>{t('common:cancel')}</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
