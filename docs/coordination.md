@@ -19,11 +19,11 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Session | Lane (`area:`) | Issue / branch | Working copy | Started |
 |---|---|---|---|---|
-| claude-code (this session) | mobile+api | #2 Impact Story — executing docs/superpowers/plans/2026-08-20-impact-story.md | main clone | 2026-08-20 |
-| uthavuu-e9 (per uthavuu-db, relayed — not directly visible to this session's `ListAgents`) | api | #9, backend alert-content i18n (alert-templates.ts, update-locale.dto.ts, auth-schema.ts, alerts-schema.ts, users.controller.ts/service.ts, libs-mobile/api/alerts.ts, en/ta tabs.json all dirty) | main clone (same working copy — no worktree split) | 2026-08-20 |
-| uthavuu-db (per `ListAgents`, socket 82857) | none — CLI install fix + a docs question, explicitly zero file edits this session and staying off apps/api/, drizzle/, .maestro/, the dev DB, and the simulator | n/a | main clone | 2026-08-20 |
+| claude-code (this session) | mobile+api | board backlog, one-by-one — #2 and #9 both closed, between items | main clone | 2026-08-20 |
+| uthavuu-db (per `ListAgents`) | none reported | was helping coordinate the #9 handoff below; hasn't stated current task | main clone | 2026-08-20 |
+| uthavuu-44 (per `ListAgents`) | unknown | just started, idle, hasn't stated a task yet | main clone | 2026-08-21 |
 
-**Correction (2026-08-20):** an earlier version of this row misattributed the #9/migration work to `uthavuu-db` — confirmed wrong by `uthavuu-db` itself. The real owner is `uthavuu-e9`, which this session cannot reach directly (not listed by its own `ListAgents`) — only via `uthavuu-db` relaying.
+**Resolved (2026-08-21):** #9 (backend alert-content i18n) — the session that owned it (uthavuu-e9) ended without committing. claude-code reviewed the orphaned code in full, adopted the sound parts, finished the missing mobile-side wiring, and closed the issue (see issue #9's closing comment for the full account). No longer relevant to coordinate around.
 
 ## Offset registry
 
@@ -41,7 +41,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | uthavuu-e9 (peer, see correction above) | uncommitted `apps/api/drizzle/0007_blushing_katie_power.sql` (adds `alerts.params` jsonb + `user.locale` text, per uthavuu-db's read of the file) — claude-code session has a `report_likes` table ready (schema written, not yet migrated) and will not run `db:generate`/`db:migrate` until 0007 is committed or e9 confirms it's safe |
+| migration series | — | Resolved 2026-08-21 — 0007 (alerts.params/user.locale) and 0008 (report_likes) are both committed and applied. |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
