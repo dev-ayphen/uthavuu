@@ -15,6 +15,7 @@ import { getRoster } from '@uthavu/libs-mobile/api/missions';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import RosterSection from './RosterSection';
+import ImpactStorySection from './ImpactStorySection';
 import MissionChat from './MissionChat';
 import CommunityComments from './CommunityComments';
 import RequestDetailsSkeleton from './RequestDetailsSkeleton';
@@ -121,14 +122,10 @@ export default function RequestDetailsScreen({ route }: Props) {
           </View>
         )}
 
-        <RosterSection reportId={reportId} report={report} roster={roster} />
-
-        {roster.completion && (
-          <View style={styles.completionBox}>
-            <Text style={styles.completionTitle}>{t('completionTitle')}</Text>
-            <Image source={{ uri: roster.completion.photoUrl }} style={styles.completionPhoto} />
-            <Text style={styles.completionNote}>{roster.completion.note}</Text>
-          </View>
+        {report.status === 'completed' ? (
+          <ImpactStorySection reportId={reportId} report={report} roster={roster} />
+        ) : (
+          <RosterSection reportId={reportId} report={report} roster={roster} />
         )}
 
         {hasAccess ? (
@@ -167,15 +164,4 @@ const createStyles = (colors: ColorScheme) =>
       borderColor: colors.border,
     },
     chatLockedText: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
-    completionBox: {
-      marginTop: SPACING.md,
-      padding: SPACING.md,
-      borderRadius: RADIUS.lg,
-      backgroundColor: colors.primaryGreenLight,
-      borderWidth: 1,
-      borderColor: colors.primaryGreen,
-    },
-    completionTitle: { ...TYPE.bodyStrong, color: colors.primaryGreen, marginBottom: SPACING.xs },
-    completionPhoto: { width: '100%', height: 160, borderRadius: RADIUS.md, marginBottom: SPACING.xs },
-    completionNote: { ...TYPE.body, color: colors.textPrimary },
   });
