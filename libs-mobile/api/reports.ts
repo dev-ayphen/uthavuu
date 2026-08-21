@@ -28,6 +28,8 @@ export type Report = {
   isOwner: boolean;
   reporter: { name: string; avatarUrl: string | null } | null;
   reporterPhone: string | null;
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 export type ReportWithDistance = Report & { distanceKm: number };
@@ -78,4 +80,12 @@ export function listReports(
     `/reports?categoryKey=${categoryKey}&lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`,
     { method: 'GET', auth: true }
   );
+}
+
+export function likeReport(reportId: string): Promise<Report> {
+  return apiRequest(`/reports/${reportId}/like`, { method: 'POST', auth: true });
+}
+
+export function unlikeReport(reportId: string): Promise<Report> {
+  return apiRequest(`/reports/${reportId}/like`, { method: 'DELETE', auth: true });
 }
