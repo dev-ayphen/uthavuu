@@ -55,6 +55,14 @@ export const auth = betterAuth({
       organization: { type: 'string', required: false, input: false },
       showProfession: { type: 'boolean', required: false, defaultValue: true, input: false },
       avatarUrl: { type: 'string', required: false, input: false },
+
+      // The locale the server renders push notification prose in
+      // (alerts/alert-templates.ts). Distinct from `language` above: that one
+      // is free text the user typed about themselves and is display-only,
+      // this one is a machine value ('en' | 'ta') the renderer switches on.
+      // Null until the client reports one via PATCH /users/me/locale, which
+      // falls back to English.
+      locale: { type: 'string', required: false, input: false },
     },
   },
 

@@ -192,8 +192,7 @@ export class MissionsService {
     await this.alertsService.create(
       report.reporterId,
       'volunteer_accepted',
-      'Volunteer Accepted',
-      `${volunteer?.name ?? 'A volunteer'} is heading to help with "${report.title}".`,
+      { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
       reportId
     );
 
@@ -238,8 +237,7 @@ export class MissionsService {
       await this.alertsService.create(
         report.reporterId,
         'volunteer_released',
-        'Volunteer Update',
-        `${volunteer?.name ?? 'A volunteer'} is no longer available to help with "${report.title}".`,
+        { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
         reportId
       );
     }
@@ -295,8 +293,7 @@ export class MissionsService {
     await this.alertsService.create(
       report.reporterId,
       'mission_completed',
-      'Mission Completed',
-      `${volunteer?.name ?? 'A volunteer'} marked "${report.title}" as complete.`,
+      { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
       reportId
     );
 

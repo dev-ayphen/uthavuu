@@ -6,6 +6,7 @@ import { reports } from '../db/schema/reports-schema';
 import { missionVolunteers } from '../db/schema/missions-schema';
 import type { CompleteProfileDto } from './dto/complete-profile.dto';
 import type { UpdateRadiusDto } from './dto/update-radius.dto';
+import type { UpdateLocaleDto } from './dto/update-locale.dto';
 
 @Injectable()
 export class UsersService {
@@ -39,6 +40,19 @@ export class UsersService {
     const [updated] = await db
       .update(user)
       .set({ preferredRadius: input.radius })
+      .where(eq(user.id, userId))
+      .returning();
+
+    return updated;
+  }
+
+  // Reported by the client whenever the in-app language changes, so push
+  // notifications — the one alert surface the server has to render prose for
+  // itself — go out in the language the user actually reads.
+  async updateLocale(userId: string, input: UpdateLocaleDto) {
+    const [updated] = await db
+      .update(user)
+      .set({ locale: input.locale })
       .where(eq(user.id, userId))
       .returning();
 

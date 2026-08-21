@@ -4,6 +4,7 @@ import type { auth } from '../auth/auth';
 import { UsersService } from './users.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 import { UpdateRadiusDto } from './dto/update-radius.dto';
+import { UpdateLocaleDto } from './dto/update-locale.dto';
 
 @Controller('users')
 export class UsersController {
@@ -27,6 +28,11 @@ export class UsersController {
   @Patch('me/radius')
   async updateRadius(@Session() session: UserSession<typeof auth>, @Body() body: UpdateRadiusDto) {
     return this.usersService.updateRadius(session.user.id, body);
+  }
+
+  @Patch('me/locale')
+  async updateLocale(@Session() session: UserSession<typeof auth>, @Body() body: UpdateLocaleDto) {
+    return this.usersService.updateLocale(session.user.id, body);
   }
 
   @Get('me/stats')
