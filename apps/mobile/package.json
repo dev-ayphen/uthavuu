@@ -36,7 +36,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test:e2e": "maestro test .maestro",
+    "test:e2e:flow": "maestro test"
   },
   "private": true
 }
