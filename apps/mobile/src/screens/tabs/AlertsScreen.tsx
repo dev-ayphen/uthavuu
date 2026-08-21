@@ -22,14 +22,34 @@ type Navigation = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// Only two alert types exist today — a reporter is notified when a
-// volunteer accepts their report, and when a volunteer voluntarily leaves
-// (see MissionsService.accept()/leave()). Rendered generically by
-// title/body rather than switching on `type`, so a future third type needs
-// no change here.
+// Renders from `type` + `params` against this build's own catalog
+// (tabs.alerts.content.*) rather than the server's stored title/body, so an
+// alert re-renders instantly in the user's current language even for one
+// written before they switched — see alert-templates.ts on the API side,
+// which this mirrors key-for-key. Falls back to the server's own English
+// rendering for a `type` this build doesn't recognise (an older client
+// after the server adds a new type), rather than a missing-key string.
+function renderAlertContent(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  exists: (key: string) => boolean,
+  alert: Alert
+): { title: string; body: string } {
+  const titleKey = `alerts.content.${alert.type}.title`;
+  const bodyKey = `alerts.content.${alert.type}.body`;
+  if (!exists(titleKey) || !exists(bodyKey)) {
+    return { title: alert.title, body: alert.body };
+  }
+
+  const volunteerName = alert.params.volunteerName ?? t('alerts.content.aVolunteer');
+  return {
+    title: t(titleKey),
+    body: t(bodyKey, { volunteerName, reportTitle: alert.params.reportTitle }),
+  };
+}
+
 export default function AlertsScreen() {
   const { colors } = useTheme();
-  const { t } = useTranslation(['tabs', 'common']);
+  const { t, i18n } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Navigation>();
@@ -100,6 +120,7 @@ export default function AlertsScreen() {
         renderItem={({ item }) => (
           <AlertRow
             alert={item}
+            content={renderAlertContent(t, i18n.exists.bind(i18n), item)}
             colors={colors}
             styles={styles}
             viewDetailsHint={t('common:viewDetailsHint')}
@@ -117,23 +138,25 @@ export default function AlertsScreen() {
 
 function AlertRow({
   alert,
+  content: { title, body },
   colors,
   styles,
   viewDetailsHint,
   onPress,
 }: {
   alert: Alert;
+  content: { title: string; body: string };
   colors: ColorScheme;
   styles: ReturnType<typeof createStyles>;
   viewDetailsHint: string;
   onPress?: () => void;
 }) {
-  const content = (
+  const rowContent = (
     <>
       <View style={[styles.unreadDot, alert.read && styles.unreadDotHidden]} />
       <View style={styles.rowBody}>
-        <Text style={styles.rowTitle}>{alert.title}</Text>
-        <Text style={styles.rowMessage}>{alert.body}</Text>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowMessage}>{body}</Text>
         <Text style={styles.rowTime}>{formatRelativeTime(alert.createdAt)}</Text>
       </View>
     </>
@@ -141,8 +164,8 @@ function AlertRow({
 
   if (!onPress) {
     return (
-      <View style={[styles.row, !alert.read && styles.rowUnread]} accessibilityLabel={`${alert.title}. ${alert.body}`}>
-        {content}
+      <View style={[styles.row, !alert.read && styles.rowUnread]} accessibilityLabel={`${title}. ${body}`}>
+        {rowContent}
       </View>
     );
   }
@@ -152,10 +175,10 @@ function AlertRow({
       style={[styles.row, !alert.read && styles.rowUnread]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${alert.title}. ${alert.body}`}
+      accessibilityLabel={`${title}. ${body}`}
       accessibilityHint={viewDetailsHint}
     >
-      {content}
+      {rowContent}
     </TouchableOpacity>
   );
 }

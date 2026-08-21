@@ -47,6 +47,15 @@ export function updateRadius(radius: 1 | 3 | 5 | 10): Promise<AuthUser> {
   return apiRequest('/users/me/radius', { method: 'PATCH', auth: true, body: { radius } });
 }
 
+// Tells the server which language to render future push notifications in —
+// separate from the in-app catalog switch (useAppLocale), which is instant
+// and local. A best-effort background sync: if it fails, the user's local
+// language already changed successfully, only a future push notification
+// might render in the wrong language, not worth surfacing an error for.
+export function updateLocale(locale: 'en' | 'ta'): Promise<AuthUser> {
+  return apiRequest('/users/me/locale', { method: 'PATCH', auth: true, body: { locale } });
+}
+
 export function registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void> {
   return apiRequest('/devices', { method: 'POST', auth: true, body: { token, platform } });
 }

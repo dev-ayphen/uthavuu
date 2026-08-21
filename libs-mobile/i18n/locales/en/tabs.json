@@ -40,7 +40,22 @@
     "markAllRead": "Mark all read",
     "markAllReadLabel": "Mark all alerts as read",
     "emptyTitle": "No alerts yet",
-    "emptySubtitle": "You'll see updates here when a volunteer responds to your reports."
+    "emptySubtitle": "You'll see updates here when a volunteer responds to your reports.",
+    "content": {
+      "aVolunteer": "A volunteer",
+      "volunteer_accepted": {
+        "title": "Volunteer Accepted",
+        "body": "{{volunteerName}} is heading to help with “{{reportTitle}}”."
+      },
+      "volunteer_released": {
+        "title": "Volunteer Update",
+        "body": "{{volunteerName}} is no longer available to help with “{{reportTitle}}”."
+      },
+      "mission_completed": {
+        "title": "Mission Completed",
+        "body": "{{volunteerName}} marked “{{reportTitle}}” as complete."
+      }
+    }
   },
   "profile": {
     "defaultName": "Uthavu user",

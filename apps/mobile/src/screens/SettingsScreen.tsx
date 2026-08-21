@@ -9,8 +9,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme, type ThemeMode } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import { useMutation } from '@tanstack/react-query';
 import { useAppLocale } from '@uthavu/libs-mobile/i18n/useAppLocale';
 import type { AppLocale } from '@uthavu/libs-mobile/i18n';
+import { updateLocale } from '@uthavu/libs-mobile/api/users';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import Button from '@uthavu/libs-mobile/components/Button';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
@@ -34,6 +36,14 @@ export default function SettingsScreen(_props: Props) {
   const { t } = useTranslation('tabs');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+
+  // Best-effort — the in-app switch (setLocale) already succeeded
+  // synchronously regardless of this outcome, see updateLocale()'s comment.
+  const syncLocaleMutation = useMutation({ mutationFn: updateLocale });
+  const onSelectLocale = (next: AppLocale) => {
+    setLocale(next);
+    syncLocaleMutation.mutate(next);
+  };
 
   const [notifStatus, setNotifStatus] = useState<Notifications.PermissionStatus | null>(null);
 
@@ -83,7 +93,7 @@ export default function SettingsScreen(_props: Props) {
             <TouchableOpacity
               key={option.locale}
               style={[styles.row, index < LANGUAGE_OPTIONS.length - 1 && styles.rowDivider]}
-              onPress={() => setLocale(option.locale)}
+              onPress={() => onSelectLocale(option.locale)}
               accessibilityRole="radio"
               accessibilityState={{ checked: selected }}
               accessibilityLabel={option.label}
