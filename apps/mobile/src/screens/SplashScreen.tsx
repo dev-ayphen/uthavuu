@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { HeartHandshake } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 // the brand isn't a one-frame flash on a fast device.
 const MIN_DISPLAY_MS = 800;
 
+// docs/features/impact-story.md US-4 — a shared uthavu://requests/:id link
+// (or, in Expo Go, exp://host:port/--/requests/:id) must land the signed-in
+// recipient directly on that report, not on Home. Only one deep-linkable
+// route exists today, so a small targeted regex is simpler and clearer than
+// pulling in React Navigation's generic getStateFromPath() resolution for a
+// single case — revisit if a second deep-linkable route is ever added.
+function extractDeepLinkReportId(url: string | null): string | null {
+  if (!url) return null;
+  const match = url.match(/requests\/([^/?]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export default function SplashScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(insets), [insets]);
@@ -27,15 +39,21 @@ export default function SplashScreen({ navigation }: Props) {
     let cancelled = false;
 
     async function route() {
-      const [sessionExists, onboardingSeen] = await Promise.all([
+      const [sessionExists, onboardingSeen, initialUrl] = await Promise.all([
         hasSession(),
         hasSeenOnboarding(),
+        Linking.getInitialURL(),
         new Promise((resolve) => setTimeout(resolve, MIN_DISPLAY_MS)),
       ]);
 
       if (cancelled) return;
 
       if (sessionExists) {
+        const reportId = extractDeepLinkReportId(initialUrl);
+        if (reportId) {
+          navigation.replace('RequestDetails', { reportId });
+          return;
+        }
         navigation.replace('MainTabs');
       } else if (onboardingSeen) {
         navigation.replace('Login');
