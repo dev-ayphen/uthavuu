@@ -31,12 +31,19 @@ type Navigation = CompositeNavigationProp<
 // after the server adds a new type), rather than a missing-key string.
 function renderAlertContent(
   t: (key: string, options?: Record<string, unknown>) => string,
-  exists: (key: string) => boolean,
+  exists: (key: string, options?: Record<string, unknown>) => boolean,
   alert: Alert
 ): { title: string; body: string } {
+  // i18n.exists() does NOT share useTranslation()'s bound namespace-list
+  // resolution the way its t() does — it falls back to the global
+  // defaultNS ('common') unless told otherwise, so these keys (which live
+  // in 'tabs') need an explicit ns here even though the sibling t() calls
+  // below don't. Confirmed live: without this, exists() always returned
+  // false and every alert silently fell back to the English server
+  // rendering, in every locale, page chrome around it localizing fine.
   const titleKey = `alerts.content.${alert.type}.title`;
   const bodyKey = `alerts.content.${alert.type}.body`;
-  if (!exists(titleKey) || !exists(bodyKey)) {
+  if (!exists(titleKey, { ns: 'tabs' }) || !exists(bodyKey, { ns: 'tabs' })) {
     return { title: alert.title, body: alert.body };
   }
 
