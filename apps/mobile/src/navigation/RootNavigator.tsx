@@ -16,9 +16,23 @@ import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// docs/features/impact-story.md US-4 — Share opens uthavu://requests/:id.
+// Known, accepted limitation: a signed-out or not-yet-onboarded recipient
+// still lands directly on RequestDetails, whose getReport()/getRoster()
+// calls fail with an auth error — already handled by the screen's existing
+// ErrorState (retry, no crash), just not a polished "log in first" redirect.
+const linking = {
+  prefixes: ['uthavu://'],
+  config: {
+    screens: {
+      RequestDetails: 'requests/:reportId',
+    },
+  },
+};
+
 export default function RootNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
