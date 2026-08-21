@@ -1,7 +1,10 @@
 {
   "locationSharedFallback": "Location shared",
-  "completionTitle": "✅ Mission Completed",
   "chatLockedMessage": "🔒 Mission Chat is available after you accept this request.",
+  "impactStoryLabel": "✨ Impact Story",
+  "helpedInDuration": "Helped in {{duration}}",
+  "share": "Share",
+  "shareMessage": "See how the Uthavu community helped with \"{{title}}\":",
 
   "volunteersTitle": "Volunteers",
   "countLabel": "{{activeCount}} / {{count}} joined",

@@ -1,7 +1,10 @@
 {
   "locationSharedFallback": "இருப்பிடம் பகிரப்பட்டது",
-  "completionTitle": "✅ பணி முடிந்தது",
   "chatLockedMessage": "🔒 இந்த கோரிக்கையை ஏற்றுக்கொண்ட பிறகு மிஷன் சாட் கிடைக்கும்.",
+  "impactStoryLabel": "✨ உதவியின் கதை",
+  "helpedInDuration": "{{duration}}இல் உதவப்பட்டது",
+  "share": "பகிர்",
+  "shareMessage": "\"{{title}}\" க்கு உதவு சமூகம் எப்படி உதவியது என்பதைப் பாருங்கள்:",
 
   "volunteersTitle": "தொண்டர்கள்",
   "countLabel": "{{activeCount}} / {{count}} இணைந்தனர்",

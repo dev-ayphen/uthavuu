@@ -18,3 +18,20 @@ export function formatRelativeTime(iso: string): string {
   const days = Math.floor(hours / 24);
   return i18next.t('daysAgo', { count: days });
 }
+
+// Elapsed duration between two timestamps ("2 hours", not "2 hours ago") —
+// used by ImpactStorySection for "Helped in {{duration}}". Same
+// single-largest-unit approach as formatRelativeTime, distinct wording.
+export function formatDuration(startIso: string, endIso: string): string {
+  const msElapsed = new Date(endIso).getTime() - new Date(startIso).getTime();
+  if (msElapsed < 60_000) return i18next.t('durationLessThanAMinute');
+
+  const minutes = Math.floor(msElapsed / 60_000);
+  if (minutes < 60) return i18next.t('durationMinutes', { count: minutes });
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return i18next.t('durationHours', { count: hours });
+
+  const days = Math.floor(hours / 24);
+  return i18next.t('durationDays', { count: days });
+}

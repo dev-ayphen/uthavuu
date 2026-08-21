@@ -17,5 +17,12 @@
   "hoursAgo_one": "{{count}} மணி நேரத்திற்கு முன்",
   "hoursAgo_other": "{{count}} மணி நேரங்களுக்கு முன்",
   "daysAgo_one": "{{count}} நாளுக்கு முன்",
-  "daysAgo_other": "{{count}} நாட்களுக்கு முன்"
+  "daysAgo_other": "{{count}} நாட்களுக்கு முன்",
+  "durationLessThanAMinute": "ஒரு நிமிடத்திற்கும் குறைவாக",
+  "durationMinutes_one": "{{count}} நிமிடம்",
+  "durationMinutes_other": "{{count}} நிமிடங்கள்",
+  "durationHours_one": "{{count}} மணி நேரம்",
+  "durationHours_other": "{{count}} மணி நேரங்கள்",
+  "durationDays_one": "{{count}} நாள்",
+  "durationDays_other": "{{count}} நாட்கள்"
 }
