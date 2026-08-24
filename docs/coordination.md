@@ -45,7 +45,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — | Resolved 2026-08-24 — 0010 (reports.deleted_at/deleted_by) is committed and applied. |
+| migration series | claude-code (flagged-comments fork) | generating 0011 (report_comment_flags unique index) — will release once committed and applied |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
