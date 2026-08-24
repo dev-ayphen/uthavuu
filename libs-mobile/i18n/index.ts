@@ -20,6 +20,10 @@ import enRequestDetails from './locales/en/requestDetails.json';
 import enInvite from './locales/en/invite.json';
 import enFlaggedComments from './locales/en/flaggedComments.json';
 import enImpactStories from './locales/en/impactStories.json';
+import enMissionJournal from './locales/en/missionJournal.json';
+import enTickets from './locales/en/tickets.json';
+import enLegal from './locales/en/legal.json';
+import enDeleteAccount from './locales/en/deleteAccount.json';
 import taCommon from './locales/ta/common.json';
 import taAuth from './locales/ta/auth.json';
 import taTabs from './locales/ta/tabs.json';
@@ -28,6 +32,10 @@ import taRequestDetails from './locales/ta/requestDetails.json';
 import taInvite from './locales/ta/invite.json';
 import taFlaggedComments from './locales/ta/flaggedComments.json';
 import taImpactStories from './locales/ta/impactStories.json';
+import taMissionJournal from './locales/ta/missionJournal.json';
+import taTickets from './locales/ta/tickets.json';
+import taLegal from './locales/ta/legal.json';
+import taDeleteAccount from './locales/ta/deleteAccount.json';
 
 export type AppLocale = 'en' | 'ta';
 export const NAMESPACES = [
@@ -39,6 +47,10 @@ export const NAMESPACES = [
   'invite',
   'flaggedComments',
   'impactStories',
+  'missionJournal',
+  'tickets',
+  'legal',
+  'deleteAccount',
 ] as const;
 
 const LOCALE_STORAGE_KEY = 'uthavu_locale';
@@ -74,6 +86,10 @@ i18next.use(initReactI18next).init({
       invite: enInvite,
       flaggedComments: enFlaggedComments,
       impactStories: enImpactStories,
+      missionJournal: enMissionJournal,
+      tickets: enTickets,
+      legal: enLegal,
+      deleteAccount: enDeleteAccount,
     },
     ta: {
       common: taCommon,
@@ -84,6 +100,10 @@ i18next.use(initReactI18next).init({
       invite: taInvite,
       flaggedComments: taFlaggedComments,
       impactStories: taImpactStories,
+      missionJournal: taMissionJournal,
+      tickets: taTickets,
+      legal: taLegal,
+      deleteAccount: taDeleteAccount,
     },
   },
   lng: detectDeviceLocale(),

@@ -24,6 +24,10 @@ export type RootStackParamList = {
   InviteFriends: undefined;
   MyReports: undefined;
   EditReport: { reportId: string };
+  MissionJournal: undefined;
   FlaggedComments: undefined;
   MyImpactStories: undefined;
+  MyTickets: undefined;
+  Legal: { topic: 'terms' | 'privacy' | 'guidelines' };
+  DeleteAccount: undefined;
 };

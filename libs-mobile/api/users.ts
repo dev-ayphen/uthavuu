@@ -80,3 +80,20 @@ export type MyInvite = { code: string; link: string };
 export function getMyInvite(): Promise<MyInvite> {
   return apiRequest('/users/me/invite', { method: 'GET', auth: true });
 }
+
+export type PrivacyDefaultsInput = Partial<{
+  defaultAnonymous: boolean;
+  defaultPhoneVisible: boolean;
+}>;
+
+// Settings → Privacy. Pre-fills the *next* report's anonymous/phoneVisible
+// toggles — never touches already-published reports.
+export function updatePrivacyDefaults(input: PrivacyDefaultsInput): Promise<AuthUser> {
+  return apiRequest('/users/me/privacy', { method: 'PATCH', auth: true, body: input });
+}
+
+// Settings → Delete Account. Real, permanent removal (unlike Delete Report,
+// which is soft) — every row that references this user cascades server-side.
+export function deleteAccount(): Promise<void> {
+  return apiRequest('/users/me', { method: 'DELETE', auth: true });
+}

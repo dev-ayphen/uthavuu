@@ -1,0 +1,13 @@
+{
+  "title": "Delete Account",
+  "warningTitle": "This can't be undone",
+  "warningBody": "Deleting your account permanently removes it from Uthavu. There's no way to recover it afterward.",
+  "loseReports": "All reports you've posted",
+  "loseMissions": "Your mission history as a volunteer",
+  "loseImpactStories": "Impact stories you're part of",
+  "loseTickets": "Your support tickets",
+  "loseAccountData": "Your profile and account data",
+  "confirmLabel": "Type {{phrase}} to confirm",
+  "deleteButton": "Permanently Delete My Account",
+  "deleteFailed": "Could not delete your account. Try again."
+}

@@ -24,6 +24,9 @@ export type AuthUser = {
   organization: string | null;
   showProfession: boolean;
   avatarUrl: string | null;
+  // Settings → Privacy. Pre-fill defaults for the next report's toggles.
+  defaultAnonymous: boolean;
+  defaultPhoneVisible: boolean;
 };
 
 export type VerifyOtpResult = {

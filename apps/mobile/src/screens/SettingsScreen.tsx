@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Bell, Check, Info, Languages, Laptop, Moon, Sun } from 'lucide-react-native';
+import { Bell, Check, ChevronRight, FileText, Info, Languages, Laptop, Moon, Sun, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -9,13 +9,20 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme, type ThemeMode } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppLocale } from '@uthavu/libs-mobile/i18n/useAppLocale';
 import type { AppLocale } from '@uthavu/libs-mobile/i18n';
-import { updateLocale } from '@uthavu/libs-mobile/api/users';
+import { getMe, updateLocale, updatePrivacyDefaults } from '@uthavu/libs-mobile/api/users';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import Button from '@uthavu/libs-mobile/components/Button';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
+
+const LEGAL_TOPICS: { topic: 'terms' | 'privacy' | 'guidelines'; labelKey: string }[] = [
+  { topic: 'terms', labelKey: 'settings.legalTerms' },
+  { topic: 'privacy', labelKey: 'settings.legalPrivacy' },
+  { topic: 'guidelines', labelKey: 'settings.legalGuidelines' },
+];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -30,12 +37,13 @@ const LANGUAGE_OPTIONS: { locale: AppLocale; label: string }[] = [
   { locale: 'ta', label: 'தமிழ்' },
 ];
 
-export default function SettingsScreen(_props: Props) {
+export default function SettingsScreen({ navigation }: Props) {
   const { colors, mode, setMode } = useTheme();
   const { locale, setLocale } = useAppLocale();
   const { t } = useTranslation('tabs');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const queryClient = useQueryClient();
 
   // Best-effort — the in-app switch (setLocale) already succeeded
   // synchronously regardless of this outcome, see updateLocale()'s comment.
@@ -44,6 +52,12 @@ export default function SettingsScreen(_props: Props) {
     setLocale(next);
     syncLocaleMutation.mutate(next);
   };
+
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const privacyMutation = useMutation({
+    mutationFn: updatePrivacyDefaults,
+    onSuccess: (updated) => queryClient.setQueryData(['me'], updated),
+  });
 
   const [notifStatus, setNotifStatus] = useState<Notifications.PermissionStatus | null>(null);
 
@@ -135,6 +149,58 @@ export default function SettingsScreen(_props: Props) {
         </View>
       </View>
 
+      <Text style={styles.sectionLabel}>{t('settings.privacy')}</Text>
+      <View style={styles.card}>
+        <ToggleRow
+          label={t('settings.privacyHideName')}
+          subtitle={t('settings.privacyHideNameSubtitle')}
+          value={me?.defaultAnonymous ?? false}
+          onValueChange={(value) => privacyMutation.mutate({ defaultAnonymous: value })}
+          style={styles.toggleRow}
+        />
+        <View style={styles.rowDivider} />
+        <ToggleRow
+          label={t('settings.privacyHidePhone')}
+          subtitle={t('settings.privacyHidePhoneSubtitle')}
+          value={me?.defaultPhoneVisible === false}
+          onValueChange={(value) => privacyMutation.mutate({ defaultPhoneVisible: !value })}
+          style={styles.toggleRow}
+        />
+      </View>
+
+      <Text style={styles.sectionLabel}>{t('settings.legal')}</Text>
+      <View style={styles.card}>
+        {LEGAL_TOPICS.map((item, index) => (
+          <TouchableOpacity
+            key={item.topic}
+            style={[styles.row, index < LEGAL_TOPICS.length - 1 && styles.rowDivider]}
+            onPress={() => navigation.navigate('Legal', { topic: item.topic })}
+            accessibilityRole="button"
+          >
+            <View style={styles.iconBox}>
+              <FileText size={ICON_SIZE.md} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.rowText}>{t(item.labelKey)}</Text>
+            <ChevronRight size={ICON_SIZE.sm} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.sectionLabel}>{t('settings.account')}</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => navigation.navigate('DeleteAccount')}
+          accessibilityRole="button"
+        >
+          <View style={styles.dangerIconBox}>
+            <Trash2 size={ICON_SIZE.md} color={colors.danger} />
+          </View>
+          <Text style={[styles.rowText, { color: colors.danger }]}>{t('settings.deleteAccount')}</Text>
+          <ChevronRight size={ICON_SIZE.sm} color={colors.danger} />
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.sectionLabel}>{t('settings.about')}</Text>
       <View style={styles.card}>
         <View style={styles.row}>
@@ -195,4 +261,13 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     rowTextGroup: { flex: 1 },
     rowSubtext: { ...TYPE.caption, color: colors.textSecondary, marginTop: 2 },
     inlineButton: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm },
+    toggleRow: { paddingHorizontal: SPACING.sm + 2, paddingVertical: SPACING.sm + 2 },
+    dangerIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: RADIUS.md,
+      backgroundColor: colors.bg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });

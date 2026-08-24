@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -24,7 +24,7 @@ import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { CATEGORIES, type CategoryId } from '@uthavu/libs-mobile/data/categories';
 import { listReportCategories, createReport } from '@uthavu/libs-mobile/api/reports';
-import { uploadImage } from '@uthavu/libs-mobile/api/users';
+import { getMe, uploadImage } from '@uthavu/libs-mobile/api/users';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
@@ -88,6 +88,18 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
     queryKey: ['reportCategories'],
     queryFn: listReportCategories,
   });
+
+  // Settings → Privacy's defaultAnonymous/defaultPhoneVisible pre-fill this
+  // draft's toggles — seeded once when `me` first resolves (usually
+  // instant, already cached by other screens), never overwriting a value
+  // the person has since changed by hand.
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const privacyDefaultsSeeded = useRef(false);
+  useEffect(() => {
+    if (!me || privacyDefaultsSeeded.current) return;
+    privacyDefaultsSeeded.current = true;
+    setDraft((d) => ({ ...d, anonymous: me.defaultAnonymous, phoneVisible: me.defaultPhoneVisible }));
+  }, [me]);
   const category = categories?.find((c) => c.key === selectedCategory);
 
   // Fetch GPS on mount

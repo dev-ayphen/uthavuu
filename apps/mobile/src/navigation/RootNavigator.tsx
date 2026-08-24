@@ -20,8 +20,12 @@ import SavedStoriesScreen from '../screens/SavedStoriesScreen';
 import InviteFriendsScreen from '../screens/InviteFriendsScreen';
 import MyReportsScreen from '../screens/report/MyReportsScreen';
 import EditReportScreen from '../screens/report/EditReportScreen';
+import MissionJournalScreen from '../screens/MissionJournalScreen';
 import FlaggedCommentsScreen from '../screens/FlaggedCommentsScreen';
 import MyImpactStoriesScreen from '../screens/MyImpactStoriesScreen';
+import MyTicketsScreen from '../screens/MyTicketsScreen';
+import LegalScreen from '../screens/LegalScreen';
+import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -36,9 +40,11 @@ const linking = {
     screens: {
       RequestDetails: 'requests/:reportId',
       SavedStories: 'saved-stories',
+      MissionJournal: 'mission-journal',
       InviteFriends: 'invite',
       FlaggedComments: 'flagged-comments',
       MyImpactStories: 'impact-stories',
+      MyTickets: 'tickets',
     },
   },
 };
@@ -120,6 +126,11 @@ export default function RootNavigator() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="MissionJournal"
+          component={MissionJournalScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="FlaggedComments"
           component={FlaggedCommentsScreen}
           options={{ animation: 'slide_from_right' }}
@@ -127,6 +138,21 @@ export default function RootNavigator() {
         <Stack.Screen
           name="MyImpactStories"
           component={MyImpactStoriesScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="MyTickets"
+          component={MyTicketsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Legal"
+          component={LegalScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="DeleteAccount"
+          component={DeleteAccountScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>
