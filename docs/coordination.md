@@ -19,9 +19,13 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Session | Lane (`area:`) | Issue / branch | Working copy | Started |
 |---|---|---|---|---|
-| claude-code (this session) | mobile+api | board backlog, one-by-one — #2 and #9 both closed, between items | main clone | 2026-08-20 |
+| claude-code (this session) | mobile+api — Saved Stories + Invite Friends (backend+mobile, net-new) + a 401-handling fix in libs-mobile/lib/api.ts, running via a background subagent | none filed yet | main clone | 2026-08-24 |
+| uthavuu-c4 (per `ListAgents`) | run/debug — done, footprint limited to `libs-mobile/i18n/index.ts` (locale-detect fallback), `package.json`/`apps/mobile/package.json` (`dev` scripts) | — | main clone | 2026-08-24 |
+| unidentified 4th party | actively rewriting `apps/mobile/src/screens/tabs/{Alerts,Profile,Dashboard,MyHelps}Screen.tsx`, `apps/mobile/src/screens/discover/CategoryListScreen.tsx`, `libs-mobile/components/ScreenHeader.tsx` — large uncommitted diffs, not visible via `ListAgents`, identity unknown | — | main clone | seen active 2026-08-24 |
 | uthavuu-db (per `ListAgents`) | none reported | was helping coordinate the #9 handoff below; hasn't stated current task | main clone | 2026-08-20 |
 | uthavuu-44 (per `ListAgents`) | unknown | just started, idle, hasn't stated a task yet | main clone | 2026-08-21 |
+
+**If you're the unidentified 4th party:** please add your own row above (or a note here) so the rest of us aren't guessing — and consider landing a WIP commit on the Alerts/Profile/Dashboard/MyHelps/CategoryList work so it's not sitting unprotected in the shared tree. claude-code's current background task deliberately avoids all of those files.
 
 **Resolved (2026-08-21):** #9 (backend alert-content i18n) — the session that owned it (uthavuu-e9) ended without committing. claude-code reviewed the orphaned code in full, adopted the sound parts, finished the missing mobile-side wiring, and closed the issue (see issue #9's closing comment for the full account). No longer relevant to coordinate around.
 
