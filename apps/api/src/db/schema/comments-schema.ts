@@ -15,7 +15,7 @@
 // flag for a future admin build, same "capture now, act on later" pattern
 // as the FCM device-registration-without-a-send-path module.
 import { relations } from 'drizzle-orm';
-import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 import { reports } from './reports-schema';
 
@@ -48,7 +48,14 @@ export const reportCommentFlags = pgTable(
     reason: text('reason').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index('report_comment_flags_comment_id_idx').on(table.commentId)]
+  (table) => [
+    index('report_comment_flags_comment_id_idx').on(table.commentId),
+    // Profile → Flagged Comments needs to list a user's flags idempotently —
+    // flagging the same comment twice should be a no-op (ON CONFLICT DO
+    // NOTHING), same idempotency shape as report_likes/report_saves,
+    // not a growing pile of duplicate rows for one user+comment pair.
+    uniqueIndex('report_comment_flags_comment_id_flagged_by_id_key').on(table.commentId, table.flaggedById),
+  ]
 );
 
 export const reportCommentRelations = relations(reportComments, ({ one, many }) => ({

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "report_comment_flags_comment_id_flagged_by_id_key" ON "report_comment_flags" USING btree ("comment_id","flagged_by_id");
