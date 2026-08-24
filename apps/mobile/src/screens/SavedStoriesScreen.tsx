@@ -12,7 +12,8 @@ import { ICON_SIZE, RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/the
 import { listSavedReports, type Report } from '@uthavu/libs-mobile/api/reports';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
-import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
+import EmptyState from '@uthavu/libs-mobile/components/EmptyState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SavedStories'>;
 
@@ -35,11 +36,7 @@ export default function SavedStoriesScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
-      <View style={styles.header}>
-        <BackButton />
-        <Text style={styles.title}>{t('savedStoriesTitle')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <BackHeader title={t('savedStoriesTitle')} spacerWidth={SPACING.xl} />
 
       {isLoading ? (
         <View style={styles.list}>
@@ -63,11 +60,11 @@ export default function SavedStoriesScreen({ navigation }: Props) {
           refreshing={isFetching}
           onRefresh={refetch}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Bookmark size={40} color={colors.textSecondary} strokeWidth={1.5} />
-              <Text style={styles.emptyTitle}>{t('savedStoriesEmptyTitle')}</Text>
-              <Text style={styles.emptySubtitle}>{t('savedStoriesEmptySubtitle')}</Text>
-            </View>
+            <EmptyState
+              icon={<Bookmark size={40} color={colors.textSecondary} strokeWidth={1.5} />}
+              title={t('savedStoriesEmptyTitle')}
+              subtitle={t('savedStoriesEmptySubtitle')}
+            />
           }
           renderItem={({ item }) => (
             <SavedStoryCard
@@ -124,15 +121,6 @@ function SavedStoryCard({
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SIZES.padding,
-      paddingBottom: SPACING.sm,
-    },
-    title: { ...TYPE.screenTitle, color: colors.textPrimary },
-    headerSpacer: { width: SPACING.xl },
     list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.sm },
     skeletonLine: { marginTop: SPACING.xs },
     card: {
@@ -151,7 +139,4 @@ const createStyles = (colors: ColorScheme) =>
     cardTitle: { ...TYPE.bodyStrong, color: colors.textPrimary, marginTop: SPACING.xxs / 2 },
     cardLinkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs / 2, marginTop: SPACING.xxs },
     cardLinkText: { ...TYPE.microLabel, color: colors.primaryGreen, fontWeight: '700' },
-    empty: { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.xs, paddingHorizontal: SPACING.xl },
-    emptyTitle: { ...TYPE.title, color: colors.textPrimary, marginTop: SPACING.xs },
-    emptySubtitle: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
   });

@@ -11,9 +11,10 @@ import type { RootStackParamList } from '../navigation/types';
 import type { MainTabParamList } from '../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SIZES, SPACING, TOUCH_TARGET, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { ICON_SIZE, RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { listMyImpactStories, type ImpactStory } from '@uthavu/libs-mobile/api/impactStories';
-import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
+import EmptyState from '@uthavu/libs-mobile/components/EmptyState';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
@@ -40,11 +41,7 @@ export default function MyImpactStoriesScreen() {
   if (isLoading) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-        <View style={styles.header}>
-          <BackButton />
-          <Text style={styles.title}>{t('title')}</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <BackHeader title={t('title')} />
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} width="100%" height={80} borderRadius={RADIUS.lg} style={styles.skeletonRow} />
@@ -60,11 +57,7 @@ export default function MyImpactStoriesScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-      <View style={styles.header}>
-        <BackButton />
-        <Text style={styles.title}>{t('title')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <BackHeader title={t('title')} />
 
       <FlatList
         data={stories ?? []}
@@ -73,11 +66,11 @@ export default function MyImpactStoriesScreen() {
         refreshing={isFetching}
         onRefresh={refetch}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Sparkles size={40} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.emptyTitle}>{t('emptyTitle')}</Text>
-            <Text style={styles.emptySubtitle}>{t('emptySubtitle')}</Text>
-          </View>
+          <EmptyState
+            icon={<Sparkles size={40} color={colors.textSecondary} strokeWidth={1.5} />}
+            title={t('emptyTitle')}
+            subtitle={t('emptySubtitle')}
+          />
         }
         renderItem={({ item }: { item: ImpactStory }) => (
           <TouchableOpacity
@@ -113,15 +106,6 @@ export default function MyImpactStoriesScreen() {
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SIZES.padding,
-      paddingBottom: SPACING.sm,
-    },
-    title: { ...TYPE.screenTitle, color: colors.textPrimary },
-    headerSpacer: { width: TOUCH_TARGET.min },
     list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.sm },
     skeletonRow: { marginBottom: SPACING.sm },
     card: {
@@ -140,7 +124,4 @@ const createStyles = (colors: ColorScheme) =>
     storyTitle: { ...TYPE.bodyStrong, color: colors.textPrimary, marginTop: SPACING.xxs },
     linkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, marginTop: SPACING.xs },
     linkText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
-    empty: { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.xs, paddingHorizontal: SPACING.xl },
-    emptyTitle: { ...TYPE.title, color: colors.textPrimary, marginTop: SPACING.xs },
-    emptySubtitle: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
   });

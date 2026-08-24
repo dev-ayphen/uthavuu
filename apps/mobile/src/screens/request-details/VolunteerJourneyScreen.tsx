@@ -8,13 +8,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TOUCH_TARGET, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getReport } from '@uthavu/libs-mobile/api/reports';
 import { confirmRequest, getRoster, leaveRequest } from '@uthavu/libs-mobile/api/missions';
 import { formatTimeRemaining } from '@uthavu/libs-mobile/lib/urgency';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
-import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
 import Button from '@uthavu/libs-mobile/components/Button';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 import RequestDetailsSkeleton from './RequestDetailsSkeleton';
@@ -102,11 +102,7 @@ export default function VolunteerJourneyScreen({ route }: Props) {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
-        <BackButton />
-        <Text style={styles.headerTitle}>{t('volunteerJourneyTitle')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <BackHeader title={t('volunteerJourneyTitle')} style={{ paddingTop: insets.top + SPACING.xs }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {roster.myStatus === 'joined' && (
@@ -206,15 +202,6 @@ export default function VolunteerJourneyScreen({ route }: Props) {
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SIZES.padding,
-      paddingBottom: SPACING.sm,
-    },
-    headerTitle: { ...TYPE.screenTitle, color: colors.textPrimary },
-    headerSpacer: { width: TOUCH_TARGET.min },
     scrollContent: { padding: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.md },
     bannerCard: {
       flexDirection: 'row',

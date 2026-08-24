@@ -14,7 +14,7 @@ import { getMyInvite } from '@uthavu/libs-mobile/api/users';
 import Button from '@uthavu/libs-mobile/components/Button';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
-import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InviteFriends'>;
 
@@ -68,11 +68,7 @@ export default function InviteFriendsScreen(_props: Props) {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
-      <View style={styles.header}>
-        <BackButton />
-        <Text style={styles.headerTitle}>{t('title')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <BackHeader title={t('title')} spacerWidth={SPACING.xl} />
 
       {isLoading ? (
         <View style={styles.content}>
@@ -158,15 +154,6 @@ export default function InviteFriendsScreen(_props: Props) {
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SIZES.padding,
-      paddingBottom: SPACING.sm,
-    },
-    headerTitle: { ...TYPE.screenTitle, color: colors.textPrimary },
-    headerSpacer: { width: SPACING.xl },
     content: { padding: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.md },
     skeletonBlock: { marginTop: SPACING.sm },
     heroCard: {
