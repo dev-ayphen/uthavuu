@@ -47,6 +47,10 @@
     "title": "Alerts",
     "markAllRead": "Mark all read",
     "markAllReadLabel": "Mark all alerts as read",
+    "unreadCountBadge": "{{count}} New",
+    "tabAll": "All",
+    "tabRequests": "Requests",
+    "tabUpdates": "Updates",
     "emptyTitle": "No alerts yet",
     "emptySubtitle": "You'll see updates here when a volunteer responds to your reports.",
     "content": {

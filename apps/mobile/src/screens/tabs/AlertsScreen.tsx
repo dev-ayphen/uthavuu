@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BellOff, CheckCheck } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -11,7 +11,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getAlerts, markAllAlertsRead, type Alert } from '@uthavu/libs-mobile/api/alerts';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
@@ -22,25 +22,29 @@ type Navigation = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// Renders from `type` + `params` against this build's own catalog
-// (tabs.alerts.content.*) rather than the server's stored title/body, so an
-// alert re-renders instantly in the user's current language even for one
-// written before they switched — see alert-templates.ts on the API side,
-// which this mirrors key-for-key. Falls back to the server's own English
-// rendering for a `type` this build doesn't recognise (an older client
-// after the server adds a new type), rather than a missing-key string.
+// Only the alert types that actually exist (AlertsService only ever emits
+// volunteer_accepted/volunteer_released/mission_completed — see
+// alert-templates.ts). No "Nearby"/"System" tab: this app has no
+// location-broadcast or system-notification alert type, so a tab for either
+// would always be empty — decorative, not a real filter.
+type FilterTab = 'All' | 'Requests' | 'Updates';
+
+const FILTER_TABS: FilterTab[] = ['All', 'Requests', 'Updates'];
+
+// Module-level array can't call useTranslation() — store the i18n key per
+// tab, resolve with t() at render time (same pattern used elsewhere in this
+// app for module-level option lists, e.g. SettingsScreen's THEME_OPTIONS).
+const FILTER_TAB_LABEL_KEYS: Record<FilterTab, string> = {
+  All: 'alerts.tabAll',
+  Requests: 'alerts.tabRequests',
+  Updates: 'alerts.tabUpdates',
+};
+
 function renderAlertContent(
   t: (key: string, options?: Record<string, unknown>) => string,
   exists: (key: string, options?: Record<string, unknown>) => boolean,
   alert: Alert
 ): { title: string; body: string } {
-  // i18n.exists() does NOT share useTranslation()'s bound namespace-list
-  // resolution the way its t() does — it falls back to the global
-  // defaultNS ('common') unless told otherwise, so these keys (which live
-  // in 'tabs') need an explicit ns here even though the sibling t() calls
-  // below don't. Confirmed live: without this, exists() always returned
-  // false and every alert silently fell back to the English server
-  // rendering, in every locale, page chrome around it localizing fine.
   const titleKey = `alerts.content.${alert.type}.title`;
   const bodyKey = `alerts.content.${alert.type}.body`;
   if (!exists(titleKey, { ns: 'tabs' }) || !exists(bodyKey, { ns: 'tabs' })) {
@@ -61,6 +65,7 @@ export default function AlertsScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Navigation>();
   const queryClient = useQueryClient();
+  const [selectedTab, setSelectedTab] = useState<FilterTab>('All');
 
   const { data: alerts, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['alerts'],
@@ -74,11 +79,22 @@ export default function AlertsScreen() {
 
   const unreadCount = (alerts ?? []).filter((a) => !a.read).length;
 
+  const filteredAlerts = useMemo(() => {
+    if (!alerts) return [];
+    if (selectedTab === 'All') return alerts;
+    if (selectedTab === 'Requests') {
+      return alerts.filter((a) => a.type === 'volunteer_released' || a.type === 'volunteer_accepted');
+    }
+    return alerts.filter((a) => a.type === 'mission_completed');
+  }, [alerts, selectedTab]);
+
   if (isLoading) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>{t('alerts.title')}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{t('alerts.title')}</Text>
+          </View>
         </View>
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
@@ -94,25 +110,59 @@ export default function AlertsScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
+    <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
+      {/* Top Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>{t('alerts.title')}</Text>
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={styles.markReadButton}
-            onPress={() => markReadMutation.mutate()}
-            disabled={markReadMutation.isPending}
-            accessibilityRole="button"
-            accessibilityLabel={t('alerts.markAllReadLabel')}
-          >
-            <CheckCheck size={ICON_SIZE.xs} color={colors.primaryGreen} />
-            <Text style={styles.markReadText}>{t('alerts.markAllRead')}</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{t('alerts.title')}</Text>
+          {unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{t('alerts.unreadCountBadge', { count: unreadCount })}</Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.markReadButton}
+          onPress={() => markReadMutation.mutate()}
+          disabled={markReadMutation.isPending || unreadCount === 0}
+          accessibilityRole="button"
+          accessibilityLabel={t('alerts.markAllReadLabel')}
+        >
+          <CheckCheck size={ICON_SIZE.sm} color={colors.primaryGreen} />
+          <Text style={styles.markReadText}>{t('alerts.markAllRead')}</Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Horizontal Tabs Scroll */}
+      <View style={styles.tabsWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {FILTER_TABS.map((tab) => {
+            const isSelected = selectedTab === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabPill, isSelected && styles.tabPillActive]}
+                onPress={() => setSelectedTab(tab)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
+                  {t(FILTER_TAB_LABEL_KEYS[tab])}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Main List */}
       <FlatList
-        data={alerts ?? []}
+        data={filteredAlerts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         refreshing={isFetching}
@@ -128,7 +178,6 @@ export default function AlertsScreen() {
           <AlertRow
             alert={item}
             content={renderAlertContent(t, i18n.exists.bind(i18n), item)}
-            colors={colors}
             styles={styles}
             viewDetailsHint={t('common:viewDetailsHint')}
             onPress={
@@ -146,32 +195,30 @@ export default function AlertsScreen() {
 function AlertRow({
   alert,
   content: { title, body },
-  colors,
   styles,
   viewDetailsHint,
   onPress,
 }: {
   alert: Alert;
   content: { title: string; body: string };
-  colors: ColorScheme;
   styles: ReturnType<typeof createStyles>;
   viewDetailsHint: string;
   onPress?: () => void;
 }) {
   const rowContent = (
-    <>
-      <View style={[styles.unreadDot, alert.read && styles.unreadDotHidden]} />
-      <View style={styles.rowBody}>
+    <View style={styles.cardInner}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.unreadDot, alert.read && styles.unreadDotHidden]} />
         <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowMessage}>{body}</Text>
         <Text style={styles.rowTime}>{formatRelativeTime(alert.createdAt)}</Text>
       </View>
-    </>
+      <Text style={styles.rowMessage}>{body}</Text>
+    </View>
   );
 
   if (!onPress) {
     return (
-      <View style={[styles.row, !alert.read && styles.rowUnread]} accessibilityLabel={`${title}. ${body}`}>
+      <View style={[styles.card, !alert.read && styles.cardUnread]} accessibilityLabel={`${title}. ${body}`}>
         {rowContent}
       </View>
     );
@@ -179,8 +226,9 @@ function AlertRow({
 
   return (
     <TouchableOpacity
-      style={[styles.row, !alert.read && styles.rowUnread]}
+      style={[styles.card, !alert.read && styles.cardUnread]}
       onPress={onPress}
+      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${body}`}
       accessibilityHint={viewDetailsHint}
@@ -190,16 +238,16 @@ function AlertRow({
   );
 }
 
-// Mirrors AlertRow's real layout (dot + two text lines + timestamp) so the
-// initial load doesn't jump when real content replaces it.
 function AlertRowSkeleton({ styles }: { styles: ReturnType<typeof createStyles> }) {
   return (
-    <View style={styles.row}>
-      <Skeleton width={8} height={8} borderRadius={4} />
-      <View style={styles.rowBody}>
-        <Skeleton width="50%" height={13} />
-        <Skeleton width="85%" height={12} style={styles.skeletonLine} />
-        <Skeleton width={70} height={11} style={styles.skeletonMetaLine} />
+    <View style={styles.card}>
+      <View style={styles.cardInner}>
+        <View style={styles.cardHeader}>
+          <Skeleton width={100} height={14} />
+          <Skeleton width={60} height={12} />
+        </View>
+        <Skeleton width="65%" height={16} style={{ marginTop: SPACING.xs }} />
+        <Skeleton width="90%" height={14} style={{ marginTop: SPACING.xxs }} />
       </View>
     </View>
   );
@@ -213,40 +261,140 @@ const createStyles = (colors: ColorScheme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: SIZES.padding,
+      marginBottom: SPACING.xs,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+    },
+    titleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    title: {
+      ...TYPE.pageTitle,
+      color: colors.textPrimary,
+    },
+    unreadBadge: {
+      backgroundColor: TONES.critical.fill,
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: SPACING.xxs / 2,
+      borderRadius: RADIUS.pill,
+    },
+    unreadBadgeText: {
+      ...TYPE.microLabel,
+      color: colors.danger,
+    },
+    markReadButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xxs,
+      backgroundColor: colors.primaryGreenLight,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xxs,
+      borderRadius: RADIUS.pill,
+    },
+    markReadText: {
+      ...TYPE.footnote,
+      color: colors.primaryGreen,
+      fontWeight: '700',
+    },
+    tabsWrapper: {
       marginBottom: SPACING.sm,
     },
-    title: { ...TYPE.pageTitle, color: colors.textPrimary },
-    markReadButton: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs },
-    markReadText: { ...TYPE.footnote, color: colors.primaryGreen },
-    list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.sm },
-    skeletonLine: { marginTop: SPACING.xxs },
-    skeletonMetaLine: { marginTop: SPACING.xs },
-    row: {
-      flexDirection: 'row',
-      gap: SPACING.sm,
+    tabsContainer: {
+      paddingHorizontal: SIZES.padding,
+      gap: SPACING.xs,
+    },
+    tabPill: {
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.xs,
+      borderRadius: RADIUS.pill,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: RADIUS.xl,
-      padding: SPACING.sm,
-      alignItems: 'flex-start',
     },
-    rowUnread: { borderColor: colors.primaryGreen },
-    // No icon/dot-size token this small exists — derived from SPACING.xxs
-    // rather than a bare literal so it still traces to the spacing scale.
+    // Mirrors MyHelpsScreen's tabPillActive treatment — same segmented-tab
+    // pattern, kept visually consistent across the two screens that use it.
+    tabPillActive: {
+      backgroundColor: colors.bg,
+      borderColor: colors.border,
+    },
+    tabText: {
+      ...TYPE.footnote,
+      color: colors.textSecondary,
+    },
+    tabTextActive: {
+      color: colors.textPrimary,
+      fontWeight: '700',
+    },
+    list: {
+      paddingHorizontal: SIZES.padding,
+      paddingBottom: SPACING.xxxl,
+      gap: SPACING.md,
+    },
+    card: {
+      backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.xxl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.md,
+    },
+    cardUnread: {
+      borderLeftWidth: 3.5,
+      borderLeftColor: colors.primaryGreen,
+    },
+    cardInner: {
+      flexDirection: 'column',
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xxs,
+      marginBottom: SPACING.xxs,
+    },
+    // No dot-size token this small exists — derived from SPACING.xxs rather
+    // than a bare literal so it still traces to the spacing scale.
     unreadDot: {
       width: SPACING.xxs * 2,
       height: SPACING.xxs * 2,
       borderRadius: SPACING.xxs,
       backgroundColor: colors.primaryGreen,
-      marginTop: SPACING.xxs,
     },
-    unreadDotHidden: { backgroundColor: 'transparent' },
-    rowBody: { flex: 1 },
-    rowTitle: { ...TYPE.bodyStrong, color: colors.textPrimary },
-    rowMessage: { ...TYPE.caption, color: colors.textSecondary, marginTop: 2, lineHeight: 15 },
-    rowTime: { ...TYPE.caption, color: colors.textSecondary, marginTop: SPACING.xs },
-    empty: { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.xs, paddingHorizontal: SPACING.xl },
-    emptyTitle: { ...TYPE.title, color: colors.textPrimary, marginTop: SPACING.xs },
-    emptySubtitle: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
+    unreadDotHidden: {
+      backgroundColor: 'transparent',
+    },
+    rowTitle: {
+      ...TYPE.headlineStrong,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    rowTime: {
+      ...TYPE.caption,
+      color: colors.textSecondary,
+    },
+    rowMessage: {
+      ...TYPE.body,
+      color: colors.textSecondary,
+      marginTop: SPACING.xxs,
+      lineHeight: 18,
+    },
+    empty: {
+      alignItems: 'center',
+      paddingTop: SPACING.xxxl,
+      gap: SPACING.xs,
+      paddingHorizontal: SPACING.xl,
+    },
+    emptyTitle: {
+      ...TYPE.title,
+      color: colors.textPrimary,
+      marginTop: SPACING.xs,
+    },
+    emptySubtitle: {
+      ...TYPE.subhead,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
   });
+
