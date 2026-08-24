@@ -70,4 +70,14 @@ export class ReportsController {
   unlike(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
     return this.reportsService.unlike(id, session.user.id);
   }
+
+  @Post(':id/save')
+  save(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+    return this.reportsService.save(id, session.user.id);
+  }
+
+  @Delete(':id/save')
+  unsave(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+    return this.reportsService.unsave(id, session.user.id);
+  }
 }

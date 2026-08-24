@@ -7,5 +7,6 @@ import { MissionsModule } from '../missions/missions.module';
   imports: [MissionsModule],
   controllers: [ReportsController],
   providers: [ReportsService],
+  exports: [ReportsService],
 })
 export class ReportsModule {}

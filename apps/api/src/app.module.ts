@@ -12,6 +12,7 @@ import { MissionsModule } from './missions/missions.module';
 import { DevicesModule } from './devices/devices.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { CommentsModule } from './comments/comments.module';
+import { SavedReportsModule } from './saved-reports/saved-reports.module';
 import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
 
@@ -38,6 +39,7 @@ const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'p
     DevicesModule,
     AlertsModule,
     CommentsModule,
+    SavedReportsModule,
     ...(devOtpFallbackActive ? [DevModule] : []),
   ],
   controllers: [AppController],

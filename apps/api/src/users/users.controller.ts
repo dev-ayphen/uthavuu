@@ -39,4 +39,9 @@ export class UsersController {
   async getStats(@Session() session: UserSession<typeof auth>) {
     return this.usersService.getStats(session.user.id);
   }
+
+  @Get('me/invite')
+  async getInvite(@Session() session: UserSession<typeof auth>) {
+    return this.usersService.getOrCreateInvite(session.user.id);
+  }
 }

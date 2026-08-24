@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
 import { reportLikes } from '../db/schema/likes-schema';
+import { reportSaves } from '../db/schema/saves-schema';
 import type { CreateReportDto } from './dto/create-report.dto';
 import type { UpdateReportDto } from './dto/update-report.dto';
 import type { ListReportsDto } from './dto/list-reports.dto';
@@ -123,6 +124,11 @@ export class ReportsService {
       .from(reportLikes)
       .where(and(eq(reportLikes.reportId, reportId), eq(reportLikes.userId, requestingUserId)));
 
+    const mySaveRows = await db
+      .select()
+      .from(reportSaves)
+      .where(and(eq(reportSaves.reportId, reportId), eq(reportSaves.userId, requestingUserId)));
+
     return this.toResponse(
       row.report,
       row.category,
@@ -132,7 +138,64 @@ export class ReportsService {
       requestingUserId,
       hasActiveVolunteerAccess,
       likeCount,
-      myLikeRows.length > 0
+      myLikeRows.length > 0,
+      mySaveRows.length > 0
+    );
+  }
+
+  // Profile → Saved Stories. Mirrors list()'s shape (same joins, same
+  // per-row toResponse()) but ordered by save time and scoped through
+  // report_saves instead of a category/radius filter.
+  async listSaved(requestingUserId: string) {
+    const rows = await db
+      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
+      .from(reportSaves)
+      .innerJoin(reports, eq(reportSaves.reportId, reports.id))
+      .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+      .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
+      .innerJoin(user, eq(reports.reporterId, user.id))
+      .where(eq(reportSaves.userId, requestingUserId))
+      .orderBy(desc(reportSaves.createdAt));
+
+    if (rows.length === 0) return [];
+
+    const reportIds = rows.map((r) => r.report.id);
+    const photoRows = await db.select().from(reportPhotos).where(inArray(reportPhotos.reportId, reportIds));
+    const photosByReportId = new Map<string, string[]>();
+    for (const photo of photoRows) {
+      const existing = photosByReportId.get(photo.reportId) ?? [];
+      existing.push(photo.url);
+      photosByReportId.set(photo.reportId, existing);
+    }
+
+    const likeCounts = await db
+      .select({ reportId: reportLikes.reportId, count: sql<number>`count(*)::int` })
+      .from(reportLikes)
+      .where(inArray(reportLikes.reportId, reportIds))
+      .groupBy(reportLikes.reportId);
+    const likeCountByReportId = new Map(likeCounts.map((r) => [r.reportId, r.count]));
+
+    const myLikeRows = await db
+      .select({ reportId: reportLikes.reportId })
+      .from(reportLikes)
+      .where(and(inArray(reportLikes.reportId, reportIds), eq(reportLikes.userId, requestingUserId)));
+    const myLikedReportIds = new Set(myLikeRows.map((r) => r.reportId));
+
+    return Promise.all(
+      rows.map(async (row) => ({
+        ...this.toResponse(
+          row.report,
+          row.category,
+          row.status,
+          photosByReportId.get(row.report.id) ?? [],
+          row.reporter,
+          requestingUserId,
+          await this.missionsService.hasActiveAccess(row.report.id, requestingUserId),
+          likeCountByReportId.get(row.report.id) ?? 0,
+          myLikedReportIds.has(row.report.id),
+          true // every row here is, by definition, one this user saved
+        ),
+      }))
     );
   }
 
@@ -284,6 +347,26 @@ export class ReportsService {
     return this.findOne(reportId, requestingUserId);
   }
 
+  // Profile → Saved Stories. Same idempotency shape as like()/unlike().
+  async save(reportId: string, requestingUserId: string) {
+    await this.requireCompletedReport(reportId);
+
+    await db
+      .insert(reportSaves)
+      .values({ id: uuidv7(), reportId, userId: requestingUserId })
+      .onConflictDoNothing({ target: [reportSaves.reportId, reportSaves.userId] });
+
+    return this.findOne(reportId, requestingUserId);
+  }
+
+  async unsave(reportId: string, requestingUserId: string) {
+    await db
+      .delete(reportSaves)
+      .where(and(eq(reportSaves.reportId, reportId), eq(reportSaves.userId, requestingUserId)));
+
+    return this.findOne(reportId, requestingUserId);
+  }
+
   // Shared guard for the three write paths that only the reporter may use,
   // and only while the report is still open (BR-6).
   private async requireOwnedOpenReport(reportId: string, requestingUserId: string): Promise<ReportRow> {
@@ -318,7 +401,8 @@ export class ReportsService {
     requestingUserId: string,
     hasActiveVolunteerAccess: boolean,
     likeCount = 0,
-    likedByMe = false
+    likedByMe = false,
+    savedByMe = false
   ) {
     const isOwner = report.reporterId === requestingUserId;
     return {
@@ -349,6 +433,7 @@ export class ReportsService {
       reporterPhone: isOwner || (hasActiveVolunteerAccess && report.phoneVisible) ? reporter.phoneNumber : null,
       likeCount,
       likedByMe,
+      savedByMe,
     };
   }
 }

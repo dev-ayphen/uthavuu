@@ -2,10 +2,11 @@ import 'dotenv/config';
 import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { uuidv7 } from 'uuidv7';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reports } from '../db/schema/reports-schema';
+import { reportSaves } from '../db/schema/saves-schema';
 import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
@@ -295,6 +296,72 @@ describe('ReportsService', () => {
     it('unlike is idempotent — unliking when not liked does not error', async () => {
       const result = await service.unlike(completedReportId, reporterId);
       expect(result.likeCount).toBe(0);
+    });
+  });
+
+  describe('save()/unsave()/listSaved()', () => {
+    const fixtureFilename = 'test-save-photo.jpg';
+    const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
+    let completedReportId: string;
+
+    beforeAll(async () => {
+      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+
+      const created = await service.create(reporterId, baseInput({ title: 'Save test report' }));
+      completedReportId = created.id;
+      await missionsService.accept(completedReportId, otherUserId);
+      await missionsService.confirm(completedReportId, otherUserId);
+      await missionsService.complete(completedReportId, otherUserId, fixturePhotoUrl, 'done');
+    });
+
+    afterAll(() => {
+      unlinkSync(join(UPLOADS_DIR, fixtureFilename));
+    });
+
+    it('rejects a save on a report that is not completed', async () => {
+      const openReport = await service.create(reporterId, baseInput({ title: 'Still open report (save)' }));
+      await expect(service.save(openReport.id, reporterId)).rejects.toThrow('This report is not completed yet');
+    });
+
+    it('records a save and reflects it in findOne()', async () => {
+      const result = await service.save(completedReportId, reporterId);
+      expect(result.savedByMe).toBe(true);
+    });
+
+    it('is idempotent — saving twice does not duplicate the row', async () => {
+      await service.save(completedReportId, reporterId);
+      await service.save(completedReportId, reporterId);
+      const rows = await db
+        .select()
+        .from(reportSaves)
+        .where(and(eq(reportSaves.reportId, completedReportId), eq(reportSaves.userId, reporterId)));
+      expect(rows).toHaveLength(1);
+    });
+
+    it('savedByMe is per-user', async () => {
+      const asOtherUser = await service.findOne(completedReportId, otherUserId);
+      expect(asOtherUser.savedByMe).toBe(false);
+    });
+
+    it('listSaved() returns the saved report for the saver and not for another user', async () => {
+      const mine = await service.listSaved(reporterId);
+      expect(mine.map((r) => r.id)).toContain(completedReportId);
+
+      const theirs = await service.listSaved(otherUserId);
+      expect(theirs.map((r) => r.id)).not.toContain(completedReportId);
+    });
+
+    it('unsave removes it, including from listSaved()', async () => {
+      const result = await service.unsave(completedReportId, reporterId);
+      expect(result.savedByMe).toBe(false);
+
+      const mine = await service.listSaved(reporterId);
+      expect(mine.map((r) => r.id)).not.toContain(completedReportId);
+    });
+
+    it('unsave is idempotent — unsaving when not saved does not error', async () => {
+      const result = await service.unsave(completedReportId, reporterId);
+      expect(result.savedByMe).toBe(false);
     });
   });
 });

@@ -7,6 +7,7 @@ import * as devicesSchema from './schema/devices-schema';
 import * as alertsSchema from './schema/alerts-schema';
 import * as commentsSchema from './schema/comments-schema';
 import * as likesSchema from './schema/likes-schema';
+import * as savesSchema from './schema/saves-schema';
 
 const schema = {
   ...authSchema,
@@ -16,6 +17,7 @@ const schema = {
   ...alertsSchema,
   ...commentsSchema,
   ...likesSchema,
+  ...savesSchema,
 };
 
 const client = postgres(process.env.DATABASE_URL!);

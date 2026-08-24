@@ -2,7 +2,9 @@
 // lastLng are hand-fixed to doublePrecision after every regenerate: Better Auth's
 // additionalFields type system only has string/number/boolean, and "number" maps
 // to integer here, which truncates GPS coordinates to whole degrees. If you
-// regenerate this file, redo that one edit (search "doublePrecision" below).
+// regenerate this file, redo that one edit (search "doublePrecision" below) —
+// and redo `inviteCode`'s `.unique()` too, since a plain regenerate would
+// emit it as a bare non-unique text column.
 import { relations } from "drizzle-orm";
 import {
   pgTable,
@@ -44,6 +46,9 @@ export const user = pgTable("user", {
   // FK: the valid values are whichever locales the message catalog ships, which
   // is a code fact, not a data one.
   locale: text("locale"),
+  // Hand-added to match auth.ts's additionalFields.inviteCode — see that
+  // file's comment. Unique so two users can never collide on a shared code.
+  inviteCode: text("invite_code").unique(),
 });
 
 export const session = pgTable(
