@@ -1,0 +1,23 @@
+{
+  "title": "Mission Journal",
+  "tabAll": "All",
+  "tabCompleted": "Completed",
+  "tabCancelled": "Cancelled",
+  "tabLeft": "Left",
+  "statusJoined": "Joined",
+  "statusActive": "Helping",
+  "statusReleased": "Left",
+  "statusCompleted": "Completed",
+  "statusCancelled": "Cancelled",
+  "joinedTimeAgo": "Joined {{time}}",
+  "postedBy": "Posted by {{name}}",
+  "postedAnonymously": "Posted anonymously",
+  "emptyAllTitle": "No missions yet",
+  "emptyAllSubtitle": "Missions you volunteer for will show up here.",
+  "emptyCompletedTitle": "No completed missions yet",
+  "emptyCompletedSubtitle": "Missions you help finish will appear here.",
+  "emptyCancelledTitle": "No cancelled missions",
+  "emptyCancelledSubtitle": "Missions that ended without being completed will appear here.",
+  "emptyLeftTitle": "No missions left",
+  "emptyLeftSubtitle": "Missions you stepped away from will appear here."
+}
