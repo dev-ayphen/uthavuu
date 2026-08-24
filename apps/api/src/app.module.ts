@@ -15,6 +15,7 @@ import { CommentsModule } from './comments/comments.module';
 import { SavedReportsModule } from './saved-reports/saved-reports.module';
 import { FlaggedCommentsModule } from './flagged-comments/flagged-comments.module';
 import { ImpactStoriesModule } from './impact-stories/impact-stories.module';
+import { SupportModule } from './support/support.module';
 import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
 
@@ -44,6 +45,7 @@ const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'p
     SavedReportsModule,
     FlaggedCommentsModule,
     ImpactStoriesModule,
+    SupportModule,
     ...(devOtpFallbackActive ? [DevModule] : []),
   ],
   controllers: [AppController],
