@@ -1,0 +1,13 @@
+{
+  "title": "Flagged Requests",
+  "emptyTitle": "Nothing flagged yet",
+  "emptySubtitle": "Comments you flag for review will show up here.",
+  "rowLabel": "{{title}}, flagged for {{reason}}",
+  "reason": {
+    "spam": "Spam",
+    "abuse": "Abuse",
+    "false_information": "False information",
+    "duplicate": "Duplicate",
+    "other": "Other"
+  }
+}

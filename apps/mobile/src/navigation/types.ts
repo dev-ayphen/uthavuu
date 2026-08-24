@@ -24,4 +24,6 @@ export type RootStackParamList = {
   InviteFriends: undefined;
   MyReports: undefined;
   EditReport: { reportId: string };
+  FlaggedComments: undefined;
+  MyImpactStories: undefined;
 };

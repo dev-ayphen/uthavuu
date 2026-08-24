@@ -17,26 +17,74 @@ import enAuth from './locales/en/auth.json';
 import enTabs from './locales/en/tabs.json';
 import enReport from './locales/en/report.json';
 import enRequestDetails from './locales/en/requestDetails.json';
+import enInvite from './locales/en/invite.json';
+import enFlaggedComments from './locales/en/flaggedComments.json';
+import enImpactStories from './locales/en/impactStories.json';
 import taCommon from './locales/ta/common.json';
 import taAuth from './locales/ta/auth.json';
 import taTabs from './locales/ta/tabs.json';
 import taReport from './locales/ta/report.json';
 import taRequestDetails from './locales/ta/requestDetails.json';
+import taInvite from './locales/ta/invite.json';
+import taFlaggedComments from './locales/ta/flaggedComments.json';
+import taImpactStories from './locales/ta/impactStories.json';
 
 export type AppLocale = 'en' | 'ta';
-export const NAMESPACES = ['common', 'auth', 'tabs', 'report', 'requestDetails'] as const;
+export const NAMESPACES = [
+  'common',
+  'auth',
+  'tabs',
+  'report',
+  'requestDetails',
+  'invite',
+  'flaggedComments',
+  'impactStories',
+] as const;
 
 const LOCALE_STORAGE_KEY = 'uthavu_locale';
 
 function detectDeviceLocale(): AppLocale {
-  const [first] = Localization.getLocales();
-  return first?.languageCode === 'ta' ? 'ta' : 'en';
+  // This runs at module scope, and apps/mobile/index.ts imports this file
+  // BEFORE registerRootComponent(App). A throw here therefore doesn't just
+  // lose the device locale — it aborts the entry module, AppRegistry never
+  // gets 'main', and the app dies on a blank screen with
+  // `"main" has not been registered`. ExpoLocalization is a native module,
+  // so it can be genuinely absent (a dev build predating the dependency) or
+  // momentarily unavailable (Expo Go re-evaluating a bundle while its module
+  // host is still being installed, which happens when more than one Metro
+  // server is reload-driving the same client). Locale detection is a
+  // nice-to-have; booting is not. Fall back to 'en' and let the user's
+  // explicit choice, if any, arrive via loadPersistedLocale().
+  try {
+    const [first] = Localization.getLocales();
+    return first?.languageCode === 'ta' ? 'ta' : 'en';
+  } catch {
+    return 'en';
+  }
 }
 
 i18next.use(initReactI18next).init({
   resources: {
-    en: { common: enCommon, auth: enAuth, tabs: enTabs, report: enReport, requestDetails: enRequestDetails },
-    ta: { common: taCommon, auth: taAuth, tabs: taTabs, report: taReport, requestDetails: taRequestDetails },
+    en: {
+      common: enCommon,
+      auth: enAuth,
+      tabs: enTabs,
+      report: enReport,
+      requestDetails: enRequestDetails,
+      invite: enInvite,
+      flaggedComments: enFlaggedComments,
+      impactStories: enImpactStories,
+    },
+    ta: {
+      common: taCommon,
+      auth: taAuth,
+      tabs: taTabs,
+      report: taReport,
+      requestDetails: taRequestDetails,
+      invite: taInvite,
+      flaggedComments: taFlaggedComments,
+      impactStories: taImpactStories,
+    },
   },
   lng: detectDeviceLocale(),
   fallbackLng: 'en',

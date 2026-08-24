@@ -29,3 +29,19 @@ export function flagComment(reportId: string, commentId: string, reason: FlagRea
     body: { reason },
   });
 }
+
+export type FlaggedComment = {
+  id: string;
+  reason: FlagReason;
+  flaggedAt: string;
+  commentBody: string;
+  reportId: string;
+  reportTitle: string;
+  reportLandmark: string | null;
+  reportStatus: string;
+  category: { key: string; label: string; emoji: string };
+};
+
+export function listMyFlaggedComments(): Promise<FlaggedComment[]> {
+  return apiRequest('/users/me/flagged-comments', { method: 'GET', auth: true });
+}

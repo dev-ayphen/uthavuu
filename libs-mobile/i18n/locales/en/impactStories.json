@@ -1,0 +1,7 @@
+{
+  "title": "My Impact Stories",
+  "emptyTitle": "No impact stories yet",
+  "emptySubtitle": "Completed requests you posted or helped with will appear here.",
+  "viewStory": "View Story",
+  "rowLabel": "{{title}}, {{category}}"
+}

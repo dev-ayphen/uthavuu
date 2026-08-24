@@ -20,6 +20,8 @@ import SavedStoriesScreen from '../screens/SavedStoriesScreen';
 import InviteFriendsScreen from '../screens/InviteFriendsScreen';
 import MyReportsScreen from '../screens/report/MyReportsScreen';
 import EditReportScreen from '../screens/report/EditReportScreen';
+import FlaggedCommentsScreen from '../screens/FlaggedCommentsScreen';
+import MyImpactStoriesScreen from '../screens/MyImpactStoriesScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -35,6 +37,8 @@ const linking = {
       RequestDetails: 'requests/:reportId',
       SavedStories: 'saved-stories',
       InviteFriends: 'invite',
+      FlaggedComments: 'flagged-comments',
+      MyImpactStories: 'impact-stories',
     },
   },
 };
@@ -113,6 +117,16 @@ export default function RootNavigator() {
         <Stack.Screen
           name="EditReport"
           component={EditReportScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="FlaggedComments"
+          component={FlaggedCommentsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="MyImpactStories"
+          component={MyImpactStoriesScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>
