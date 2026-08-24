@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Award,
@@ -30,8 +30,10 @@ import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMe, getMyStats } from '@uthavu/libs-mobile/api/users';
 import { listMyImpactStories } from '@uthavu/libs-mobile/api/impactStories';
+import { createTicket } from '@uthavu/libs-mobile/api/tickets';
 import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
 import { clearToken } from '@uthavu/libs-mobile/lib/session';
+import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
@@ -46,6 +48,16 @@ const TICKET_CATEGORIES: TicketCategory[] = [
   'Complaint',
   'Other',
 ];
+
+// Matches apps/api/src/db/seed.ts's ticket_categories keys exactly.
+const TICKET_CATEGORY_KEYS: Record<TicketCategory, string> = {
+  'Technical Problem': 'technical_problem',
+  'Bug Report': 'bug_report',
+  'Account Problem': 'account_problem',
+  'Feature Request': 'feature_request',
+  Complaint: 'complaint',
+  Other: 'other',
+};
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -64,6 +76,30 @@ export default function ProfileScreen() {
   const [ticketCategory, setTicketCategory] = useState<TicketCategory>('Technical Problem');
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
+  const [ticketError, setTicketError] = useState('');
+
+  const submitTicketMutation = useMutation({
+    mutationFn: () =>
+      createTicket({
+        categoryKey: TICKET_CATEGORY_KEYS[ticketCategory],
+        subject: ticketSubject.trim(),
+        description: ticketDescription.trim(),
+      }),
+    onSuccess: (ticket) => {
+      setSupportModalOpen(false);
+      setTicketSubject('');
+      setTicketDescription('');
+      setTicketCategory('Technical Problem');
+      setTicketError('');
+      Alert.alert(
+        'Request submitted',
+        `Your support request has been received. We'll get back to you soon. (Ref: ${ticket.id.slice(0, 8)})`
+      );
+    },
+    onError: (e) => {
+      setTicketError(e instanceof ApiError ? e.message : 'Could not submit your request. Try again.');
+    },
+  });
 
   const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
@@ -268,13 +304,13 @@ export default function ProfileScreen() {
       <Text style={styles.sectionTitle}>Menu</Text>
       <View style={styles.menuCard}>
         <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MyReports')}>
-          <FileText size={18} color={colors.primaryGreen} />
-          <Text style={[styles.menuText, { color: colors.primaryGreen, fontWeight: '700' }]}>My Reports</Text>
-          <ChevronRight size={16} color={colors.primaryGreen} />
+          <FileText size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>My Reports</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
         </TouchableOpacity>
 
         <View style={styles.cardDivider} />
-        <TouchableOpacity style={styles.menuRow}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MissionJournal')}>
           <BookOpen size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>Mission Journal (My Activity)</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
@@ -404,12 +440,24 @@ export default function ProfileScreen() {
               onChangeText={setTicketDescription}
             />
 
+            {ticketError ? <Text style={styles.ticketErrorText}>{ticketError}</Text> : null}
+
             <View style={styles.modalButtonRow}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSupportModalOpen(false)}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={() => setSupportModalOpen(false)}>
-                <Text style={styles.submitBtnText}>Submit Request</Text>
+              <TouchableOpacity
+                style={[
+                  styles.submitBtn,
+                  (!ticketSubject.trim() || !ticketDescription.trim() || submitTicketMutation.isPending) &&
+                    styles.submitBtnDisabled,
+                ]}
+                disabled={!ticketSubject.trim() || !ticketDescription.trim() || submitTicketMutation.isPending}
+                onPress={() => submitTicketMutation.mutate()}
+              >
+                <Text style={styles.submitBtnText}>
+                  {submitTicketMutation.isPending ? 'Submitting…' : 'Submit Request'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -690,5 +738,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
       backgroundColor: colors.primaryGreen,
     },
     submitBtnText: { ...TYPE.subheadStrong, color: '#FFFFFF', fontWeight: '700' },
+    submitBtnDisabled: { backgroundColor: colors.disabled },
+    ticketErrorText: { ...TYPE.body, color: colors.danger, marginTop: SPACING.xs },
   });
 
