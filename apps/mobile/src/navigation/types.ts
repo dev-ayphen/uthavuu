@@ -10,7 +10,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   EditProfile: undefined;
   Settings: undefined;
-  ReportFlow: { categoryKey: CategoryId };
+  ReportFlow: { categoryKey?: CategoryId };
   CategoryList: {
     categoryKey: CategoryId;
     lat: number;
@@ -20,4 +20,8 @@ export type RootStackParamList = {
   };
   RequestDetails: { reportId: string };
   VolunteerJourney: { reportId: string };
+  SavedStories: undefined;
+  InviteFriends: undefined;
+  MyReports: undefined;
+  EditReport: { reportId: string };
 };

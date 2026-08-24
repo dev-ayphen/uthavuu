@@ -1,5 +1,7 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { useEffect } from 'react';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { setUnauthorizedHandler } from '@uthavu/libs-mobile/lib/api';
 import type { RootStackParamList } from './types';
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -14,6 +16,10 @@ import RequestDetailsScreen from '../screens/request-details/RequestDetailsScree
 import VolunteerJourneyScreen from '../screens/request-details/VolunteerJourneyScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SavedStoriesScreen from '../screens/SavedStoriesScreen';
+import InviteFriendsScreen from '../screens/InviteFriendsScreen';
+import MyReportsScreen from '../screens/report/MyReportsScreen';
+import EditReportScreen from '../screens/report/EditReportScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -27,13 +33,30 @@ const linking = {
   config: {
     screens: {
       RequestDetails: 'requests/:reportId',
+      SavedStories: 'saved-stories',
+      InviteFriends: 'invite',
     },
   },
 };
 
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
 export default function RootNavigator() {
+  // Registered once at mount, not per-render — apiRequest() (libs-mobile,
+  // outside the navigation tree) calls this synchronously on a real
+  // session-expiry 401, so the app lands on Login instead of the generic
+  // "check your connection" error state every authed screen otherwise
+  // shows for a dead token.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }
+    });
+  }, []);
+
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
@@ -70,6 +93,26 @@ export default function RootNavigator() {
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="SavedStories"
+          component={SavedStoriesScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="InviteFriends"
+          component={InviteFriendsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="MyReports"
+          component={MyReportsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="EditReport"
+          component={EditReportScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

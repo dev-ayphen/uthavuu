@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.25.0",
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
+    "dev:mobile": "pnpm --filter @uthavu/mobile dev",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",

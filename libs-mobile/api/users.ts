@@ -23,6 +23,10 @@ export function completeProfileSetup(input: ProfileSetupInput): Promise<AuthUser
   return apiRequest('/users/me', { method: 'PATCH', auth: true, body: input });
 }
 
+export function updateMe(input: Partial<ProfileSetupInput & { email?: string }>): Promise<AuthUser> {
+  return apiRequest('/users/me', { method: 'PATCH', auth: true, body: input });
+}
+
 // US-3a — uploads a local image URI (from expo-image-picker) to the API's
 // (currently local-disk, see ADR 0008) storage and returns its public URL.
 export function uploadImage(localUri: string): Promise<{ url: string }> {
@@ -67,4 +71,12 @@ export type UserStats = {
 
 export function getMyStats(): Promise<UserStats> {
   return apiRequest('/users/me/stats', { method: 'GET', auth: true });
+}
+
+export type MyInvite = { code: string; link: string };
+
+// Profile → Invite Friends. Server lazy-generates the code on first call and
+// returns the same one on every later call.
+export function getMyInvite(): Promise<MyInvite> {
+  return apiRequest('/users/me/invite', { method: 'GET', auth: true });
 }

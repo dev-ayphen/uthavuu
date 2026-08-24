@@ -10,6 +10,7 @@
     "@uthavu/libs-mobile": "workspace:*",
     "expo": "~57.0.14",
     "expo-camera": "~57.0.3",
+    "expo-clipboard": "^57.0.1",
     "expo-constants": "~57.0.12",
     "expo-image-picker": "~57.0.11",
     "expo-localization": "~57.0.1",
@@ -33,6 +34,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "dev": "expo start",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
