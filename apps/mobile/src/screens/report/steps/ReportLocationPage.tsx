@@ -253,5 +253,5 @@ const createStyles = (colors: ColorScheme) =>
       borderColor: colors.primaryGreen,
     },
     checkmark: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-    confirmText: { ...TYPE.footnote, color: colors.textPrimary, fontWeight: '600', flex: 1 },
+    confirmText: { ...TYPE.footnote, color: colors.textPrimary, flex: 1 },
   });

@@ -191,7 +191,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     },
     title: {
       ...TYPE.pageTitle,
-      fontSize: 22,
       color: colors.textPrimary,
       textAlign: 'center',
       fontWeight: '800',

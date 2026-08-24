@@ -464,7 +464,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     },
     catEmoji: { fontSize: 22 },
     catText: { flex: 1 },
-    catTitle: { ...TYPE.bodyStrong, fontSize: 15, color: colors.textPrimary, fontWeight: '700', marginBottom: 2 },
+    catTitle: { ...TYPE.headlineStrong, color: colors.textPrimary, marginBottom: 2 },
     catSub: { ...TYPE.caption, color: colors.textSecondary, lineHeight: 16 },
 
     // ── Success modal ──
@@ -489,7 +489,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       justifyContent: 'center',
       marginBottom: SPACING.sm,
     },
-    successTitle: { ...TYPE.title, fontSize: 20, color: colors.textPrimary, fontWeight: '800' },
+    successTitle: { ...TYPE.display, color: colors.textPrimary },
     successSub: { ...TYPE.body, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.xxs, marginBottom: SPACING.lg, lineHeight: 19 },
     successBtnStack: { width: '100%', gap: SPACING.xs },
     homeBtn: {

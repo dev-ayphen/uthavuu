@@ -172,7 +172,7 @@ const createStyles = (colors: ColorScheme) =>
       marginBottom: SPACING.lg,
     },
     catEmoji: { fontSize: 18 },
-    catName: { ...TYPE.bodyStrong, color: colors.textPrimary, fontWeight: '700' },
+    catName: { ...TYPE.bodyStrong, color: colors.textPrimary },
 
     sectionLabel: {
       ...TYPE.subheadStrong,
