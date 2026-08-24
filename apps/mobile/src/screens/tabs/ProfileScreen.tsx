@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Award,
@@ -30,6 +30,7 @@ import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMe, getMyStats } from '@uthavu/libs-mobile/api/users';
+import { listMyImpactStories } from '@uthavu/libs-mobile/api/impactStories';
 import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
 import { clearToken } from '@uthavu/libs-mobile/lib/session';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
@@ -70,11 +71,18 @@ export default function ProfileScreen() {
     queryKey: ['myStats'],
     queryFn: getMyStats,
   });
+  // Same query key MyImpactStoriesScreen.tsx uses — the preview card and the
+  // full list share one cache entry.
+  const {
+    data: impactStories,
+    isLoading: impactStoriesLoading,
+    refetch: refetchImpactStories,
+  } = useQuery({ queryKey: ['myImpactStories'], queryFn: listMyImpactStories });
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetch(), refetchStats()]);
+    await Promise.all([refetch(), refetchStats(), refetchImpactStories()]);
     setRefreshing(false);
   };
 
@@ -156,65 +164,104 @@ export default function ProfileScreen() {
       {/* My Impact Stories Section */}
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>My Impact Stories</Text>
-        <TouchableOpacity style={styles.viewAllRow}>
+        <TouchableOpacity style={styles.viewAllRow} onPress={() => navigation.navigate('MyImpactStories')}>
           <Text style={styles.viewAllText}>View All</Text>
           <ChevronRight size={14} color={colors.primaryGreen} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.impactCard}>
-        <View style={styles.impactRow}>
-          <View style={[styles.thumbnailBox, { backgroundColor: '#FEF3C7' }]}>
-            <Text style={styles.thumbnailEmoji}>🐶</Text>
+      {impactStoriesLoading ? (
+        <View style={styles.impactCard}>
+          <View style={styles.impactRow}>
+            <Skeleton width={36} height={36} borderRadius={RADIUS.lg} />
+            <View style={styles.impactBody}>
+              <Skeleton width="70%" height={13} />
+              <Skeleton width="40%" height={11} style={{ marginTop: 4 }} />
+            </View>
           </View>
-          <View style={styles.impactBody}>
-            <Text style={styles.impactTitle}>Puppy Rescue Completed</Text>
-            <Text style={styles.impactSub}>2 hours ago · Anna Nagar Bus Stop</Text>
-          </View>
-          <ChevronRight size={16} color={colors.textSecondary} />
         </View>
-
-        <View style={styles.cardDivider} />
-
-        <View style={styles.impactRow}>
-          <View style={[styles.thumbnailBox, { backgroundColor: '#FFEDD5' }]}>
-            <Text style={styles.thumbnailEmoji}>🍱</Text>
-          </View>
-          <View style={styles.impactBody}>
-            <Text style={styles.impactTitle}>75 Meals Distributed Successfully</Text>
-            <Text style={styles.impactSub}>Yesterday · Royal Palace Hall, 2nd Avenue</Text>
-          </View>
-          <ChevronRight size={16} color={colors.textSecondary} />
+      ) : impactStories && impactStories.length > 0 ? (
+        <View style={styles.impactCard}>
+          {impactStories.slice(0, 3).map((story, index, arr) => (
+            <View key={story.reportId}>
+              <TouchableOpacity
+                style={styles.impactRow}
+                onPress={() => navigation.navigate('RequestDetails', { reportId: story.reportId })}
+                accessibilityRole="button"
+                accessibilityLabel={story.title}
+              >
+                {story.photo ? (
+                  <Image source={{ uri: story.photo }} style={styles.thumbnailBox} />
+                ) : (
+                  <View style={styles.thumbnailBox}>
+                    <Text style={styles.thumbnailEmoji}>{story.category.emoji}</Text>
+                  </View>
+                )}
+                <View style={styles.impactBody}>
+                  <Text style={styles.impactTitle} numberOfLines={1}>
+                    {story.title}
+                  </Text>
+                  <Text style={styles.impactSub}>{story.category.label}</Text>
+                </View>
+                <ChevronRight size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {index < arr.length - 1 && <View style={styles.cardDivider} />}
+            </View>
+          ))}
         </View>
-
-        <View style={styles.cardDivider} />
-
-        <View style={styles.impactRow}>
-          <View style={[styles.thumbnailBox, { backgroundColor: '#DBEAFE' }]}>
-            <Text style={styles.thumbnailEmoji}>🚗</Text>
+      ) : (
+        <View style={styles.impactCard}>
+          <View style={styles.impactRow}>
+            <Text style={styles.impactSub}>No impact stories yet — completed missions will show up here.</Text>
           </View>
-          <View style={styles.impactBody}>
-            <Text style={styles.impactTitle}>Bike Breakdown Resolved</Text>
-            <Text style={styles.impactSub}>Last week · ECR Toll Gate, 3rd Km</Text>
-          </View>
-          <ChevronRight size={16} color={colors.textSecondary} />
         </View>
-      </View>
+      )}
 
       {/* Badges Strip */}
-      <Text style={styles.sectionTitle}>Badges</Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Badges & Achievements</Text>
+        <Text style={styles.badgeCountText}>4 Unlocked</Text>
+      </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesContainer}>
         <View style={styles.badgeItem}>
-          <Text style={styles.badgeEmoji}>🥇</Text>
+          <View style={[styles.badgeIconBox, { backgroundColor: '#FEF3C7' }]}>
+            <Text style={styles.badgeEmoji}>🥇</Text>
+          </View>
           <Text style={styles.badgeLabel}>First Helper</Text>
+          <Text style={styles.badgeSub}>1st Mission Done</Text>
         </View>
+
         <View style={styles.badgeItem}>
-          <Text style={styles.badgeEmoji}>🐶</Text>
+          <View style={[styles.badgeIconBox, { backgroundColor: '#FFE4E6' }]}>
+            <Text style={styles.badgeEmoji}>🐶</Text>
+          </View>
           <Text style={styles.badgeLabel}>Animal Guardian</Text>
+          <Text style={styles.badgeSub}>5 Rescues Completed</Text>
         </View>
+
         <View style={styles.badgeItem}>
-          <Text style={styles.badgeEmoji}>❤️</Text>
+          <View style={[styles.badgeIconBox, { backgroundColor: '#DCFCE7' }]}>
+            <Text style={styles.badgeEmoji}>❤️</Text>
+          </View>
           <Text style={styles.badgeLabel}>Community Hero</Text>
+          <Text style={styles.badgeSub}>10+ Helps Completed</Text>
+        </View>
+
+        <View style={styles.badgeItem}>
+          <View style={[styles.badgeIconBox, { backgroundColor: '#DBEAFE' }]}>
+            <Text style={styles.badgeEmoji}>🍱</Text>
+          </View>
+          <Text style={styles.badgeLabel}>Food Captain</Text>
+          <Text style={styles.badgeSub}>Food Drive Hero</Text>
+        </View>
+
+        <View style={[styles.badgeItem, styles.badgeLocked]}>
+          <View style={[styles.badgeIconBox, { backgroundColor: colors.bgElevated }]}>
+            <Text style={styles.badgeEmoji}>⭐</Text>
+          </View>
+          <Text style={styles.badgeLabel}>Super Volunteer</Text>
+          <Text style={styles.badgeSub}>25 Missions Needed</Text>
         </View>
       </ScrollView>
 
@@ -501,6 +548,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
       borderRadius: RADIUS.lg,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: colors.primaryGreenLight,
     },
     thumbnailEmoji: { fontSize: 18 },
     impactBody: { flex: 1 },
@@ -508,9 +556,10 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     impactSub: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary, marginTop: 1 },
     cardDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: SPACING.sm },
 
+    badgeCountText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
     badgesContainer: {
       gap: SPACING.xs,
-      marginBottom: SPACING.md,
+      marginBottom: SPACING.lg,
     },
     badgeItem: {
       alignItems: 'center',
@@ -519,11 +568,24 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
       borderColor: colors.border,
       borderRadius: RADIUS.xl,
       paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      minWidth: 100,
+      paddingVertical: SPACING.sm + 2,
+      minWidth: 116,
     },
-    badgeEmoji: { fontSize: 22, marginBottom: 4 },
-    badgeLabel: { ...TYPE.captionStrong, color: colors.textPrimary },
+    badgeLocked: {
+      opacity: 0.55,
+      borderStyle: 'dashed',
+    },
+    badgeIconBox: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.xs - 2,
+    },
+    badgeEmoji: { fontSize: 22 },
+    badgeLabel: { ...TYPE.footnote, color: colors.textPrimary, fontWeight: '800', textAlign: 'center' },
+    badgeSub: { ...TYPE.caption, fontSize: 10, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
 
     menuCard: {
       backgroundColor: colors.bgElevated,
