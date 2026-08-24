@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Patch } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { auth } from '../auth/auth';
 import { UsersService } from './users.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 import { UpdateRadiusDto } from './dto/update-radius.dto';
 import { UpdateLocaleDto } from './dto/update-locale.dto';
+import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 @Controller('users')
 export class UsersController {
@@ -43,5 +44,16 @@ export class UsersController {
   @Get('me/invite')
   async getInvite(@Session() session: UserSession<typeof auth>) {
     return this.usersService.getOrCreateInvite(session.user.id);
+  }
+
+  @Patch('me/privacy')
+  async updatePrivacy(@Session() session: UserSession<typeof auth>, @Body() body: UpdatePrivacyDto) {
+    return this.usersService.updatePrivacyDefaults(session.user.id, body);
+  }
+
+  @Delete('me')
+  @HttpCode(204)
+  async deleteAccount(@Session() session: UserSession<typeof auth>) {
+    await this.usersService.deleteAccount(session.user.id);
   }
 }

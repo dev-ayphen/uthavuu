@@ -49,6 +49,10 @@ export const user = pgTable("user", {
   // Hand-added to match auth.ts's additionalFields.inviteCode — see that
   // file's comment. Unique so two users can never collide on a shared code.
   inviteCode: text("invite_code").unique(),
+  // Hand-added to match auth.ts's additionalFields.defaultAnonymous /
+  // defaultPhoneVisible.
+  defaultAnonymous: boolean("default_anonymous").default(false),
+  defaultPhoneVisible: boolean("default_phone_visible").default(false),
 });
 
 export const session = pgTable(

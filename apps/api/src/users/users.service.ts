@@ -7,6 +7,7 @@ import { missionVolunteers } from '../db/schema/missions-schema';
 import type { CompleteProfileDto } from './dto/complete-profile.dto';
 import type { UpdateRadiusDto } from './dto/update-radius.dto';
 import type { UpdateLocaleDto } from './dto/update-locale.dto';
+import type { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 @Injectable()
 export class UsersService {
@@ -44,6 +45,40 @@ export class UsersService {
       .returning();
 
     return updated;
+  }
+
+  // Settings → Privacy. Pre-fills the *next* report's anonymous/phoneVisible
+  // toggles — never touches already-published reports.
+  async updatePrivacyDefaults(userId: string, input: UpdatePrivacyDto) {
+    const [updated] = await db
+      .update(user)
+      .set({
+        ...(input.defaultAnonymous !== undefined && { defaultAnonymous: input.defaultAnonymous }),
+        ...(input.defaultPhoneVisible !== undefined && { defaultPhoneVisible: input.defaultPhoneVisible }),
+      })
+      .where(eq(user.id, userId))
+      .returning();
+
+    return updated;
+  }
+
+  // Settings → Delete Account. A real hard delete, deliberately — unlike
+  // Delete Report (soft, audit-preserving: other people's mission/comment
+  // history depends on that report row surviving), a *user* asking to
+  // delete their own account is asking for genuine removal, and every FK
+  // that references user.id cascades (account, session, reports,
+  // mission_volunteers, mission_messages, alerts, report_comments,
+  // report_comment_flags, report_likes, report_saves, devices,
+  // mission_completions) — deleting the row is sufficient, no manual
+  // cleanup pass needed. reports.deleted_by is NO ACTION, not CASCADE, but
+  // never violates this: only a report's own owner can soft-delete it (see
+  // ReportsService.delete(), which always sets deletedBy: requestingUserId),
+  // so deleted_by always equals reporter_id for any row that has it set —
+  // and that row is already gone via reporter_id's cascade by the time
+  // deleted_by would be checked. Verified live, not just reasoned about —
+  // see this task's commit message.
+  async deleteAccount(userId: string): Promise<void> {
+    await db.delete(user).where(eq(user.id, userId));
   }
 
   // Reported by the client whenever the in-app language changes, so push

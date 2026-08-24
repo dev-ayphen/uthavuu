@@ -100,4 +100,33 @@ describe('UsersService', () => {
       expect(updatedAgain.preferredRadius).toBe(10);
     });
   });
+
+  describe('updatePrivacyDefaults()', () => {
+    it('updates only the field(s) actually sent, leaving the other untouched', async () => {
+      const afterFirst = await service.updatePrivacyDefaults(userId, { defaultAnonymous: true });
+      expect(afterFirst.defaultAnonymous).toBe(true);
+      expect(afterFirst.defaultPhoneVisible).toBe(false);
+
+      const afterSecond = await service.updatePrivacyDefaults(userId, { defaultPhoneVisible: true });
+      expect(afterSecond.defaultAnonymous).toBe(true);
+      expect(afterSecond.defaultPhoneVisible).toBe(true);
+    });
+  });
+
+  describe('deleteAccount()', () => {
+    it('permanently removes the user row', async () => {
+      const throwawayId = uuidv7();
+      await db.insert(user).values({
+        id: throwawayId,
+        name: 'Throwaway',
+        email: `${throwawayId}@test.local`,
+        phoneNumber: `+91-${throwawayId}`,
+      });
+
+      await service.deleteAccount(throwawayId);
+
+      const [remaining] = await db.select().from(user).where(eq(user.id, throwawayId));
+      expect(remaining).toBeUndefined();
+    });
+  });
 });
