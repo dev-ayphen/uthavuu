@@ -24,7 +24,7 @@ type Navigation = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>
 >;
 
-// Profile → Flagged Requests. What's real here is comment-level flagging
+// Profile → Flagged Comments. What's real here is comment-level flagging
 // (see apps/api/src/db/schema/comments-schema.ts's own top-of-file
 // comment) — this is honestly "comments I've flagged", not a fabricated
 // whole-report flagging system that doesn't exist in this codebase.

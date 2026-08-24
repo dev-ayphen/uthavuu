@@ -13,7 +13,6 @@ import {
   HelpCircle,
   LogOut,
   Pencil,
-  PhoneCall,
   Settings as SettingsIcon,
   Sparkles,
   Users,
@@ -283,7 +282,7 @@ export default function ProfileScreen() {
 
         <View style={styles.cardDivider} />
 
-        <TouchableOpacity style={styles.menuRow}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MyImpactStories')}>
           <Sparkles size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>My Impact Stories</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
@@ -291,15 +290,18 @@ export default function ProfileScreen() {
 
         <View style={styles.cardDivider} />
 
-        <TouchableOpacity style={styles.menuRow}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('FlaggedComments')}>
           <Flag size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Flagged Requests</Text>
+          <Text style={styles.menuText}>Flagged Comments</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
         </TouchableOpacity>
 
         <View style={styles.cardDivider} />
 
-        <TouchableOpacity style={styles.menuRow}>
+        <TouchableOpacity
+          style={styles.menuRow}
+          onPress={() => navigation.dispatch(CommonActions.navigate({ name: 'MyHelpsTab' }))}
+        >
           <Clock size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>My Active Helps</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
@@ -318,14 +320,6 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.menuRow} onPress={() => setSupportModalOpen(true)}>
           <HelpCircle size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>Help & Support / Submit Ticket</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow}>
-          <PhoneCall size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Emergency Contacts</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
         </TouchableOpacity>
 
