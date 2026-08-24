@@ -45,7 +45,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — | Resolved 2026-08-21 — 0007 (alerts.params/user.locale) and 0008 (report_likes) are both committed and applied. |
+| migration series | claude-code | generating 0009 (report_saves) + 0010 (user.invite_code) — will release once committed and applied |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
