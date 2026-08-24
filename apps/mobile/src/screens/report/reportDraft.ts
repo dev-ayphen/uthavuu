@@ -1,5 +1,9 @@
 // Shared draft state shape for the report flow — one source of truth for
 // ReportFlowScreen and each step component's props.
+
+// Matches CreateReportSchema/UpdateReportSchema server-side (apps/api/src/reports/dto) —
+// long enough to reject "help"/"asap" without being onerous for a genuine request.
+export const DESCRIPTION_MIN_LENGTH = 20;
 export type PhotoDraft = {
   localUri: string;
   uploadedUrl: string | null;

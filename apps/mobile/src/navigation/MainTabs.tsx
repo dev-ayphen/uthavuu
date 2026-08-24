@@ -3,8 +3,11 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Bell, Heart, Home, Plus, User } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import type { MainTabParamList } from './tabTypes';
+import type { RootStackParamList } from './types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -12,11 +15,16 @@ import { registerForPushNotifications } from '@uthavu/libs-mobile/lib/push';
 import { getAlerts } from '@uthavu/libs-mobile/api/alerts';
 import DashboardScreen from '../screens/tabs/DashboardScreen';
 import MyHelpsScreen from '../screens/tabs/MyHelpsScreen';
-import ReportCategoryScreen from '../screens/report/ReportCategoryScreen';
 import AlertsScreen from '../screens/tabs/AlertsScreen';
 import ProfileScreen from '../screens/tabs/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+// A blank placeholder mounted in the tab slot for the FAB.
+// The real ReportFlowScreen is pushed on the RootStack via tabPress listener.
+function ReportTabPlaceholder() {
+  return null;
+}
 
 // docs/mobile/07-main-tabs.md gap #2: the documented prototype hardcodes bar
 // height/padding (80 / 22) despite SafeAreaProvider being mounted. Fixed here —
@@ -26,6 +34,7 @@ export default function MainTabs() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // MainTabs only renders once a session exists — a natural "user is
   // logged in" hook point for registering this device's push token.
@@ -78,7 +87,14 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="ReportTab"
-        component={ReportCategoryScreen}
+        component={ReportTabPlaceholder}
+        listeners={{
+          // Intercept the tab press and push ReportFlow onto the root stack instead
+          tabPress: (e) => {
+            e.preventDefault();
+            rootNav.navigate('ReportFlow', {});
+          },
+        }}
         options={{
           title: '',
           tabBarAccessibilityLabel: 'Report a help request',

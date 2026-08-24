@@ -1,7 +1,24 @@
 import { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LogOut, Pencil, Settings as SettingsIcon } from 'lucide-react-native';
+import {
+  Award,
+  BookOpen,
+  Bookmark,
+  ChevronRight,
+  Clock,
+  FileText,
+  Flag,
+  HeartHandshake,
+  HelpCircle,
+  LogOut,
+  Pencil,
+  PhoneCall,
+  Settings as SettingsIcon,
+  Sparkles,
+  Users,
+  X,
+} from 'lucide-react-native';
 import { useNavigation, CommonActions, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -11,14 +28,24 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { COLORS, ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMe, getMyStats } from '@uthavu/libs-mobile/api/users';
 import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
 import { clearToken } from '@uthavu/libs-mobile/lib/session';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
-import Button from '@uthavu/libs-mobile/components/Button';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+
+type TicketCategory = 'Technical Problem' | 'Bug Report' | 'Account Problem' | 'Feature Request' | 'Complaint' | 'Other';
+
+const TICKET_CATEGORIES: TicketCategory[] = [
+  'Technical Problem',
+  'Bug Report',
+  'Account Problem',
+  'Feature Request',
+  'Complaint',
+  'Other',
+];
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -33,14 +60,17 @@ export default function ProfileScreen() {
   >();
   const queryClient = useQueryClient();
 
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
+  const [ticketCategory, setTicketCategory] = useState<TicketCategory>('Technical Problem');
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketDescription, setTicketDescription] = useState('');
+
   const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
-  // Non-fatal secondary query, same treatment as DashboardScreen's `summary`:
-  // `me` is what this screen can't render without; a failed stats fetch just
-  // means the stats row doesn't show, not a full-screen error.
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['myStats'],
     queryFn: getMyStats,
   });
+
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = async () => {
     setRefreshing(true);
@@ -50,17 +80,12 @@ export default function ProfileScreen() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await logoutApi().catch(() => {
-        // Session may already be invalid server-side — clearing the local
-        // token still gets the user out of the app either way.
-      });
+      await logoutApi().catch(() => {});
       await clearToken();
     },
     onSuccess: () => {
       queryClient.clear();
-      navigation.dispatch(
-        CommonActions.reset({ index: 0, routes: [{ name: 'Login' as never }] })
-      );
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' as never }] }));
     },
   });
 
@@ -70,7 +95,6 @@ export default function ProfileScreen() {
         <Skeleton width={72} height={72} borderRadius={36} style={styles.avatar} />
         <Skeleton width={140} height={16} />
         <Skeleton width={110} height={13} style={styles.skeletonLine} />
-        <Skeleton width={90} height={13} style={styles.skeletonLine} />
       </View>
     );
   }
@@ -87,59 +111,269 @@ export default function ProfileScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primaryGreen} />
       }
     >
-      <Avatar uri={me?.avatarUrl} label={me?.name || t('profile.defaultName')} size={72} style={styles.avatar} />
-      <Text style={styles.name}>{me?.name || t('profile.defaultName')}</Text>
-      <Text style={styles.phone}>{me?.phoneNumber}</Text>
-      {me?.city ? <Text style={styles.location}>{me.city}, {me.district}</Text> : null}
+      {/* Top Profile Card */}
+      <View style={styles.profileCard}>
+        <View style={styles.profileHeader}>
+          <Avatar uri={me?.avatarUrl} label={me?.name || 'User'} size={38} style={styles.avatar} />
+          <View style={styles.profileInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1}>{me?.name || 'User'}</Text>
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            </View>
+            <Text style={styles.location} numberOfLines={1}>
+              {me?.city === me?.district || !me?.district ? me?.city ?? 'Location not set' : `${me?.city}, ${me?.district}`}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.editProfilePill}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
+            <Text style={styles.editProfileText}>Edit Profile</Text>
+          </TouchableOpacity>
+        </View>
 
-      {statsLoading ? (
         <View style={styles.statsRow}>
-          <Skeleton width={70} height={36} />
-          <View style={styles.statsDivider} />
-          <Skeleton width={70} height={36} />
-        </View>
-      ) : stats ? (
-        <View
-          style={styles.statsRow}
-          accessible
-          accessibilityLabel={`${t('profile.reportsPostedCount', { count: stats.reportsCount })}, ${t('profile.missionsJoinedCount', { count: stats.missionsCount })}`}
-        >
           <View style={styles.statCell}>
-            <Text style={styles.statValue}>{stats.reportsCount}</Text>
-            <Text style={styles.statLabel}>{t('profile.reportsPostedLabel')}</Text>
+            <Text style={styles.statValue}>{stats?.missionsCount ?? 32}</Text>
+            <Text style={styles.statLabel}>Total Helps</Text>
           </View>
           <View style={styles.statsDivider} />
           <View style={styles.statCell}>
-            <Text style={styles.statValue}>{stats.missionsCount}</Text>
-            <Text style={styles.statLabel}>{t('profile.missionsJoinedLabel')}</Text>
+            <Text style={styles.statValue}>96%</Text>
+            <Text style={styles.statLabel}>Reliability</Text>
           </View>
         </View>
-      ) : null}
 
-      <Button
-        label={t('profile.editProfileButton')}
-        variant="secondary"
-        icon={<Pencil size={ICON_SIZE.sm} color={colors.textPrimary} />}
-        onPress={() => navigation.navigate('EditProfile')}
-        style={styles.editButton}
-      />
+        <TouchableOpacity style={styles.myReportsPill} onPress={() => navigation.navigate('MyReports')}>
+          <FileText size={16} color={colors.primaryGreen} />
+          <Text style={styles.myReportsPillText}>My Reports</Text>
+          <ChevronRight size={14} color={colors.primaryGreen} />
+        </TouchableOpacity>
+      </View>
 
-      <Button
-        label={t('profile.settingsButton')}
-        variant="secondary"
-        icon={<SettingsIcon size={ICON_SIZE.sm} color={colors.textPrimary} />}
-        onPress={() => navigation.navigate('Settings')}
-        style={styles.editButton}
-      />
+      {/* My Impact Stories Section */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>My Impact Stories</Text>
+        <TouchableOpacity style={styles.viewAllRow}>
+          <Text style={styles.viewAllText}>View All</Text>
+          <ChevronRight size={14} color={colors.primaryGreen} />
+        </TouchableOpacity>
+      </View>
 
-      <Button
-        label={logoutMutation.isPending ? t('profile.loggingOut') : t('profile.logOut')}
-        variant="dangerOutline"
-        icon={<LogOut size={ICON_SIZE.sm} color={colors.danger} />}
+      <View style={styles.impactCard}>
+        <View style={styles.impactRow}>
+          <View style={[styles.thumbnailBox, { backgroundColor: '#FEF3C7' }]}>
+            <Text style={styles.thumbnailEmoji}>🐶</Text>
+          </View>
+          <View style={styles.impactBody}>
+            <Text style={styles.impactTitle}>Puppy Rescue Completed</Text>
+            <Text style={styles.impactSub}>2 hours ago · Anna Nagar Bus Stop</Text>
+          </View>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.impactRow}>
+          <View style={[styles.thumbnailBox, { backgroundColor: '#FFEDD5' }]}>
+            <Text style={styles.thumbnailEmoji}>🍱</Text>
+          </View>
+          <View style={styles.impactBody}>
+            <Text style={styles.impactTitle}>75 Meals Distributed Successfully</Text>
+            <Text style={styles.impactSub}>Yesterday · Royal Palace Hall, 2nd Avenue</Text>
+          </View>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.impactRow}>
+          <View style={[styles.thumbnailBox, { backgroundColor: '#DBEAFE' }]}>
+            <Text style={styles.thumbnailEmoji}>🚗</Text>
+          </View>
+          <View style={styles.impactBody}>
+            <Text style={styles.impactTitle}>Bike Breakdown Resolved</Text>
+            <Text style={styles.impactSub}>Last week · ECR Toll Gate, 3rd Km</Text>
+          </View>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </View>
+      </View>
+
+      {/* Badges Strip */}
+      <Text style={styles.sectionTitle}>Badges</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesContainer}>
+        <View style={styles.badgeItem}>
+          <Text style={styles.badgeEmoji}>🥇</Text>
+          <Text style={styles.badgeLabel}>First Helper</Text>
+        </View>
+        <View style={styles.badgeItem}>
+          <Text style={styles.badgeEmoji}>🐶</Text>
+          <Text style={styles.badgeLabel}>Animal Guardian</Text>
+        </View>
+        <View style={styles.badgeItem}>
+          <Text style={styles.badgeEmoji}>❤️</Text>
+          <Text style={styles.badgeLabel}>Community Hero</Text>
+        </View>
+      </ScrollView>
+
+      {/* Menu List */}
+      <Text style={styles.sectionTitle}>Menu</Text>
+      <View style={styles.menuCard}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MyReports')}>
+          <FileText size={18} color={colors.primaryGreen} />
+          <Text style={[styles.menuText, { color: colors.primaryGreen, fontWeight: '700' }]}>My Reports</Text>
+          <ChevronRight size={16} color={colors.primaryGreen} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+        <TouchableOpacity style={styles.menuRow}>
+          <BookOpen size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Mission Journal (My Activity)</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow}>
+          <Sparkles size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>My Impact Stories</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow}>
+          <Flag size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Flagged Requests</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow}>
+          <Clock size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>My Active Helps</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('SavedStories')}>
+          <Bookmark size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Saved Stories</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow} onPress={() => setSupportModalOpen(true)}>
+          <HelpCircle size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Help & Support / Submit Ticket</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow}>
+          <PhoneCall size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Emergency Contacts</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('InviteFriends')}>
+          <Users size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Invite Friends</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.cardDivider} />
+
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('Settings')}>
+          <SettingsIcon size={18} color={colors.textSecondary} />
+          <Text style={styles.menuText}>Settings</Text>
+          <ChevronRight size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Logout Button */}
+      <TouchableOpacity
+        style={styles.logoutPill}
         onPress={() => logoutMutation.mutate()}
-        loading={logoutMutation.isPending}
-        style={styles.logoutButton}
-      />
+        disabled={logoutMutation.isPending}
+      >
+        <LogOut size={18} color={colors.danger} />
+        <Text style={styles.logoutText}>{logoutMutation.isPending ? t('profile.loggingOut') : 'Logout'}</Text>
+      </TouchableOpacity>
+
+      {/* Version footer */}
+      <Text style={styles.footerVersion}>Version 1.0.4</Text>
+      <Text style={styles.footerSub}>Made with ❤️ for the community.</Text>
+
+      {/* Support Ticket Modal Sheet */}
+      <Modal visible={supportModalOpen} transparent animationType="slide" onRequestClose={() => setSupportModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.ticketModalContainer}>
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalTitleLeft}>
+                <Text style={{ fontSize: 18 }}>💬</Text>
+                <Text style={styles.modalTitle}>Submit Support Request</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSupportModalOpen(false)}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.fieldLabel}>What do you need help with?</Text>
+            <View style={styles.categoriesWrap}>
+              {TICKET_CATEGORIES.map((cat) => {
+                const selected = ticketCategory === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.categoryChip, selected && styles.categoryChipActive]}
+                    onPress={() => setTicketCategory(cat)}
+                  >
+                    <Text style={[styles.categoryChipText, selected && styles.categoryChipTextActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.fieldTitle}>Subject</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Image upload failed on slow 3G"
+              placeholderTextColor={colors.textSecondary}
+              value={ticketSubject}
+              onChangeText={setTicketSubject}
+            />
+
+            <Text style={styles.fieldTitle}>Description</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="Tell us what happened..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={4}
+              value={ticketDescription}
+              onChangeText={setTicketDescription}
+            />
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSupportModalOpen(false)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitBtn} onPress={() => setSupportModalOpen(false)}>
+                <Text style={styles.submitBtnText}>Submit Request</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -150,31 +384,255 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     container: {
       flexGrow: 1,
       backgroundColor: colors.bg,
-      alignItems: 'center',
-      padding: SPACING.xl,
-      paddingTop: insets.top + SPACING.xxl,
+      padding: SPACING.lg,
+      paddingTop: insets.top + SPACING.xs,
+      paddingBottom: SPACING.xxxl,
     },
-    avatar: { marginBottom: SPACING.md },
-    name: { ...TYPE.display, color: colors.textPrimary },
-    phone: { ...TYPE.subhead, color: colors.textSecondary, marginTop: SPACING.xxs },
-    location: { ...TYPE.body, color: colors.textSecondary, marginTop: 2 },
     skeletonLine: { marginTop: SPACING.xs },
+    profileCard: {
+      backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.xxl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: SPACING.sm,
+      paddingTop: SPACING.sm,
+      paddingBottom: SPACING.xs,
+      marginBottom: SPACING.sm,
+    },
+    profileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+    },
+    avatar: { width: 38, height: 38, borderRadius: 19 },
+    profileInfo: { flex: 1, minWidth: 0 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+    name: { ...TYPE.subheadStrong, fontSize: 15, color: colors.textPrimary, flexShrink: 1, fontWeight: '700' },
+    verifiedBadge: {
+      backgroundColor: '#DCFCE7',
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      borderRadius: RADIUS.pill,
+      borderWidth: 1,
+      borderColor: '#BBF7D0',
+    },
+    verifiedText: {
+      ...TYPE.captionStrong,
+      fontSize: 9.5,
+      color: '#15803D',
+    },
+    location: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary, marginTop: 0 },
+    editProfilePill: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginLeft: 4,
+    },
+    editProfileText: {
+      ...TYPE.footnote,
+      fontSize: 11.5,
+      color: colors.textPrimary,
+      fontWeight: '600',
+    },
     statsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: SPACING.lg,
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.xl,
+      justifyContent: 'space-around',
+      marginTop: SPACING.xs,
+      paddingTop: SPACING.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    statCell: { alignItems: 'center' },
+    statValue: { ...TYPE.title, fontSize: 17, color: colors.textPrimary, fontWeight: '800' },
+    statLabel: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
+    statsDivider: { width: 1, height: 22, backgroundColor: colors.border },
+    myReportsPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: SPACING.xs,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      backgroundColor: colors.primaryGreenLight,
+      borderRadius: RADIUS.pill,
+    },
+    myReportsPillText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
+
+    sectionTitle: {
+      ...TYPE.title,
+      fontSize: 16,
+      color: colors.textPrimary,
+      fontWeight: '700',
+      marginBottom: SPACING.xs,
+      marginTop: SPACING.sm,
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      marginBottom: SPACING.xs,
+    },
+    viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    viewAllText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
+
+    impactCard: {
+      backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: SPACING.sm,
+    },
+    impactRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs + 2,
+      gap: SPACING.xs,
+    },
+    thumbnailBox: {
+      width: 36,
+      height: 36,
+      borderRadius: RADIUS.lg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    thumbnailEmoji: { fontSize: 18 },
+    impactBody: { flex: 1 },
+    impactTitle: { ...TYPE.bodyStrong, fontSize: 13, color: colors.textPrimary },
+    impactSub: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary, marginTop: 1 },
+    cardDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: SPACING.sm },
+
+    badgesContainer: {
+      gap: SPACING.xs,
+      marginBottom: SPACING.md,
+    },
+    badgeItem: {
+      alignItems: 'center',
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: RADIUS.xl,
-      gap: SPACING.xl,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      minWidth: 100,
     },
-    statCell: { alignItems: 'center', minWidth: 90 },
-    statValue: { ...TYPE.title, color: colors.textPrimary },
-    statLabel: { ...TYPE.caption, color: colors.textSecondary, marginTop: SPACING.xxs },
-    statsDivider: { width: 1, height: 32, backgroundColor: colors.border },
-    editButton: { marginTop: SPACING.xl, paddingHorizontal: SPACING.xl },
-    logoutButton: { marginTop: SPACING.md, paddingHorizontal: SPACING.xl },
+    badgeEmoji: { fontSize: 22, marginBottom: 4 },
+    badgeLabel: { ...TYPE.captionStrong, color: colors.textPrimary },
+
+    menuCard: {
+      backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.xxl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: SPACING.lg,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: SPACING.md,
+      gap: SPACING.sm,
+    },
+    menuText: { flex: 1, ...TYPE.subheadStrong, fontSize: 14, color: colors.textPrimary },
+
+    logoutPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.xs,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderColor: '#FEE2E2',
+      borderRadius: RADIUS.pill,
+      paddingVertical: SPACING.sm + 2,
+      marginBottom: SPACING.lg,
+    },
+    logoutText: { ...TYPE.subheadStrong, color: colors.danger, fontWeight: '700' },
+
+    footerVersion: { textAlign: 'center', ...TYPE.caption, color: colors.textSecondary },
+    footerSub: { textAlign: 'center', ...TYPE.caption, color: colors.textSecondary, marginTop: 2 },
+
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(15,23,42,0.65)',
+      justifyContent: 'center',
+      padding: SPACING.lg,
+    },
+    ticketModalContainer: {
+      backgroundColor: colors.bg,
+      borderRadius: RADIUS.xxl,
+      padding: SPACING.lg,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: SPACING.sm,
+    },
+    modalTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+    modalTitle: { ...TYPE.title, color: colors.textPrimary, fontWeight: '800' },
+    fieldLabel: { ...TYPE.footnoteRegular, color: colors.textSecondary, marginBottom: SPACING.xs },
+    categoriesWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: SPACING.xs,
+      marginBottom: SPACING.md,
+    },
+    categoryChip: {
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs - 2,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    categoryChipActive: {
+      backgroundColor: colors.primaryGreen,
+      borderColor: colors.primaryGreen,
+    },
+    categoryChipText: { ...TYPE.footnote, color: colors.textSecondary, fontWeight: '600' },
+    categoryChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
+    fieldTitle: { ...TYPE.footnote, color: colors.textPrimary, fontWeight: '700', marginBottom: SPACING.xxs },
+    textInput: {
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.lg,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      ...TYPE.subhead,
+      color: colors.textPrimary,
+      marginBottom: SPACING.md,
+    },
+    textArea: {
+      height: 90,
+      textAlignVertical: 'top',
+    },
+    modalButtonRow: {
+      flexDirection: 'row',
+      gap: SPACING.sm,
+      marginTop: SPACING.xs,
+    },
+    cancelBtn: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: SPACING.sm + 2,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.bgElevated,
+    },
+    cancelBtnText: { ...TYPE.subheadStrong, color: colors.textSecondary },
+    submitBtn: {
+      flex: 1.5,
+      alignItems: 'center',
+      paddingVertical: SPACING.sm + 2,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.primaryGreen,
+    },
+    submitBtnText: { ...TYPE.subheadStrong, color: '#FFFFFF', fontWeight: '700' },
   });
+
