@@ -1,9 +1,9 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reports } from '../db/schema/reports-schema';
+import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
 import { reportCommentFlags, reportComments } from '../db/schema/comments-schema';
 import type { FLAG_REASONS } from './dto/flag-comment.dto';
 
@@ -47,7 +47,50 @@ export class CommentsService {
       throw new ForbiddenException('You cannot flag your own comment');
     }
 
-    await db.insert(reportCommentFlags).values({ id: uuidv7(), commentId, flaggedById, reason });
+    // Idempotent — a second flag from the same user on the same comment is
+    // a no-op, not a duplicate row (same shape as report_likes/report_saves).
+    // A re-flag with a *different* reason still doesn't overwrite the
+    // original: the first reason recorded is the one that stands, matching
+    // "capture now, act on later" — there's no moderation UI yet to even
+    // show a changed reason.
+    await db
+      .insert(reportCommentFlags)
+      .values({ id: uuidv7(), commentId, flaggedById, reason })
+      .onConflictDoNothing({ target: [reportCommentFlags.commentId, reportCommentFlags.flaggedById] });
     return { flagged: true };
+  }
+
+  // Profile → Flagged Requests. "Requests" in the product's menu language,
+  // but what's actually real is comment-level flagging (see this schema
+  // file's own top-of-file comment) — this lists comments *this user* has
+  // flagged, joined through to the report each comment lives on.
+  async listMyFlags(userId: string) {
+    const rows = await db
+      .select({
+        flag: reportCommentFlags,
+        comment: reportComments,
+        report: reports,
+        category: reportCategories,
+        status: reportStatuses,
+      })
+      .from(reportCommentFlags)
+      .innerJoin(reportComments, eq(reportCommentFlags.commentId, reportComments.id))
+      .innerJoin(reports, eq(reportComments.reportId, reports.id))
+      .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+      .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
+      .where(eq(reportCommentFlags.flaggedById, userId))
+      .orderBy(desc(reportCommentFlags.createdAt));
+
+    return rows.map((r) => ({
+      id: r.flag.id,
+      reason: r.flag.reason,
+      flaggedAt: r.flag.createdAt,
+      commentBody: r.comment.body,
+      reportId: r.report.id,
+      reportTitle: r.report.title,
+      reportLandmark: r.report.landmark,
+      reportStatus: r.status.key,
+      category: { key: r.category.key, label: r.category.label, emoji: r.category.emoji },
+    }));
   }
 }
