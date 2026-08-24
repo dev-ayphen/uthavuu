@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, HeartHandshake, MapPin } from 'lucide-react-native';
-import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { RootStackParamList } from '../../navigation/types';
@@ -45,12 +45,23 @@ export default function MyHelpsScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Nav>();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<QueueTab>('active');
 
   const { data: missions, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['myMissions'],
     queryFn: getMyMissions,
   });
+
+  // This is a bottom-tab screen — switching tabs doesn't unmount/remount it,
+  // so without this, accepting a mission elsewhere and coming straight back
+  // here would show stale data until a manual pull-to-refresh. Mirrors
+  // RequestDetailsScreen's identical pattern.
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['myMissions'] });
+    }, [queryClient])
+  );
 
   const { active, stories } = useMemo(() => splitMissions(missions ?? []), [missions]);
 
