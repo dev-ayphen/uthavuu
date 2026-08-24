@@ -61,6 +61,11 @@ export class ReportsController {
     return this.reportsService.close(id, session.user.id);
   }
 
+  @Delete(':id')
+  delete(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+    return this.reportsService.delete(id, session.user.id);
+  }
+
   @Post(':id/like')
   like(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
     return this.reportsService.like(id, session.user.id);

@@ -21,7 +21,7 @@
 
 // Known type tags. Not DB-enforced (see alerts-schema.ts) — an event-log
 // discriminator with no valid-transition rules to enforce.
-export type AlertType = 'volunteer_accepted' | 'volunteer_released' | 'mission_completed';
+export type AlertType = 'volunteer_accepted' | 'volunteer_released' | 'mission_completed' | 'report_cancelled';
 
 export const ALERT_LOCALES = ['en', 'ta'] as const;
 export type AlertLocale = (typeof ALERT_LOCALES)[number];
@@ -59,6 +59,12 @@ const TEMPLATES: Record<AlertLocale, { anonymousVolunteer: string } & Record<Ale
       title: 'Mission Completed',
       body: (p, who) => `${p.volunteerName ?? who} marked "${p.reportTitle}" as complete.`,
     },
+    // Sent to a volunteer, not the reporter — volunteerName doesn't apply
+    // here (there's no third party to name), so the body only uses reportTitle.
+    report_cancelled: {
+      title: 'Request Cancelled',
+      body: (p) => `The request you joined ("${p.reportTitle}") has been cancelled by the reporter.`,
+    },
   },
   ta: {
     anonymousVolunteer: 'ஒரு தன்னார்வலர்',
@@ -73,6 +79,10 @@ const TEMPLATES: Record<AlertLocale, { anonymousVolunteer: string } & Record<Ale
     mission_completed: {
       title: 'பணி நிறைவடைந்தது',
       body: (p, who) => `${p.volunteerName ?? who} "${p.reportTitle}" ஐ நிறைவு செய்துள்ளார்.`,
+    },
+    report_cancelled: {
+      title: 'கோரிக்கை ரத்து செய்யப்பட்டது',
+      body: (p) => `நீங்கள் இணைந்த கோரிக்கை ("${p.reportTitle}") புகாரளித்தவரால் ரத்து செய்யப்பட்டது.`,
     },
   },
 };

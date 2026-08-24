@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
@@ -11,6 +11,7 @@ import type { UpdateReportDto } from './dto/update-report.dto';
 import type { ListReportsDto } from './dto/list-reports.dto';
 import type { ReportsSummaryDto } from './dto/reports-summary.dto';
 import { MissionsService } from '../missions/missions.service';
+import { AlertsService } from '../alerts/alerts.service';
 
 // Great-circle distance in km via the haversine formula, expressed directly
 // in SQL (no PostGIS extension on this Postgres — see docker-compose.yml).
@@ -33,7 +34,10 @@ type StatusRow = typeof reportStatuses.$inferSelect;
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly missionsService: MissionsService) {}
+  constructor(
+    private readonly missionsService: MissionsService,
+    private readonly alertsService: AlertsService
+  ) {}
 
   // US-1 AC2 — the client needs each category's default expiry to pre-fill
   // it; served from the DB so it stays the single source (API-CONTRACT.md
@@ -107,12 +111,13 @@ export class ReportsService {
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
       .innerJoin(user, eq(reports.reporterId, user.id))
-      .where(eq(reports.id, reportId));
+      .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
 
     if (!row) throw new NotFoundException('Report not found');
 
     const photos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
     const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(reportId, requestingUserId);
+    const hasAnyActiveVolunteer = await this.missionsService.hasAnyActiveVolunteer(reportId);
 
     const [{ count: likeCount }] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -139,7 +144,8 @@ export class ReportsService {
       hasActiveVolunteerAccess,
       likeCount,
       myLikeRows.length > 0,
-      mySaveRows.length > 0
+      mySaveRows.length > 0,
+      hasAnyActiveVolunteer
     );
   }
 
@@ -199,6 +205,58 @@ export class ReportsService {
     );
   }
 
+  // Profile → My Reports. Every non-deleted report this user reported,
+  // across all statuses (open/closed/expired/completed) — a deleted report
+  // never appears here either, matching AC4: it disappears from the
+  // reporter's own view the same way it disappears from everyone else's,
+  // with no separate "Deleted" tab.
+  async listMine(requestingUserId: string) {
+    const rows = await db
+      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
+      .from(reports)
+      .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+      .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
+      .innerJoin(user, eq(reports.reporterId, user.id))
+      .where(and(eq(reports.reporterId, requestingUserId), isNull(reports.deletedAt)))
+      .orderBy(desc(reports.createdAt));
+
+    if (rows.length === 0) return [];
+
+    const reportIds = rows.map((r) => r.report.id);
+    const photoRows = await db.select().from(reportPhotos).where(inArray(reportPhotos.reportId, reportIds));
+    const photosByReportId = new Map<string, string[]>();
+    for (const photo of photoRows) {
+      const existing = photosByReportId.get(photo.reportId) ?? [];
+      existing.push(photo.url);
+      photosByReportId.set(photo.reportId, existing);
+    }
+
+    return Promise.all(
+      rows.map(async (row) => {
+        const activeVolunteerIds = await this.missionsService.listActiveVolunteerIds(row.report.id);
+        return {
+          ...this.toResponse(
+            row.report,
+            row.category,
+            row.status,
+            photosByReportId.get(row.report.id) ?? [],
+            row.reporter,
+            requestingUserId,
+            true, // it's always the reporter's own report here
+            0,
+            false,
+            false,
+            activeVolunteerIds.length > 0
+          ),
+          // Matches the mobile Report type's assignedVolunteersCount — how
+          // many volunteers are currently joined/active on this report's
+          // mission, for the "2 / 4 volunteers joined" line in My Reports.
+          assignedVolunteersCount: activeVolunteerIds.length,
+        };
+      })
+    );
+  }
+
   // discover-nearby-requests.md US-1 — active/urgent counts per category
   // within radius, for the Dashboard grid. "Urgent" mirrors the TONES "soon"
   // band (design-system.md §5): expiring within the hour.
@@ -214,7 +272,7 @@ export class ReportsService {
       })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
-      .where(and(eq(reports.statusId, openStatusId), sql`${dist} <= ${input.radiusKm}`))
+      .where(and(eq(reports.statusId, openStatusId), isNull(reports.deletedAt), sql`${dist} <= ${input.radiusKm}`))
       .groupBy(reportCategories.key);
 
     const byKey = new Map(rows.map((r) => [r.categoryKey, r]));
@@ -254,6 +312,7 @@ export class ReportsService {
         and(
           eq(reports.categoryId, category.id),
           eq(reports.statusId, openStatusId),
+          isNull(reports.deletedAt),
           sql`${dist} <= ${input.radiusKm}`
         )
       )
@@ -279,23 +338,50 @@ export class ReportsService {
           photosByReportId.get(row.report.id) ?? [],
           row.reporter,
           requestingUserId,
-          await this.missionsService.hasActiveAccess(row.report.id, requestingUserId)
+          await this.missionsService.hasActiveAccess(row.report.id, requestingUserId),
+          0,
+          false,
+          false,
+          await this.missionsService.hasAnyActiveVolunteer(row.report.id)
         ),
         distanceKm: Math.round(Number(row.distanceKm) * 10) / 10,
       }))
     );
   }
 
+  // edit-cancel-report.md: editable only while open AND before any
+  // volunteer has joined — a volunteer already travelling to the reported
+  // location must never have it silently move or change shape under them.
+  // requireOwnedOpenReport() alone (open + owner) isn't enough here, unlike
+  // close()/addPhoto(), which deliberately stay open to volunteers-joined.
   async update(reportId: string, requestingUserId: string, input: UpdateReportDto) {
     const existing = await this.requireOwnedOpenReport(reportId, requestingUserId);
+    if (await this.missionsService.hasAnyActiveVolunteer(reportId)) {
+      throw new ForbiddenException(
+        "This request can't be edited once a volunteer has joined — cancel it instead if you need to change something"
+      );
+    }
 
     await db
       .update(reports)
       .set({
+        ...(input.title !== undefined && { title: input.title }),
         ...(input.description !== undefined && { description: input.description }),
         ...(input.landmark !== undefined && { landmark: input.landmark }),
+        ...(input.neededVolunteers !== undefined && { neededVolunteers: input.neededVolunteers }),
+        ...(input.anonymous !== undefined && { anonymous: input.anonymous }),
+        ...(input.phoneVisible !== undefined && { phoneVisible: input.phoneVisible }),
       })
       .where(eq(reports.id, existing.id));
+
+    if (input.photoUrls !== undefined) {
+      // Full replace — the mobile edit form always sends the complete set
+      // it wants, not a delta.
+      await db.delete(reportPhotos).where(eq(reportPhotos.reportId, reportId));
+      await db
+        .insert(reportPhotos)
+        .values(input.photoUrls.map((url) => ({ id: uuidv7(), reportId, url, capturedLive: true })));
+    }
 
     return this.findOne(reportId, requestingUserId);
   }
@@ -311,8 +397,15 @@ export class ReportsService {
     return this.findOne(reportId, requestingUserId);
   }
 
+  // edit-cancel-report.md "Cancel Report": reuses the existing 'closed'
+  // status key rather than adding a 'cancelled' one — the only way a report
+  // currently reaches 'closed' is this exact reporter-initiated action, so
+  // a second status would be a distinction without a difference. Unlike
+  // update(), this stays available with volunteers already joined — it
+  // just notifies them instead of blocking the reporter.
   async close(reportId: string, requestingUserId: string) {
     const existing = await this.requireOwnedOpenReport(reportId, requestingUserId);
+    const activeVolunteerIds = await this.missionsService.listActiveVolunteerIds(reportId);
     const closedStatusId = await this.getStatusIdByKey('closed');
 
     await db
@@ -320,7 +413,42 @@ export class ReportsService {
       .set({ statusId: closedStatusId, closedAt: new Date() })
       .where(eq(reports.id, existing.id));
 
+    await Promise.all(
+      activeVolunteerIds.map((volunteerId) =>
+        this.alertsService.create(
+          volunteerId,
+          'report_cancelled',
+          { volunteerName: null, reportTitle: existing.title },
+          reportId
+        )
+      )
+    );
+
     return this.findOne(reportId, requestingUserId);
+  }
+
+  // edit-cancel-report.md "Delete Report": soft delete only — see
+  // reports-schema.ts's deletedAt/deletedBy comment for why. Same
+  // eligibility as Edit (open + zero volunteers ever joined, not just
+  // currently-active ones — a report someone already responded to and then
+  // left keeps its history, it doesn't become deletable again), reusing
+  // requireOwnedOpenReport() + hasAnyActiveVolunteer() rather than a new
+  // guard. Not idempotent on purpose (AC5): a second delete 404s, since
+  // requireOwnedOpenReport() already filters out soft-deleted rows.
+  async delete(reportId: string, requestingUserId: string): Promise<{ id: string; deleted: true }> {
+    const existing = await this.requireOwnedOpenReport(reportId, requestingUserId);
+    if (await this.missionsService.hasAnyActiveVolunteer(reportId)) {
+      throw new ForbiddenException(
+        'Delete is unavailable because volunteers have already joined this request.'
+      );
+    }
+
+    await db
+      .update(reports)
+      .set({ deletedAt: new Date(), deletedBy: requestingUserId })
+      .where(eq(reports.id, existing.id));
+
+    return { id: reportId, deleted: true };
   }
 
   // impact-story.md BR-7: idempotent both ways — ON CONFLICT DO NOTHING
@@ -370,7 +498,10 @@ export class ReportsService {
   // Shared guard for the three write paths that only the reporter may use,
   // and only while the report is still open (BR-6).
   private async requireOwnedOpenReport(reportId: string, requestingUserId: string): Promise<ReportRow> {
-    const [existing] = await db.select().from(reports).where(eq(reports.id, reportId));
+    const [existing] = await db
+      .select()
+      .from(reports)
+      .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
     if (!existing) throw new NotFoundException('Report not found');
     if (existing.reporterId !== requestingUserId) throw new ForbiddenException('Not your report');
 
@@ -402,7 +533,8 @@ export class ReportsService {
     hasActiveVolunteerAccess: boolean,
     likeCount = 0,
     likedByMe = false,
-    savedByMe = false
+    savedByMe = false,
+    hasAnyActiveVolunteer = false
   ) {
     const isOwner = report.reporterId === requestingUserId;
     return {
@@ -434,6 +566,9 @@ export class ReportsService {
       likeCount,
       likedByMe,
       savedByMe,
+      // edit-cancel-report.md: same rule as update()'s server-side guard —
+      // computed here, not duplicated client-side, so the two can't drift.
+      editable: status.key === 'open' && !hasAnyActiveVolunteer,
     };
   }
 }

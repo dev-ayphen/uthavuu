@@ -8,7 +8,13 @@ import { z } from 'zod';
 export const CreateReportSchema = z.object({
   categoryKey: z.string().trim().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120),
-  description: z.string().trim().min(1, 'Description is required').max(2000),
+  // edit-cancel-report.md: a real minimum, not just non-empty — long enough
+  // to reject "help"/"asap" while not being onerous for a genuine request.
+  description: z
+    .string()
+    .trim()
+    .min(20, 'Description must be at least 20 characters — give volunteers enough to act on')
+    .max(2000),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   landmark: z.string().trim().max(200).optional(),

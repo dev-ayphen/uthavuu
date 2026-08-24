@@ -1,11 +1,21 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportPhotos,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import {
   missionCompletions,
   missionCompletionStatuses,
@@ -60,29 +70,45 @@ const CONFIRM_WINDOW_MS = 15 * 60_000;
 export class MissionsService {
   constructor(private readonly alertsService: AlertsService) {}
 
-  private async getVolunteerStatusIdByKey(key: VolunteerStatusKey): Promise<string> {
+  private async getVolunteerStatusIdByKey(
+    key: VolunteerStatusKey,
+  ): Promise<string> {
     const [status] = await db
       .select()
       .from(missionVolunteerStatuses)
       .where(eq(missionVolunteerStatuses.key, key));
-    if (!status) throw new Error(`mission_volunteer_statuses row missing for key "${key}" — did db:seed run?`);
+    if (!status)
+      throw new Error(
+        `mission_volunteer_statuses row missing for key "${key}" — did db:seed run?`,
+      );
     return status.id;
   }
 
-  private async getReportStatusIdByKey(key: 'open' | 'closed' | 'expired' | 'completed'): Promise<string> {
-    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, key));
-    if (!status) throw new Error(`report_statuses row missing for key "${key}" — did db:seed run?`);
+  private async getReportStatusIdByKey(
+    key: 'open' | 'closed' | 'expired' | 'completed',
+  ): Promise<string> {
+    const [status] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, key));
+    if (!status)
+      throw new Error(
+        `report_statuses row missing for key "${key}" — did db:seed run?`,
+      );
     return status.id;
   }
 
   private async getCompletionStatusIdByKey(
-    key: 'submitted' | 'waiting_verification' | 'verified'
+    key: 'submitted' | 'waiting_verification' | 'verified',
   ): Promise<string> {
     const [status] = await db
       .select()
       .from(missionCompletionStatuses)
       .where(eq(missionCompletionStatuses.key, key));
-    if (!status) throw new Error(`mission_completion_statuses row missing for key "${key}" — did db:seed run?`);
+    if (!status)
+      throw new Error(
+        `mission_completion_statuses row missing for key "${key}" — did db:seed run?`,
+      );
     return status.id;
   }
 
@@ -94,12 +120,16 @@ export class MissionsService {
     const prefix = `${process.env.BETTER_AUTH_URL}/uploads/`;
     if (!photoUrl.startsWith(prefix)) return false;
     const filename = photoUrl.slice(prefix.length);
-    if (!filename || filename.includes('/') || filename.includes('..')) return false;
+    if (!filename || filename.includes('/') || filename.includes('..'))
+      return false;
     return existsSync(join(UPLOADS_DIR, filename));
   }
 
   private async getOrCreateMission(reportId: string): Promise<string> {
-    const [existing] = await db.select().from(missions).where(eq(missions.reportId, reportId));
+    const [existing] = await db
+      .select()
+      .from(missions)
+      .where(eq(missions.reportId, reportId));
     if (existing) return existing.id;
 
     const id = uuidv7();
@@ -108,13 +138,17 @@ export class MissionsService {
   }
 
   private async findMissionId(reportId: string): Promise<string | null> {
-    const [mission] = await db.select().from(missions).where(eq(missions.reportId, reportId));
+    const [mission] = await db
+      .select()
+      .from(missions)
+      .where(eq(missions.reportId, reportId));
     return mission?.id ?? null;
   }
 
   private async requireMissionId(reportId: string): Promise<string> {
     const missionId = await this.findMissionId(reportId);
-    if (!missionId) throw new NotFoundException('No mission exists yet for this report');
+    if (!missionId)
+      throw new NotFoundException('No mission exists yet for this report');
     return missionId;
   }
 
@@ -126,32 +160,47 @@ export class MissionsService {
     const rows = await db
       .select({ mv: missionVolunteers, status: missionVolunteerStatuses })
       .from(missionVolunteers)
-      .innerJoin(missionVolunteerStatuses, eq(missionVolunteers.statusId, missionVolunteerStatuses.id))
+      .innerJoin(
+        missionVolunteerStatuses,
+        eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
+      )
       .where(eq(missionVolunteers.missionId, missionId));
 
     const now = new Date();
-    const stale = rows.filter((r) => r.status.key === 'joined' && r.mv.confirmDeadline < now);
+    const stale = rows.filter(
+      (r) => r.status.key === 'joined' && r.mv.confirmDeadline < now,
+    );
     if (stale.length === 0) return rows;
 
     const releasedStatusId = await this.getVolunteerStatusIdByKey('released');
     for (const row of stale) {
       await db
         .update(missionVolunteers)
-        .set({ statusId: releasedStatusId, releasedAt: now, releaseReason: 'timeout' })
+        .set({
+          statusId: releasedStatusId,
+          releasedAt: now,
+          releaseReason: 'timeout',
+        })
         .where(eq(missionVolunteers.id, row.mv.id));
     }
 
     return db
       .select({ mv: missionVolunteers, status: missionVolunteerStatuses })
       .from(missionVolunteers)
-      .innerJoin(missionVolunteerStatuses, eq(missionVolunteers.statusId, missionVolunteerStatuses.id))
+      .innerJoin(
+        missionVolunteerStatuses,
+        eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
+      )
       .where(eq(missionVolunteers.missionId, missionId));
   }
 
   // BR-4: the reporter, or a volunteer currently 'joined'/'active' (not
   // 'released'). Used to gate both Mission Chat and the phone reveal.
   async hasActiveAccess(reportId: string, userId: string): Promise<boolean> {
-    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, reportId));
     if (!report) return false;
     if (report.reporterId === userId) return true;
 
@@ -159,18 +208,49 @@ export class MissionsService {
     if (!missionId) return false;
 
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    return rows.some((r) => r.mv.volunteerId === userId && r.status.key !== 'released');
+    return rows.some(
+      (r) => r.mv.volunteerId === userId && r.status.key !== 'released',
+    );
+  }
+
+  // edit-cancel-report.md: Edit Report locks once ANY volunteer has
+  // joined/is active — unlike hasActiveAccess above, this isn't scoped to
+  // one requesting user, it's "has this report attracted a real response
+  // yet at all." No mission row yet means trivially no.
+  async hasAnyActiveVolunteer(reportId: string): Promise<boolean> {
+    const missionId = await this.findMissionId(reportId);
+    if (!missionId) return false;
+
+    const rows = await this.expireStaleAndListVolunteers(missionId);
+    return rows.some((r) => r.status.key !== 'released');
+  }
+
+  // Cancel Report: who to notify. Same active-volunteer definition as
+  // hasAnyActiveVolunteer, returning ids instead of a boolean.
+  async listActiveVolunteerIds(reportId: string): Promise<string[]> {
+    const missionId = await this.findMissionId(reportId);
+    if (!missionId) return [];
+
+    const rows = await this.expireStaleAndListVolunteers(missionId);
+    return [...new Set(rows.filter((r) => r.status.key !== 'released').map((r) => r.mv.volunteerId))];
   }
 
   async accept(reportId: string, volunteerId: string): Promise<RosterResponse> {
-    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, reportId));
     if (!report) throw new NotFoundException('Report not found');
     if (report.reporterId === volunteerId) {
       throw new BadRequestException('You cannot accept your own report');
     }
 
-    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, report.statusId));
-    if (status?.key !== 'open') throw new BadRequestException('This request is no longer open');
+    const [status] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.id, report.statusId));
+    if (status?.key !== 'open')
+      throw new BadRequestException('This request is no longer open');
 
     const missionId = await this.getOrCreateMission(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
@@ -194,27 +274,36 @@ export class MissionsService {
       joinedAt: now,
     });
 
-    const [volunteer] = await db.select().from(user).where(eq(user.id, volunteerId));
+    const [volunteer] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, volunteerId));
     await this.alertsService.create(
       report.reporterId,
       'volunteer_accepted',
       { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
-      reportId
+      reportId,
     );
 
     return this.getRoster(reportId, volunteerId);
   }
 
-  async confirm(reportId: string, volunteerId: string): Promise<RosterResponse> {
+  async confirm(
+    reportId: string,
+    volunteerId: string,
+  ): Promise<RosterResponse> {
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    const mine = rows.find((r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released');
+    const mine = rows.find(
+      (r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released',
+    );
     if (!mine) {
       throw new BadRequestException(
-        'Your acceptance window has expired or you never accepted this request — try accepting again'
+        'Your acceptance window has expired or you never accepted this request — try accepting again',
       );
     }
-    if (mine.status.key === 'active') return this.getRoster(reportId, volunteerId);
+    if (mine.status.key === 'active')
+      return this.getRoster(reportId, volunteerId);
 
     const activeStatusId = await this.getVolunteerStatusIdByKey('active');
     await db
@@ -228,23 +317,38 @@ export class MissionsService {
   async leave(reportId: string, volunteerId: string): Promise<RosterResponse> {
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    const mine = rows.find((r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released');
-    if (!mine) throw new BadRequestException('You have no active acceptance on this request');
+    const mine = rows.find(
+      (r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released',
+    );
+    if (!mine)
+      throw new BadRequestException(
+        'You have no active acceptance on this request',
+      );
 
     const releasedStatusId = await this.getVolunteerStatusIdByKey('released');
     await db
       .update(missionVolunteers)
-      .set({ statusId: releasedStatusId, releasedAt: new Date(), releaseReason: 'voluntary' })
+      .set({
+        statusId: releasedStatusId,
+        releasedAt: new Date(),
+        releaseReason: 'voluntary',
+      })
       .where(eq(missionVolunteers.id, mine.mv.id));
 
-    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
-    const [volunteer] = await db.select().from(user).where(eq(user.id, volunteerId));
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, reportId));
+    const [volunteer] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, volunteerId));
     if (report) {
       await this.alertsService.create(
         report.reporterId,
         'volunteer_released',
         { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
-        reportId
+        reportId,
       );
     }
 
@@ -252,8 +356,16 @@ export class MissionsService {
   }
 
   // docs/features/mission-completion.md US-1/US-2/BR-1..BR-6.
-  async complete(reportId: string, volunteerId: string, photoUrl: string, note: string): Promise<RosterResponse> {
-    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+  async complete(
+    reportId: string,
+    volunteerId: string,
+    photoUrl: string,
+    note: string,
+  ): Promise<RosterResponse> {
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, reportId));
     if (!report) throw new NotFoundException('Report not found');
     if (report.reporterId === volunteerId) {
       throw new BadRequestException('You cannot complete your own report');
@@ -263,7 +375,9 @@ export class MissionsService {
     const rows = await this.expireStaleAndListVolunteers(missionId);
     const mine = rows.find((r) => r.mv.volunteerId === volunteerId);
     if (!mine || mine.status.key !== 'active') {
-      throw new BadRequestException('You must be an active volunteer on this mission to complete it');
+      throw new BadRequestException(
+        'You must be an active volunteer on this mission to complete it',
+      );
     }
 
     const [existingCompletion] = await db
@@ -275,11 +389,14 @@ export class MissionsService {
     }
 
     if (!this.isGenuineUpload(photoUrl)) {
-      throw new BadRequestException('The completion photo must be one uploaded through this app');
+      throw new BadRequestException(
+        'The completion photo must be one uploaded through this app',
+      );
     }
 
     const verifiedStatusId = await this.getCompletionStatusIdByKey('verified');
-    const completedReportStatusId = await this.getReportStatusIdByKey('completed');
+    const completedReportStatusId =
+      await this.getReportStatusIdByKey('completed');
     const now = new Date();
 
     await db.insert(missionCompletions).values({
@@ -293,21 +410,33 @@ export class MissionsService {
       verifiedAt: now,
     });
 
-    await db.update(reports).set({ statusId: completedReportStatusId, closedAt: now }).where(eq(reports.id, reportId));
+    await db
+      .update(reports)
+      .set({ statusId: completedReportStatusId, closedAt: now })
+      .where(eq(reports.id, reportId));
 
-    const [volunteer] = await db.select().from(user).where(eq(user.id, volunteerId));
+    const [volunteer] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, volunteerId));
     await this.alertsService.create(
       report.reporterId,
       'mission_completed',
       { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
-      reportId
+      reportId,
     );
 
     return this.getRoster(reportId, volunteerId);
   }
 
-  async getRoster(reportId: string, requestingUserId: string): Promise<RosterResponse> {
-    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+  async getRoster(
+    reportId: string,
+    requestingUserId: string,
+  ): Promise<RosterResponse> {
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, reportId));
     if (!report) throw new NotFoundException('Report not found');
 
     const missionId = await this.findMissionId(reportId);
@@ -342,13 +471,21 @@ export class MissionsService {
         name: userById.get(r.mv.volunteerId)?.name ?? 'Volunteer',
         avatarUrl: userById.get(r.mv.volunteerId)?.avatarUrl ?? null,
         status: r.status.key as VolunteerStatusKey,
-        confirmDeadline: r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
+        confirmDeadline:
+          r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
         joinedAt: r.mv.joinedAt.toISOString(),
       })),
       myStatus: mine ? (mine.status.key as VolunteerStatusKey) : null,
-      myConfirmDeadline: mine && mine.status.key === 'joined' ? mine.mv.confirmDeadline.toISOString() : null,
+      myConfirmDeadline:
+        mine && mine.status.key === 'joined'
+          ? mine.mv.confirmDeadline.toISOString()
+          : null,
       completion: completionRow
-        ? { photoUrl: completionRow.photoUrl, note: completionRow.note, verifiedAt: completionRow.verifiedAt!.toISOString() }
+        ? {
+            photoUrl: completionRow.photoUrl,
+            note: completionRow.note,
+            verifiedAt: completionRow.verifiedAt!.toISOString(),
+          }
         : null,
     };
   }
@@ -356,7 +493,9 @@ export class MissionsService {
   // BR-4: gated on hasActiveAccess, checked here — not just hidden client-side.
   async listMessages(reportId: string, requestingUserId: string) {
     if (!(await this.hasActiveAccess(reportId, requestingUserId))) {
-      throw new ForbiddenException('You need to accept this request to view Mission Chat');
+      throw new ForbiddenException(
+        'You need to accept this request to view Mission Chat',
+      );
     }
     const missionId = await this.requireMissionId(reportId);
 
@@ -379,19 +518,31 @@ export class MissionsService {
 
   async sendMessage(reportId: string, senderId: string, body: string) {
     if (!(await this.hasActiveAccess(reportId, senderId))) {
-      throw new ForbiddenException('You need to accept this request to post in Mission Chat');
+      throw new ForbiddenException(
+        'You need to accept this request to post in Mission Chat',
+      );
     }
 
-    const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, reportId));
     if (report) {
-      const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, report.statusId));
+      const [status] = await db
+        .select()
+        .from(reportStatuses)
+        .where(eq(reportStatuses.id, report.statusId));
       if (status?.key === 'completed') {
-        throw new ForbiddenException('This mission is complete — Mission Chat is read-only');
+        throw new ForbiddenException(
+          'This mission is complete — Mission Chat is read-only',
+        );
       }
     }
 
     const missionId = await this.requireMissionId(reportId);
-    await db.insert(missionMessages).values({ id: uuidv7(), missionId, senderId, body });
+    await db
+      .insert(missionMessages)
+      .values({ id: uuidv7(), missionId, senderId, body });
     return this.listMessages(reportId, senderId);
   }
 
@@ -400,21 +551,34 @@ export class MissionsService {
   // just across a volunteer's rows instead of one mission's.
   async listMyMissions(volunteerId: string): Promise<MyMissionSummary[]> {
     const rows = await db
-      .select({ mv: missionVolunteers, status: missionVolunteerStatuses, mission: missions })
+      .select({
+        mv: missionVolunteers,
+        status: missionVolunteerStatuses,
+        mission: missions,
+      })
       .from(missionVolunteers)
-      .innerJoin(missionVolunteerStatuses, eq(missionVolunteers.statusId, missionVolunteerStatuses.id))
+      .innerJoin(
+        missionVolunteerStatuses,
+        eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
+      )
       .innerJoin(missions, eq(missionVolunteers.missionId, missions.id))
       .where(eq(missionVolunteers.volunteerId, volunteerId))
       .orderBy(desc(missionVolunteers.joinedAt));
 
     const now = new Date();
-    const stale = rows.filter((r) => r.status.key === 'joined' && r.mv.confirmDeadline < now);
+    const stale = rows.filter(
+      (r) => r.status.key === 'joined' && r.mv.confirmDeadline < now,
+    );
     if (stale.length > 0) {
       const releasedStatusId = await this.getVolunteerStatusIdByKey('released');
       for (const row of stale) {
         await db
           .update(missionVolunteers)
-          .set({ statusId: releasedStatusId, releasedAt: now, releaseReason: 'timeout' })
+          .set({
+            statusId: releasedStatusId,
+            releasedAt: now,
+            releaseReason: 'timeout',
+          })
           .where(eq(missionVolunteers.id, row.mv.id));
         row.status = { ...row.status, key: 'released' };
       }
@@ -424,7 +588,12 @@ export class MissionsService {
 
     const reportIds = [...new Set(rows.map((r) => r.mission.reportId))];
     const reportRows = await db
-      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
+      .select({
+        report: reports,
+        category: reportCategories,
+        status: reportStatuses,
+        reporter: user,
+      })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
@@ -432,10 +601,14 @@ export class MissionsService {
       .where(inArray(reports.id, reportIds));
     const reportById = new Map(reportRows.map((r) => [r.report.id, r]));
 
-    const photoRows = await db.select().from(reportPhotos).where(inArray(reportPhotos.reportId, reportIds));
+    const photoRows = await db
+      .select()
+      .from(reportPhotos)
+      .where(inArray(reportPhotos.reportId, reportIds));
     const firstPhotoByReportId = new Map<string, string>();
     for (const p of photoRows) {
-      if (!firstPhotoByReportId.has(p.reportId)) firstPhotoByReportId.set(p.reportId, p.url);
+      if (!firstPhotoByReportId.has(p.reportId))
+        firstPhotoByReportId.set(p.reportId, p.url);
     }
 
     return rows
@@ -445,7 +618,11 @@ export class MissionsService {
         return {
           reportId: found.report.id,
           title: found.report.title,
-          category: { key: found.category.key, label: found.category.label, emoji: found.category.emoji },
+          category: {
+            key: found.category.key,
+            label: found.category.label,
+            emoji: found.category.emoji,
+          },
           reportStatus: found.status.key,
           photo: firstPhotoByReportId.get(found.report.id) ?? null,
           landmark: found.report.landmark,
@@ -453,7 +630,10 @@ export class MissionsService {
           lng: found.report.lng,
           reporterName: found.report.anonymous ? null : found.reporter.name,
           myStatus: r.status.key as VolunteerStatusKey,
-          myConfirmDeadline: r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
+          myConfirmDeadline:
+            r.status.key === 'joined'
+              ? r.mv.confirmDeadline.toISOString()
+              : null,
           joinedAt: r.mv.joinedAt.toISOString(),
         };
       })

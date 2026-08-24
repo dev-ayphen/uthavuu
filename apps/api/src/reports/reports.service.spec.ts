@@ -15,7 +15,7 @@ import type { CreateReportDto } from './dto/create-report.dto';
 
 describe('ReportsService', () => {
   const missionsService = new MissionsService(new AlertsService());
-  const service = new ReportsService(missionsService);
+  const service = new ReportsService(missionsService, new AlertsService());
 
   let reporterId: string;
   let otherUserId: string;
