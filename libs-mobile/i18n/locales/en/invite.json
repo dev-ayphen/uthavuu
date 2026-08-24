@@ -1,0 +1,17 @@
+{
+  "title": "Invite Friends",
+  "heroTitle": "Invite friends, grow the community",
+  "heroSubtitle": "The more neighbours on Uthavu, the faster help arrives.",
+  "codeLabel": "Your Invite Code",
+  "copyCode": "Copy Code",
+  "copyLink": "Copy Link",
+  "copied": "Copied",
+  "shareInvite": "Share Invite",
+  "shareMessage": "Join me on உதவு (Uthavu) — a community app that helps people find and respond to nearby help requests. Join Uthavu: {{link}}",
+  "shareTitle": "Invite Friends to Uthavu",
+  "shareFailed": "Could not open the share sheet. Try again.",
+  "step1": "Share your link",
+  "step2": "Friend joins Uthavu",
+  "step3": "More helpers nearby",
+  "loadFailed": "Could not load your invite link. Try again."
+}

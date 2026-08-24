@@ -3,7 +3,7 @@
 // ADR 0006: msg91 from the start, no OTP stub). apps/api must exist and be running
 // at EXPO_PUBLIC_API_URL for any of this to actually succeed.
 
-import { getToken } from './session';
+import { clearToken, getToken } from './session';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -26,6 +26,17 @@ type RequestOptions = {
   body?: unknown;
   auth?: boolean;
 };
+
+// apps/mobile owns navigation — this file can't import RootStackParamList or
+// a navigation ref directly (wrong dependency direction, libs-mobile has no
+// concept of the app's screen tree). The app registers a callback once at
+// startup instead (see RootNavigator.tsx); apiRequest calls it on a real
+// session-expiry 401, this file never has to know what "Login" even is.
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(fn: () => void): void {
+  unauthorizedHandler = fn;
+}
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   if (!BASE_URL) {
@@ -63,6 +74,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
+    // A 401 only means "your session is dead" when this request actually
+    // sent a bearer token in the first place. `send-otp`/`verify` are
+    // `auth: false` — a 401 there means "wrong OTP", not "expired session",
+    // and must NOT clear a token or bounce the user off the login flow.
+    if (res.status === 401 && options.auth) {
+      await clearToken();
+      unauthorizedHandler?.();
+    }
     throw new ApiError(res.status, data?.message ?? `Request failed (${res.status})`, data?.code);
   }
 

@@ -5,6 +5,11 @@
   "helpedInDuration": "Helped in {{duration}}",
   "share": "Share",
   "shareMessage": "See how the Uthavu community helped with \"{{title}}\":",
+  "save": "Save",
+  "saved": "Saved",
+  "savedStoriesTitle": "Saved Stories",
+  "savedStoriesEmptyTitle": "No saved stories yet",
+  "savedStoriesEmptySubtitle": "Tap Save on an Impact Story to keep it here.",
 
   "volunteersTitle": "Volunteers",
   "countLabel": "{{activeCount}} / {{count}} joined",

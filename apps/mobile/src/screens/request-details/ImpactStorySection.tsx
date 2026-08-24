@@ -6,11 +6,17 @@ import { useMemo } from 'react';
 import { Alert, Image, Share, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Heart, Share2 } from 'lucide-react-native';
+import { Bookmark, BookmarkCheck, Heart, Share2 } from 'lucide-react-native';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import { likeReport, unlikeReport, type Report } from '@uthavu/libs-mobile/api/reports';
+import {
+  likeReport,
+  saveReport,
+  unlikeReport,
+  unsaveReport,
+  type Report,
+} from '@uthavu/libs-mobile/api/reports';
 import type { Roster } from '@uthavu/libs-mobile/api/missions';
 import { formatDuration } from '@uthavu/libs-mobile/lib/time';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
@@ -38,10 +44,17 @@ export default function ImpactStorySection({ reportId, report, roster }: Props) 
 
   const likeMutation = useMutation({ mutationFn: () => likeReport(reportId), onSuccess: invalidate, onError });
   const unlikeMutation = useMutation({ mutationFn: () => unlikeReport(reportId), onSuccess: invalidate, onError });
+  const saveMutation = useMutation({ mutationFn: () => saveReport(reportId), onSuccess: invalidate, onError });
+  const unsaveMutation = useMutation({ mutationFn: () => unsaveReport(reportId), onSuccess: invalidate, onError });
 
   const onToggleLike = () => {
     if (report.likedByMe) unlikeMutation.mutate();
     else likeMutation.mutate();
+  };
+
+  const onToggleSave = () => {
+    if (report.savedByMe) unsaveMutation.mutate();
+    else saveMutation.mutate();
   };
 
   const onShare = async () => {
@@ -93,6 +106,19 @@ export default function ImpactStorySection({ reportId, report, roster }: Props) 
           icon={<Share2 size={ICON_SIZE.sm} color={colors.textSecondary} />}
           variant="ghost"
           onPress={onShare}
+        />
+        <Button
+          label={report.savedByMe ? t('saved') : t('save')}
+          icon={
+            report.savedByMe ? (
+              <BookmarkCheck size={ICON_SIZE.sm} color={colors.primaryGreen} fill={colors.primaryGreen} />
+            ) : (
+              <Bookmark size={ICON_SIZE.sm} color={colors.textSecondary} />
+            )
+          }
+          variant="ghost"
+          onPress={onToggleSave}
+          loading={saveMutation.isPending || unsaveMutation.isPending}
         />
       </View>
 
