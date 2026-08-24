@@ -59,6 +59,16 @@ export const reports = pgTable(
     neededVolunteers: integer('needed_volunteers').default(1).notNull(),
     expiryAt: timestamp('expiry_at', { withTimezone: true }).notNull(),
     closedAt: timestamp('closed_at', { withTimezone: true }),
+    // edit-cancel-report.md "Delete Report": soft delete only, deliberately —
+    // never a hard DELETE FROM reports. A deleted report may already have
+    // real related data (photos, comments, likes, audit trail) that stays
+    // useful history; hard-deleting the row would destroy it for no benefit
+    // over just excluding it from listings. Same reasoning this repo already
+    // applies elsewhere for not throwing away data it doesn't have to (see
+    // docs/decisions/ for the local-disk-photo-storage precedent of picking
+    // the simplest choice that doesn't foreclose a real one later).
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedBy: text('deleted_by').references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
