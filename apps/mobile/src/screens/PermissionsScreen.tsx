@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   ScrollView,
@@ -21,6 +20,7 @@ import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
 import Button from '@uthavu/libs-mobile/components/Button';
+import Spinner from '@uthavu/libs-mobile/components/Spinner';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 
@@ -112,7 +112,7 @@ export default function PermissionsScreen({ navigation }: Props) {
           <Text style={styles.rowSubtitle}>{t('locationAccessSubtitle')}</Text>
         </View>
         {requesting ? (
-          <ActivityIndicator size="small" color={colors.primaryGreen} />
+          <Spinner variant="standalone" size="small" />
         ) : (
           <View style={[styles.checkCircle, locationGranted && styles.checkCircleOn]}>
             {locationGranted && <Check size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />}
@@ -135,7 +135,7 @@ export default function PermissionsScreen({ navigation }: Props) {
           <Text style={styles.rowSubtitle}>{t('pushNotificationsSubtitle')}</Text>
         </View>
         {notifRequesting ? (
-          <ActivityIndicator size="small" color={colors.primaryGreen} />
+          <Spinner variant="standalone" size="small" />
         ) : (
           <View style={[styles.checkCircle, notificationsGranted && styles.checkCircleOn]}>
             {notificationsGranted && <Check size={ICON_SIZE.xs} color={colors.textOnTint} strokeWidth={3} />}

@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import {
-  ActivityIndicator,
   StyleSheet,
   Switch,
   Text,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import Spinner from '@uthavu/libs-mobile/components/Spinner';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import type { ReportCategory } from '@uthavu/libs-mobile/api/reports';
@@ -58,7 +58,7 @@ export default function ReportLocationPage({
       <View style={styles.locationCard}>
         {locating ? (
           <>
-            <ActivityIndicator size="small" color={colors.primaryGreen} />
+            <Spinner variant="standalone" size="small" />
             <Text style={styles.locationText}>Detecting location…</Text>
           </>
         ) : (

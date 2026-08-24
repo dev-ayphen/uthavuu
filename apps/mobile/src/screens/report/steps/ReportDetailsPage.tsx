@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import {
-  ActivityIndicator,
   Image,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { Camera, X } from 'lucide-react-native';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
+import Spinner from '@uthavu/libs-mobile/components/Spinner';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
@@ -81,7 +81,7 @@ export default function ReportDetailsPage({
               <Image source={{ uri: photo.localUri }} style={styles.thumbImg} />
               {photo.uploading && (
                 <View style={styles.thumbOverlay}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Spinner variant="onTint" size="small" />
                 </View>
               )}
               <TouchableOpacity style={styles.thumbRemove} onPress={() => onRemovePhoto(i)}>

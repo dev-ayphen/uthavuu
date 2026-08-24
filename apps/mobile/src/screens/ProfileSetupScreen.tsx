@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -25,6 +24,7 @@ import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import { PROFESSIONS, type ProfessionId } from '@uthavu/libs-mobile/data/professions';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Button from '@uthavu/libs-mobile/components/Button';
+import Spinner from '@uthavu/libs-mobile/components/Spinner';
 import TextField from '@uthavu/libs-mobile/components/TextField';
 import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
 import ProfessionPicker from '@uthavu/libs-mobile/components/ProfessionPicker';
@@ -173,7 +173,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           <Avatar uri={localPhotoUri} label={name} size={84} />
           <View style={styles.avatarBadge}>
             {uploadingPhoto ? (
-              <ActivityIndicator size="small" color={colors.textOnTint} />
+              <Spinner variant="onTint" size="small" />
             ) : (
               <Camera size={14} color={colors.textOnTint} />
             )}

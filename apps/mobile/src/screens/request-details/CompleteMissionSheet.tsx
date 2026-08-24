@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { completeMission } from '@uthavu/libs-mobile/api/missions';
 import { uploadImage } from '@uthavu/libs-mobile/api/users';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import Button from '@uthavu/libs-mobile/components/Button';
+import Spinner from '@uthavu/libs-mobile/components/Spinner';
 import TextField from '@uthavu/libs-mobile/components/TextField';
 
 type Props = {
@@ -101,7 +102,7 @@ export default function CompleteMissionSheet({ visible, reportId, onComplete, on
             accessibilityLabel={photoUrl ? t('retakePhotoAccessibilityLabel') : t('takePhotoAccessibilityLabel')}
           >
             {uploadingPhoto ? (
-              <ActivityIndicator color={colors.primaryGreen} />
+              <Spinner variant="standalone" />
             ) : localPhotoUri ? (
               <Text style={styles.photoBoxText}>{t('photoCapturedText')}</Text>
             ) : (
