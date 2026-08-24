@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { markOnboardingSeen } from '@uthavu/libs-mobile/lib/session';
@@ -23,25 +23,30 @@ import Button from '@uthavu/libs-mobile/components/Button';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
-// onboarding_2.png and onboarding_3.png have a heading/subtext (and, on slide 3, a
-// duplicate "GET STARTED" button) baked into the artwork itself — confirmed by
-// visual inspection, matching exactly what docs/mobile/02-onboarding-screen.md
-// gap #1 warned about. `hasBakedInText` suppresses our own title/description for
-// those two slides so we don't stack two headings; the dots and buttons stay ours
-// (real/functional) regardless, since the baked-in ones are inert artwork.
-//
-// Titles/descriptions come from the auth i18n namespace (slide1Title/
-// slide1Description etc.) even for the two baked-in-text slides — kept
-// translated and in the data model in case the artwork approach changes
-// later, even though they're not rendered today.
-const SLIDE_IMAGES = [
-  require('../../assets/onboarding_1.png'),
-  require('../../assets/onboarding_2.png'),
-  require('../../assets/onboarding_3.png'),
-] as const;
-const SLIDE_HAS_BAKED_IN_TEXT = [false, true, true] as const;
-
 const { width } = Dimensions.get('window');
+
+const SLIDES_DATA = [
+  {
+    // TODO(onboarding redesign): clean_onboarding_1.png doesn't exist in
+    // apps/mobile/assets yet — this was crashing the app on first launch for
+    // every new user (Metro can't resolve a require() to a missing file).
+    // Pointing at the existing asset as a stopgap; swap back once the real
+    // cropped/re-exported image is actually added.
+    image: require('../../assets/onboarding_1.png'),
+    title: 'Community Help Needed',
+    description: 'Post help requests for animal rescues, food drives, roadside help, or elderly support near you.',
+  },
+  {
+    image: require('../../assets/onboarding_2.png'),
+    title: 'Help Is On The Way',
+    description: 'Nearby volunteers get alerted instantly and arrive to support your cause.',
+  },
+  {
+    image: require('../../assets/onboarding_3.png'),
+    title: 'Building Community, Saving Lives',
+    description: 'Join hands with local heroes and NGOs to create real, lasting impact in your city.',
+  },
+];
 
 export default function OnboardingScreen({ navigation }: Props) {
   const { colors } = useTheme();
@@ -50,13 +55,6 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const { t } = useTranslation('auth');
-
-  const SLIDES = SLIDE_IMAGES.map((image, index) => ({
-    image,
-    title: t(`slide${index + 1}Title` as 'slide1Title'),
-    description: t(`slide${index + 1}Description` as 'slide1Description'),
-    hasBakedInText: SLIDE_HAS_BAKED_IN_TEXT[index],
-  }));
 
   const finish = useCallback(async () => {
     await markOnboardingSeen();
@@ -74,7 +72,7 @@ export default function OnboardingScreen({ navigation }: Props) {
         goToSlide(currentSlide - 1);
         return true;
       }
-      return false; // let the OS handle it (exits the app) on the first slide
+      return false;
     });
     return () => sub.remove();
   }, [currentSlide, goToSlide]);
@@ -84,19 +82,26 @@ export default function OnboardingScreen({ navigation }: Props) {
     setCurrentSlide(index);
   };
 
-  const isLast = currentSlide === SLIDES.length - 1;
+  const isLast = currentSlide === SLIDES_DATA.length - 1;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.skipCorner}
-        onPress={finish}
-        accessibilityRole="button"
-        accessibilityLabel="Skip onboarding"
-      >
-        <Text style={styles.skipCornerText}>{t('skip')}</Text>
-      </TouchableOpacity>
+      {/* Top Bar with clear Skip button */}
+      <View style={[styles.topBar, { paddingTop: insets.top + SPACING.xs }]}>
+        <View style={styles.flex1} />
+        {!isLast && (
+          <TouchableOpacity
+            style={styles.skipBtn}
+            onPress={finish}
+            accessibilityRole="button"
+            accessibilityLabel="Skip onboarding"
+          >
+            <Text style={styles.skipText}>{t('skip') || 'Skip'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
+      {/* Swipeable Slides */}
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -105,41 +110,42 @@ export default function OnboardingScreen({ navigation }: Props) {
         onMomentumScrollEnd={onMomentumScrollEnd}
         style={styles.scroll}
       >
-        {SLIDES.map(({ image, title, description, hasBakedInText }, index) => (
+        {SLIDES_DATA.map((slide, index) => (
           <View key={index} style={[styles.slide, { width }]}>
-            <View style={styles.topSection}>
-              <Image source={image} style={styles.heroImage} resizeMode="cover" />
+            {/* Upper Section: Artwork */}
+            <View style={styles.heroSection}>
+              <Image source={slide.image} style={styles.heroImage} resizeMode="contain" />
             </View>
-            <View style={styles.bottomSection}>
-              {!hasBakedInText && (
-                <>
-                  <Text style={styles.title}>{title}</Text>
-                  <Text style={styles.description}>{description}</Text>
-                </>
-              )}
 
-              <View style={styles.dots}>
-                {SLIDES.map((_, dotIndex) => (
-                  <View
-                    key={dotIndex}
-                    style={[styles.dot, dotIndex === currentSlide && styles.activeDot]}
-                  />
-                ))}
-              </View>
-
-              <View style={styles.buttons}>
-                <Button
-                  label={isLast ? t('getStarted') : t('next')}
-                  onPress={() => (isLast ? finish() : goToSlide(currentSlide + 1))}
-                />
-                {currentSlide > 0 && (
-                  <Button label={t('back')} variant="ghost" onPress={() => goToSlide(currentSlide - 1)} />
-                )}
-              </View>
+            {/* Lower Section: Title & Subtext */}
+            <View style={styles.textSection}>
+              <Text style={styles.title}>{slide.title}</Text>
+              <Text style={styles.description}>{slide.description}</Text>
             </View>
           </View>
         ))}
       </ScrollView>
+
+      {/* Bottom Sticky Controls */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
+        {/* Pagination Dots */}
+        <View style={styles.dots}>
+          {SLIDES_DATA.map((_, dotIndex) => (
+            <View
+              key={dotIndex}
+              style={[styles.dot, dotIndex === currentSlide && styles.activeDot]}
+            />
+          ))}
+        </View>
+
+        {/* Buttons */}
+        <View style={styles.buttonStack}>
+          <Button
+            label={isLast ? t('getStarted') || 'Get Started →' : t('next') || 'Next →'}
+            onPress={() => (isLast ? finish() : goToSlide(currentSlide + 1))}
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -147,36 +153,49 @@ export default function OnboardingScreen({ navigation }: Props) {
 const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number }) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    scroll: { flex: 1 },
-    skipCorner: {
-      position: 'absolute',
-      top: insets.top + SPACING.sm,
-      right: SPACING.lg,
-      zIndex: 1,
-      padding: SPACING.xs,
-    },
-    skipCornerText: { ...TYPE.subheadStrong, color: colors.textSecondary },
-    slide: { flex: 1 },
-    topSection: {
-      flex: 1.2,
-      backgroundColor: colors.bgElevated,
-      borderBottomLeftRadius: 36,
-      borderBottomRightRadius: 36,
-      overflow: 'hidden',
-    },
-    heroImage: { width: '100%', height: '100%' },
-    bottomSection: {
-      flex: 1,
-      padding: SIZES.padding,
-      paddingBottom: insets.bottom + SIZES.padding,
+    flex1: { flex: 1 },
+
+    topBar: {
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      zIndex: 10,
+    },
+    skipBtn: {
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.xs,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    skipText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
+
+    scroll: { flex: 1 },
+    slide: { flex: 1, justifyContent: 'space-between' },
+
+    heroSection: {
+      flex: 1.3,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.lg,
+      paddingTop: SPACING.md,
+    },
+    heroImage: { width: '100%', height: '90%' },
+
+    textSection: {
+      paddingHorizontal: SPACING.xl,
+      alignItems: 'center',
+      marginBottom: SPACING.md,
     },
     title: {
       ...TYPE.pageTitle,
+      fontSize: 22,
       color: colors.textPrimary,
       textAlign: 'center',
-      marginTop: SPACING.sm,
-      marginBottom: SPACING.sm,
+      fontWeight: '800',
+      marginBottom: SPACING.xs,
     },
     description: {
       ...TYPE.subhead,
@@ -184,8 +203,15 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       textAlign: 'center',
       lineHeight: 20,
     },
-    dots: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.lg },
+
+    bottomBar: {
+      paddingHorizontal: SPACING.xl,
+      alignItems: 'center',
+      gap: SPACING.md,
+    },
+    dots: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-    activeDot: { width: 24, backgroundColor: colors.primaryGreen },
-    buttons: { marginTop: 'auto', width: '100%', gap: SPACING.xs, paddingTop: SPACING.xl },
+    activeDot: { width: 24, borderRadius: 4, backgroundColor: colors.primaryGreen },
+
+    buttonStack: { width: '100%' },
   });

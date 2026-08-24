@@ -3,6 +3,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -58,7 +59,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <HeartHandshake size={ICON_SIZE.xl} color={colors.primaryGreen} strokeWidth={1.5} />
           <Text style={styles.wordmark}>உதவு</Text>
@@ -94,7 +95,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         <Text style={styles.terms}>{t('terms')}</Text>
         <Button label={t('continue')} onPress={onContinue} disabled={!isValid} loading={submitting} />
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -103,7 +104,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: colors.bg },
     container: {
-      flex: 1,
+      flexGrow: 1,
       backgroundColor: colors.bg,
       padding: SIZES.padding,
       paddingTop: insets.top + SIZES.padding,
