@@ -25,6 +25,12 @@ type MyMissionSummary = {
   category: { key: string; label: string; emoji: string };
   reportStatus: string;
   photo: string | null;
+  landmark: string | null;
+  lat: number;
+  lng: number;
+  // Same anonymity rule as ReportsService.toResponse(): null when the
+  // report is anonymous, regardless of the requester's volunteer access.
+  reporterName: string | null;
   myStatus: VolunteerStatusKey;
   myConfirmDeadline: string | null;
   joinedAt: string;
@@ -418,10 +424,11 @@ export class MissionsService {
 
     const reportIds = [...new Set(rows.map((r) => r.mission.reportId))];
     const reportRows = await db
-      .select({ report: reports, category: reportCategories, status: reportStatuses })
+      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
+      .innerJoin(user, eq(reports.reporterId, user.id))
       .where(inArray(reports.id, reportIds));
     const reportById = new Map(reportRows.map((r) => [r.report.id, r]));
 
@@ -441,6 +448,10 @@ export class MissionsService {
           category: { key: found.category.key, label: found.category.label, emoji: found.category.emoji },
           reportStatus: found.status.key,
           photo: firstPhotoByReportId.get(found.report.id) ?? null,
+          landmark: found.report.landmark,
+          lat: found.report.lat,
+          lng: found.report.lng,
+          reporterName: found.report.anonymous ? null : found.reporter.name,
           myStatus: r.status.key as VolunteerStatusKey,
           myConfirmDeadline: r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
           joinedAt: r.mv.joinedAt.toISOString(),

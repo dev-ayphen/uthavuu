@@ -63,5 +63,17 @@
   "notePlaceholder": "What did you do? (required)",
   "noteAccessibilityLabel": "Completion note",
   "notCompletedTitle": "Not completed",
-  "submitCompletionError": "Could not submit completion. Try again."
+  "submitCompletionError": "Could not submit completion. Try again.",
+
+  "volunteerJourneyTitle": "Volunteer Journey",
+  "journeyJoinedBannerTitle": "Volunteer Joined",
+  "journeyJoinedBannerSubtitle": "Post remains open for backup volunteers.",
+  "journeyActiveBannerTitle": "You're Helping",
+  "journeyActiveBannerSubtitle": "Keep the reporter updated via Mission Chat.",
+  "journeyResponseTimerLabel": "Response Timer",
+  "journeyResponseTimerBody": "Tap Start Helping below to confirm you are on your way. If unconfirmed in time, the request automatically reopens for nearby volunteers.",
+  "journeyNavigateViaMaps": "Navigate via Google Maps",
+  "journeyMissionTeam": "Mission Team ({{ready}}/{{needed}} Ready)",
+  "journeyTemporaryMissionChat": "Temporary Mission Chat",
+  "journeyCannotContinue": "I cannot continue (Release request)"
 }

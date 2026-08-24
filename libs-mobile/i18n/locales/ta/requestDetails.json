@@ -63,5 +63,17 @@
   "notePlaceholder": "நீங்கள் என்ன செய்தீர்கள்? (அவசியம்)",
   "noteAccessibilityLabel": "நிறைவு குறிப்பு",
   "notCompletedTitle": "முடிக்கப்படவில்லை",
-  "submitCompletionError": "நிறைவை சமர்ப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
+  "submitCompletionError": "நிறைவை சமர்ப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+
+  "volunteerJourneyTitle": "Volunteer Journey",
+  "journeyJoinedBannerTitle": "Volunteer Joined",
+  "journeyJoinedBannerSubtitle": "Post remains open for backup volunteers.",
+  "journeyActiveBannerTitle": "You're Helping",
+  "journeyActiveBannerSubtitle": "Keep the reporter updated via Mission Chat.",
+  "journeyResponseTimerLabel": "Response Timer",
+  "journeyResponseTimerBody": "Tap Start Helping below to confirm you are on your way. If unconfirmed in time, the request automatically reopens for nearby volunteers.",
+  "journeyNavigateViaMaps": "Navigate via Google Maps",
+  "journeyMissionTeam": "Mission Team ({{ready}}/{{needed}} Ready)",
+  "journeyTemporaryMissionChat": "Temporary Mission Chat",
+  "journeyCannotContinue": "I cannot continue (Release request)"
 }

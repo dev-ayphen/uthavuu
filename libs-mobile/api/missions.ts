@@ -78,6 +78,10 @@ export type MyMission = {
   category: { key: string; label: string; emoji: string };
   reportStatus: string;
   photo: string | null;
+  landmark: string | null;
+  lat: number;
+  lng: number;
+  reporterName: string | null;
   myStatus: VolunteerStatus;
   myConfirmDeadline: string | null;
   joinedAt: string;

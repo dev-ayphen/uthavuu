@@ -19,4 +19,5 @@ export type RootStackParamList = {
     locationLabel: string;
   };
   RequestDetails: { reportId: string };
+  VolunteerJourney: { reportId: string };
 };
