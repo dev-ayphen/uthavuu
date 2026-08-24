@@ -85,6 +85,13 @@
       "when": 1787560403070,
       "tag": "0011_romantic_overlord",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787594923297,
+      "tag": "0012_safe_magneto",
+      "breakpoints": true
     }
   ]
 }

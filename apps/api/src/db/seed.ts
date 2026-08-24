@@ -7,6 +7,8 @@ import { sql } from 'drizzle-orm';
 import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
 import { missionCompletionStatuses, missionVolunteerStatuses } from './schema/missions-schema';
+import { flagStatuses } from './schema/comments-schema';
+import { ticketCategories, ticketStatuses } from './schema/tickets-schema';
 
 // Matches apps/mobile/src/data/categories.ts exactly (id -> key) — see
 // docs/features/report-a-request.md BR-1 (the 8 citizen categories) and BR-2
@@ -46,6 +48,36 @@ const MISSION_COMPLETION_STATUSES = [
   { key: 'submitted', label: 'Submitted' },
   { key: 'waiting_verification', label: 'Waiting Verification' },
   { key: 'verified', label: 'Verified' },
+] as const;
+
+// Profile → Flagged Comments. No admin console exists yet to move a flag
+// past 'submitted' — the lifecycle is modeled for real regardless, so the
+// mobile screen shows an honest status and a future admin build has
+// somewhere real to write to.
+const FLAG_STATUSES = [
+  { key: 'submitted', label: 'Submitted' },
+  { key: 'under_review', label: 'Under Review' },
+  { key: 'action_taken', label: 'Action Taken' },
+  { key: 'dismissed', label: 'Dismissed' },
+] as const;
+
+// Profile → Help & Support / Submit Ticket. Matches
+// apps/mobile/src/screens/tabs/ProfileScreen.tsx's TICKET_CATEGORIES array
+// key-for-key (key -> label) — that array is the real, already-designed UI,
+// this just gives each option a stable lookup-table key.
+const TICKET_CATEGORIES = [
+  { key: 'technical_problem', label: 'Technical Problem' },
+  { key: 'bug_report', label: 'Bug Report' },
+  { key: 'account_problem', label: 'Account Problem' },
+  { key: 'feature_request', label: 'Feature Request' },
+  { key: 'complaint', label: 'Complaint' },
+  { key: 'other', label: 'Other' },
+] as const;
+
+const TICKET_STATUSES = [
+  { key: 'new', label: 'New' },
+  { key: 'in_review', label: 'In Review' },
+  { key: 'resolved', label: 'Resolved' },
 ] as const;
 
 async function seed() {
@@ -95,8 +127,38 @@ async function seed() {
       });
   }
 
+  for (const status of FLAG_STATUSES) {
+    await db
+      .insert(flagStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: flagStatuses.key,
+        set: { label: status.label, updatedAt: sql`now()` },
+      });
+  }
+
+  for (const category of TICKET_CATEGORIES) {
+    await db
+      .insert(ticketCategories)
+      .values({ id: uuidv7(), ...category })
+      .onConflictDoUpdate({
+        target: ticketCategories.key,
+        set: { label: category.label, updatedAt: sql`now()` },
+      });
+  }
+
+  for (const status of TICKET_STATUSES) {
+    await db
+      .insert(ticketStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: ticketStatuses.key,
+        set: { label: status.label, updatedAt: sql`now()` },
+      });
+  }
+
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, and ${MISSION_COMPLETION_STATUSES.length} mission completion statuses.`
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, and ${TICKET_STATUSES.length} ticket statuses.`
   );
   process.exit(0);
 }

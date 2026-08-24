@@ -9,5 +9,11 @@
     "false_information": "False information",
     "duplicate": "Duplicate",
     "other": "Other"
+  },
+  "status": {
+    "submitted": "Submitted",
+    "under_review": "Under Review",
+    "action_taken": "Action Taken",
+    "dismissed": "Dismissed"
   }
 }

@@ -87,6 +87,7 @@ describe('CommentsService — flagging', () => {
     expect(mine[0].reason).toBe('duplicate');
     expect(mine[0].reportId).toBe(reportId);
     expect(mine[0].commentBody).toBe('Test comment');
+    expect(mine[0].status).toBe('submitted');
 
     const theirs = await service.listMyFlags(otherFlaggerId);
     expect(theirs).toHaveLength(1);

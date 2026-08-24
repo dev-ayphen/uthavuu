@@ -1,0 +1,14 @@
+{
+  "title": "My Tickets",
+  "emptyTitle": "No support tickets yet",
+  "emptySubtitle": "Tickets you submit will show up here.",
+  "rowLabel": "{{subject}}, {{category}}, status {{status}}",
+  "submittedTitle": "Ticket submitted",
+  "submittedMessage": "We'll get back to you here once someone reviews it.",
+  "submitFailed": "Could not submit your ticket. Try again.",
+  "status": {
+    "new": "New",
+    "in_review": "In Review",
+    "resolved": "Resolved"
+  }
+}

@@ -4,13 +4,19 @@ import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
-import { reportCommentFlags, reportComments } from '../db/schema/comments-schema';
+import { flagStatuses, reportCommentFlags, reportComments } from '../db/schema/comments-schema';
 import type { FLAG_REASONS } from './dto/flag-comment.dto';
 
 // docs/PRODUCT-DECISIONS.md Decision 2 — public, unlike Mission Chat: any
 // authenticated user reads and posts, no hasActiveAccess gate.
 @Injectable()
 export class CommentsService {
+  private async getFlagStatusIdByKey(key: string): Promise<string> {
+    const [status] = await db.select().from(flagStatuses).where(eq(flagStatuses.key, key));
+    if (!status) throw new Error(`flag_statuses row missing for key "${key}" — did db:seed run?`);
+    return status.id;
+  }
+
   async list(reportId: string) {
     const [report] = await db.select().from(reports).where(eq(reports.id, reportId));
     if (!report) throw new NotFoundException('Report not found');
@@ -53,9 +59,10 @@ export class CommentsService {
     // original: the first reason recorded is the one that stands, matching
     // "capture now, act on later" — there's no moderation UI yet to even
     // show a changed reason.
+    const submittedStatusId = await this.getFlagStatusIdByKey('submitted');
     await db
       .insert(reportCommentFlags)
-      .values({ id: uuidv7(), commentId, flaggedById, reason })
+      .values({ id: uuidv7(), commentId, flaggedById, reason, statusId: submittedStatusId })
       .onConflictDoNothing({ target: [reportCommentFlags.commentId, reportCommentFlags.flaggedById] });
     return { flagged: true };
   }
@@ -72,18 +79,21 @@ export class CommentsService {
         report: reports,
         category: reportCategories,
         status: reportStatuses,
+        flagStatus: flagStatuses,
       })
       .from(reportCommentFlags)
       .innerJoin(reportComments, eq(reportCommentFlags.commentId, reportComments.id))
       .innerJoin(reports, eq(reportComments.reportId, reports.id))
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
+      .innerJoin(flagStatuses, eq(reportCommentFlags.statusId, flagStatuses.id))
       .where(eq(reportCommentFlags.flaggedById, userId))
       .orderBy(desc(reportCommentFlags.createdAt));
 
     return rows.map((r) => ({
       id: r.flag.id,
       reason: r.flag.reason,
+      status: r.flagStatus.key,
       flaggedAt: r.flag.createdAt,
       commentBody: r.comment.body,
       reportId: r.report.id,

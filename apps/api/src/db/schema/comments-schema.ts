@@ -35,6 +35,21 @@ export const reportComments = pgTable(
   (table) => [index('report_comments_report_id_idx').on(table.reportId)]
 );
 
+// Submitted → Under Review → Action Taken → Dismissed. There's no admin
+// console yet to actually move a flag through this lifecycle (moderation UI
+// is a future admin-console build, same "capture now, act on later" pattern
+// this file already documents at the top) — every flag is created and stays
+// at 'submitted' today. That's correct, not a gap: the column exists so the
+// mobile Flagged Comments screen shows a real, honest status rather than
+// nothing, and so a future admin build has somewhere real to write to.
+export const flagStatuses = pgTable('flag_statuses', {
+  id: uuid('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  label: text('label').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const reportCommentFlags = pgTable(
   'report_comment_flags',
   {
@@ -46,6 +61,9 @@ export const reportCommentFlags = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     reason: text('reason').notNull(),
+    statusId: uuid('status_id')
+      .notNull()
+      .references(() => flagStatuses.id),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -58,6 +76,10 @@ export const reportCommentFlags = pgTable(
   ]
 );
 
+export const flagStatusRelations = relations(flagStatuses, ({ many }) => ({
+  flags: many(reportCommentFlags),
+}));
+
 export const reportCommentRelations = relations(reportComments, ({ one, many }) => ({
   report: one(reports, { fields: [reportComments.reportId], references: [reports.id] }),
   author: one(user, { fields: [reportComments.authorId], references: [user.id] }),
@@ -67,4 +89,5 @@ export const reportCommentRelations = relations(reportComments, ({ one, many }) 
 export const reportCommentFlagRelations = relations(reportCommentFlags, ({ one }) => ({
   comment: one(reportComments, { fields: [reportCommentFlags.commentId], references: [reportComments.id] }),
   flaggedBy: one(user, { fields: [reportCommentFlags.flaggedById], references: [user.id] }),
+  status: one(flagStatuses, { fields: [reportCommentFlags.statusId], references: [flagStatuses.id] }),
 }));

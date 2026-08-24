@@ -45,7 +45,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — | Resolved 2026-08-24 — 0011 (report_comment_flags unique index) is committed and applied. |
+| migration series | — | Resolved 2026-08-24 — 0012 (flag_statuses, report_comment_flags.status_id, plus support_tickets/user.default_* picked up in the same diff from other concurrent schema edits) is committed and applied. |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 

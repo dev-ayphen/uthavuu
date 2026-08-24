@@ -11,7 +11,7 @@ import type { RootStackParamList } from '../navigation/types';
 import type { MainTabParamList } from '../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { listMyFlaggedComments, type FlaggedComment } from '@uthavu/libs-mobile/api/comments';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
@@ -42,6 +42,15 @@ export default function FlaggedCommentsScreen() {
 
   const reasonLabel = (reason: FlaggedComment['reason']) =>
     t(`reason.${reason}`, { defaultValue: reason });
+  const statusLabel = (status: FlaggedComment['status']) =>
+    t(`status.${status}`, { defaultValue: status });
+  // No admin console exists yet to move a flag past 'submitted' — every real
+  // flag shows that tone today. The other three are mapped for when one does.
+  const statusTone = (status: FlaggedComment['status']) =>
+    status === 'under_review' ? TONES.soon
+    : status === 'action_taken' ? TONES.critical
+    : status === 'dismissed' ? TONES.expired
+    : TONES.normal;
 
   if (isLoading) {
     return (
@@ -98,9 +107,14 @@ export default function FlaggedCommentsScreen() {
                 {item.commentBody}
               </Text>
             </View>
-            <View style={styles.reasonPill}>
-              <Flag size={ICON_SIZE.xs} color={colors.danger} />
-              <Text style={styles.reasonText}>{reasonLabel(item.reason)}</Text>
+            <View style={styles.pillRow}>
+              <View style={styles.reasonPill}>
+                <Flag size={ICON_SIZE.xs} color={colors.danger} />
+                <Text style={styles.reasonText}>{reasonLabel(item.reason)}</Text>
+              </View>
+              <View style={[styles.statusPill, { backgroundColor: statusTone(item.status).fill, borderColor: statusTone(item.status).border }]}>
+                <Text style={[styles.statusText, { color: statusTone(item.status).fg }]}>{statusLabel(item.status)}</Text>
+              </View>
             </View>
           </TouchableOpacity>
         )}
@@ -134,16 +148,24 @@ const createStyles = (colors: ColorScheme) =>
       borderColor: colors.border,
     },
     commentBody: { ...TYPE.body, color: colors.textSecondary },
+    pillRow: { flexDirection: 'row', gap: SPACING.xxs, marginTop: SPACING.xs },
     reasonPill: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: SPACING.xxs,
       alignSelf: 'flex-start',
-      marginTop: SPACING.xs,
       paddingHorizontal: SPACING.xs,
       paddingVertical: SPACING.xxs / 2,
       borderRadius: RADIUS.pill,
       backgroundColor: colors.bg,
     },
     reasonText: { ...TYPE.footnoteRegular, color: colors.danger },
+    statusPill: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: SPACING.xxs / 2,
+      borderRadius: RADIUS.pill,
+      borderWidth: 1,
+    },
+    statusText: { ...TYPE.footnoteRegular },
   });

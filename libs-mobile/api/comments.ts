@@ -5,6 +5,11 @@ import { apiRequest } from '../lib/api';
 
 export type FlagReason = 'spam' | 'abuse' | 'false_information' | 'duplicate' | 'other';
 
+// No admin console exists yet to move a flag past 'submitted' — every flag
+// stays here today. Real and honest, not a gap: see comments-schema.ts's
+// own comment on flag_statuses for why the column exists regardless.
+export type FlagStatus = 'submitted' | 'under_review' | 'action_taken' | 'dismissed';
+
 export type Comment = {
   id: string;
   authorId: string;
@@ -33,6 +38,7 @@ export function flagComment(reportId: string, commentId: string, reason: FlagRea
 export type FlaggedComment = {
   id: string;
   reason: FlagReason;
+  status: FlagStatus;
   flaggedAt: string;
   commentBody: string;
   reportId: string;
