@@ -45,7 +45,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | claude-code | generating 0009 (report_saves) + 0010 (user.invite_code) — will release once committed and applied |
+| migration series | — | Resolved 2026-08-24 — 0009 (report_saves + user.invite_code, one migration covers both) is committed and applied. |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
