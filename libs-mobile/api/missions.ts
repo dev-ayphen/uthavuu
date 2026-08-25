@@ -3,6 +3,19 @@ import { apiRequest } from '../lib/api';
 
 export type VolunteerStatus = 'joined' | 'active' | 'released';
 
+// Separate from VolunteerStatus (participation — is this volunteer part of
+// the mission) — this is what an *active* volunteer is currently doing.
+// Only ever set once participation status is 'active'.
+export type ProgressStatus = 'on_the_way' | 'reached_location' | 'helping_now';
+
+export type ProgressStatusInfo = {
+  key: ProgressStatus;
+  label: string;
+  onWayAt: string | null;
+  reachedAt: string | null;
+  helpingAt: string | null;
+};
+
 export type RosterVolunteer = {
   id: string;
   volunteerId: string;
@@ -11,6 +24,7 @@ export type RosterVolunteer = {
   status: VolunteerStatus;
   confirmDeadline: string | null;
   joinedAt: string;
+  progressStatus: ProgressStatusInfo | null;
 };
 
 export type MissionCompletion = {
@@ -24,6 +38,7 @@ export type Roster = {
   volunteers: RosterVolunteer[];
   myStatus: VolunteerStatus | null;
   myConfirmDeadline: string | null;
+  myProgressStatus: ProgressStatusInfo | null;
   completion: MissionCompletion | null;
 };
 
@@ -50,6 +65,16 @@ export function confirmRequest(reportId: string): Promise<Roster> {
 
 export function leaveRequest(reportId: string): Promise<Roster> {
   return apiRequest(`/reports/${reportId}/volunteers/me`, { method: 'DELETE', auth: true });
+}
+
+// Only accepted while the caller's own participation status is 'active' —
+// Start Helping (confirmRequest) is a precondition, not implied.
+export function updateMissionProgress(reportId: string, status: ProgressStatus): Promise<Roster> {
+  return apiRequest(`/reports/${reportId}/volunteers/me/progress`, {
+    method: 'PATCH',
+    auth: true,
+    body: { status },
+  });
 }
 
 export function completeMission(reportId: string, photoUrl: string, note: string): Promise<Roster> {
