@@ -6,7 +6,6 @@ import * as missionsSchema from './schema/missions-schema';
 import * as devicesSchema from './schema/devices-schema';
 import * as alertsSchema from './schema/alerts-schema';
 import * as commentsSchema from './schema/comments-schema';
-import * as likesSchema from './schema/likes-schema';
 import * as savesSchema from './schema/saves-schema';
 
 const schema = {
@@ -16,7 +15,6 @@ const schema = {
   ...devicesSchema,
   ...alertsSchema,
   ...commentsSchema,
-  ...likesSchema,
   ...savesSchema,
 };
 

@@ -72,16 +72,6 @@ export class ReportsController {
     return this.reportsService.delete(id, session.user.id);
   }
 
-  @Post(':id/like')
-  like(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
-    return this.reportsService.like(id, session.user.id);
-  }
-
-  @Delete(':id/like')
-  unlike(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
-    return this.reportsService.unlike(id, session.user.id);
-  }
-
   @Post(':id/save')
   save(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
     return this.reportsService.save(id, session.user.id);

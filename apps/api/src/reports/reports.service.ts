@@ -4,7 +4,6 @@ import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
-import { reportLikes } from '../db/schema/likes-schema';
 import { reportSaves } from '../db/schema/saves-schema';
 import { missionVolunteerStatuses, missionVolunteers, missions } from '../db/schema/missions-schema';
 import type { CreateReportDto } from './dto/create-report.dto';
@@ -121,16 +120,6 @@ export class ReportsService {
     const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(reportId, requestingUserId);
     const hasAnyActiveVolunteer = await this.missionsService.hasAnyActiveVolunteer(reportId);
 
-    const [{ count: likeCount }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(reportLikes)
-      .where(eq(reportLikes.reportId, reportId));
-
-    const myLikeRows = await db
-      .select()
-      .from(reportLikes)
-      .where(and(eq(reportLikes.reportId, reportId), eq(reportLikes.userId, requestingUserId)));
-
     const mySaveRows = await db
       .select()
       .from(reportSaves)
@@ -144,8 +133,6 @@ export class ReportsService {
       row.reporter,
       requestingUserId,
       hasActiveVolunteerAccess,
-      likeCount,
-      myLikeRows.length > 0,
       mySaveRows.length > 0,
       hasAnyActiveVolunteer
     );
@@ -176,19 +163,6 @@ export class ReportsService {
       photosByReportId.set(photo.reportId, existing);
     }
 
-    const likeCounts = await db
-      .select({ reportId: reportLikes.reportId, count: sql<number>`count(*)::int` })
-      .from(reportLikes)
-      .where(inArray(reportLikes.reportId, reportIds))
-      .groupBy(reportLikes.reportId);
-    const likeCountByReportId = new Map(likeCounts.map((r) => [r.reportId, r.count]));
-
-    const myLikeRows = await db
-      .select({ reportId: reportLikes.reportId })
-      .from(reportLikes)
-      .where(and(inArray(reportLikes.reportId, reportIds), eq(reportLikes.userId, requestingUserId)));
-    const myLikedReportIds = new Set(myLikeRows.map((r) => r.reportId));
-
     return Promise.all(
       rows.map(async (row) => ({
         ...this.toResponse(
@@ -199,8 +173,6 @@ export class ReportsService {
           row.reporter,
           requestingUserId,
           await this.missionsService.hasActiveAccess(row.report.id, requestingUserId),
-          likeCountByReportId.get(row.report.id) ?? 0,
-          myLikedReportIds.has(row.report.id),
           true // every row here is, by definition, one this user saved
         ),
       }))
@@ -245,8 +217,6 @@ export class ReportsService {
             row.reporter,
             requestingUserId,
             true, // it's always the reporter's own report here
-            0,
-            false,
             false,
             activeVolunteerIds.length > 0
           ),
@@ -379,8 +349,6 @@ export class ReportsService {
           row.reporter,
           requestingUserId,
           await this.missionsService.hasActiveAccess(row.report.id, requestingUserId),
-          0,
-          false,
           false,
           await this.missionsService.hasAnyActiveVolunteer(row.report.id)
         ),
@@ -491,31 +459,8 @@ export class ReportsService {
     return { id: reportId, deleted: true };
   }
 
-  // impact-story.md BR-7: idempotent both ways — ON CONFLICT DO NOTHING
-  // means liking an already-liked report is a no-op, not a duplicate or
-  // an error.
-  async like(reportId: string, requestingUserId: string) {
-    await this.requireCompletedReport(reportId);
-
-    await db
-      .insert(reportLikes)
-      .values({ id: uuidv7(), reportId, userId: requestingUserId })
-      .onConflictDoNothing({ target: [reportLikes.reportId, reportLikes.userId] });
-
-    return this.findOne(reportId, requestingUserId);
-  }
-
-  // Deleting a non-existent like is a no-op (0 rows affected, no error) —
-  // idempotent by construction, no extra existence check needed.
-  async unlike(reportId: string, requestingUserId: string) {
-    await db
-      .delete(reportLikes)
-      .where(and(eq(reportLikes.reportId, reportId), eq(reportLikes.userId, requestingUserId)));
-
-    return this.findOne(reportId, requestingUserId);
-  }
-
-  // Profile → Saved Stories. Same idempotency shape as like()/unlike().
+  // Profile → Saved Stories. A save is a plain existence/toggle fact — same
+  // idempotency shape as the other toggle endpoints (ON CONFLICT DO NOTHING).
   async save(reportId: string, requestingUserId: string) {
     await this.requireCompletedReport(reportId);
 
@@ -551,7 +496,7 @@ export class ReportsService {
     return existing;
   }
 
-  // impact-story.md BR-6: a like only makes sense once a report is a
+  // impact-story.md BR-6: saving only makes sense once a report is a
   // finished Impact Story — enforced here, not just hidden client-side.
   private async requireCompletedReport(reportId: string): Promise<ReportRow> {
     const [existing] = await db.select().from(reports).where(eq(reports.id, reportId));
@@ -576,8 +521,6 @@ export class ReportsService {
     reporter: typeof user.$inferSelect | null,
     requestingUserId: string,
     hasActiveVolunteerAccess: boolean,
-    likeCount = 0,
-    likedByMe = false,
     savedByMe = false,
     hasAnyActiveVolunteer = false
   ) {
@@ -617,8 +560,6 @@ export class ReportsService {
         reporterDeleted || !(isOwner || (hasActiveVolunteerAccess && report.phoneVisible))
           ? null
           : reporter!.phoneNumber,
-      likeCount,
-      likedByMe,
       savedByMe,
       // edit-cancel-report.md: same rule as update()'s server-side guard —
       // computed here, not duplicated client-side, so the two can't drift.

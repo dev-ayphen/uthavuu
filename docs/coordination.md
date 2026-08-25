@@ -47,7 +47,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | claude-code | dropping report_likes table (Impact Story: remove Like per product decision, keep Save) — claimed 2026-08-25 |
+| migration series | — | Resolved 2026-08-25 — 0016 (drop report_likes table; Impact Story keeps Save, drops Like per product decision) committed and applied. |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 

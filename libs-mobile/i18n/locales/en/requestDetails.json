@@ -3,6 +3,8 @@
   "deletedUserLabel": "Deleted User",
   "chatLockedMessage": "🔒 Mission Chat is available after you accept this request.",
   "impactStoryLabel": "✨ Impact Story",
+  "beforeLabel": "Before",
+  "afterLabel": "After",
   "helpedInDuration": "Helped in {{duration}}",
   "share": "Share",
   "shareMessage": "See how the Uthavu community helped with \"{{title}}\":",

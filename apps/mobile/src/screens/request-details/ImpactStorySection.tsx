@@ -2,21 +2,18 @@
 // layout once a report is completed. Reuses RosterSection unchanged for
 // "who helped" (it already renders the roster with no action buttons once
 // roster.completion exists — see RosterSection.tsx's own myStatus guards).
+// Deliberately no Like button — Impact Stories show community impact, not
+// social-media engagement; Save (a personal "read later" bookmark) and
+// Share stay, Like doesn't.
 import { useMemo } from 'react';
 import { Alert, Image, Share, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Bookmark, BookmarkCheck, Heart, Share2 } from 'lucide-react-native';
+import { Bookmark, BookmarkCheck, Share2 } from 'lucide-react-native';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import {
-  likeReport,
-  saveReport,
-  unlikeReport,
-  unsaveReport,
-  type Report,
-} from '@uthavu/libs-mobile/api/reports';
+import { saveReport, unsaveReport, type Report } from '@uthavu/libs-mobile/api/reports';
 import type { Roster } from '@uthavu/libs-mobile/api/missions';
 import { formatDuration } from '@uthavu/libs-mobile/lib/time';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
@@ -42,15 +39,8 @@ export default function ImpactStorySection({ reportId, report, roster }: Props) 
     Alert.alert(t('couldNotCompleteThat'), e instanceof ApiError ? e.message : t('common:tryAgain'));
   };
 
-  const likeMutation = useMutation({ mutationFn: () => likeReport(reportId), onSuccess: invalidate, onError });
-  const unlikeMutation = useMutation({ mutationFn: () => unlikeReport(reportId), onSuccess: invalidate, onError });
   const saveMutation = useMutation({ mutationFn: () => saveReport(reportId), onSuccess: invalidate, onError });
   const unsaveMutation = useMutation({ mutationFn: () => unsaveReport(reportId), onSuccess: invalidate, onError });
-
-  const onToggleLike = () => {
-    if (report.likedByMe) unlikeMutation.mutate();
-    else likeMutation.mutate();
-  };
 
   const onToggleSave = () => {
     if (report.savedByMe) unsaveMutation.mutate();
@@ -75,11 +65,35 @@ export default function ImpactStorySection({ reportId, report, roster }: Props) 
   // rather than assuming the two states can never drift apart.
   if (!completion) return null;
 
+  // report.photos[0] is the reporter's original photo (read-only here — this
+  // screen never edits or re-uploads it, just references the existing
+  // report photo); completion.photoUrl is the volunteer's verified
+  // after-photo. Show both side by side when both exist; fall back to
+  // whichever one is actually available rather than fabricating a
+  // placeholder for the missing side.
+  const beforePhoto = report.photos[0];
+  const afterPhoto = completion.photoUrl;
+
   return (
     <View style={styles.container}>
       <Text style={styles.storyLabel}>{t('impactStoryLabel')}</Text>
 
-      <Image source={{ uri: completion.photoUrl }} style={styles.afterPhoto} />
+      {beforePhoto && afterPhoto ? (
+        <View style={styles.beforeAfterRow}>
+          <View style={styles.photoColumn}>
+            <Image source={{ uri: beforePhoto }} style={styles.comparisonPhoto} />
+            <Text style={styles.photoLabel}>{t('beforeLabel')}</Text>
+          </View>
+          <View style={styles.photoColumn}>
+            <Image source={{ uri: afterPhoto }} style={styles.comparisonPhoto} />
+            <Text style={styles.photoLabel}>{t('afterLabel')}</Text>
+          </View>
+        </View>
+      ) : (
+        (afterPhoto ?? beforePhoto) && (
+          <Image source={{ uri: afterPhoto ?? beforePhoto }} style={styles.afterPhoto} />
+        )
+      )}
 
       <Text style={styles.duration}>
         {t('helpedInDuration', { duration: formatDuration(report.createdAt, completion.verifiedAt) })}
@@ -88,19 +102,6 @@ export default function ImpactStorySection({ reportId, report, roster }: Props) 
       <Text style={styles.caption}>{completion.note}</Text>
 
       <View style={styles.actionsRow}>
-        <Button
-          label={String(report.likeCount)}
-          icon={
-            <Heart
-              size={ICON_SIZE.sm}
-              color={report.likedByMe ? colors.danger : colors.textSecondary}
-              fill={report.likedByMe ? colors.danger : 'none'}
-            />
-          }
-          variant="ghost"
-          onPress={onToggleLike}
-          loading={likeMutation.isPending || unlikeMutation.isPending}
-        />
         <Button
           label={t('share')}
           icon={<Share2 size={ICON_SIZE.sm} color={colors.textSecondary} />}
@@ -132,6 +133,10 @@ const createStyles = (colors: ColorScheme) =>
     container: { marginTop: SPACING.md },
     storyLabel: { ...TYPE.captionStrong, color: colors.primaryGreen, marginBottom: SPACING.xs },
     afterPhoto: { width: '100%', height: 200, borderRadius: RADIUS.lg, marginBottom: SPACING.sm },
+    beforeAfterRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
+    photoColumn: { flex: 1, alignItems: 'center', gap: SPACING.xxs },
+    comparisonPhoto: { width: '100%', height: 140, borderRadius: RADIUS.lg },
+    photoLabel: { ...TYPE.captionStrong, color: colors.textSecondary },
     duration: { ...TYPE.subheadStrong, color: colors.textPrimary, marginBottom: SPACING.xs },
     caption: { ...TYPE.body, color: colors.textSecondary, marginBottom: SPACING.md },
     actionsRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.sm },

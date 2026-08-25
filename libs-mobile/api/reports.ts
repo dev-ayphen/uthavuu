@@ -43,8 +43,6 @@ export type Report = {
   reporter: { name: string; avatarUrl: string | null } | null;
   reporterDeleted: boolean;
   reporterPhone: string | null;
-  likeCount: number;
-  likedByMe: boolean;
   savedByMe: boolean;
   // Server-computed: open AND no volunteer has joined/is active yet. Same
   // rule PATCH /reports/:id enforces — read this instead of re-deriving it
@@ -111,14 +109,6 @@ export function listReports(
     `/reports?categoryKey=${categoryKey}&lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`,
     { method: 'GET', auth: true }
   );
-}
-
-export function likeReport(reportId: string): Promise<Report> {
-  return apiRequest(`/reports/${reportId}/like`, { method: 'POST', auth: true });
-}
-
-export function unlikeReport(reportId: string): Promise<Report> {
-  return apiRequest(`/reports/${reportId}/like`, { method: 'DELETE', auth: true });
 }
 
 export function saveReport(reportId: string): Promise<Report> {

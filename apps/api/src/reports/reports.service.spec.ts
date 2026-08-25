@@ -316,60 +316,6 @@ describe('ReportsService', () => {
     });
   });
 
-  describe('like()/unlike()', () => {
-    const fixtureFilename = 'test-like-photo.jpg';
-    const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
-    let completedReportId: string;
-
-    beforeAll(async () => {
-      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
-
-      const created = await service.create(reporterId, baseInput({ title: 'Like test report' }));
-      completedReportId = created.id;
-      await missionsService.accept(completedReportId, otherUserId);
-      await missionsService.confirm(completedReportId, otherUserId);
-      await missionsService.complete(completedReportId, otherUserId, fixturePhotoUrl, 'done');
-    });
-
-    afterAll(() => {
-      unlinkSync(join(UPLOADS_DIR, fixtureFilename));
-    });
-
-    it('rejects a like on a report that is not completed', async () => {
-      const openReport = await service.create(reporterId, baseInput({ title: 'Still open report' }));
-      await expect(service.like(openReport.id, reporterId)).rejects.toThrow('This report is not completed yet');
-    });
-
-    it('records a like and increments likeCount', async () => {
-      const result = await service.like(completedReportId, reporterId);
-      expect(result.likeCount).toBe(1);
-      expect(result.likedByMe).toBe(true);
-    });
-
-    it('is idempotent — liking twice does not duplicate', async () => {
-      await service.like(completedReportId, reporterId);
-      const result = await service.like(completedReportId, reporterId);
-      expect(result.likeCount).toBe(1);
-    });
-
-    it('likedByMe is per-user', async () => {
-      const asOtherUser = await service.findOne(completedReportId, otherUserId);
-      expect(asOtherUser.likeCount).toBe(1);
-      expect(asOtherUser.likedByMe).toBe(false);
-    });
-
-    it('unlike removes the like', async () => {
-      const result = await service.unlike(completedReportId, reporterId);
-      expect(result.likeCount).toBe(0);
-      expect(result.likedByMe).toBe(false);
-    });
-
-    it('unlike is idempotent — unliking when not liked does not error', async () => {
-      const result = await service.unlike(completedReportId, reporterId);
-      expect(result.likeCount).toBe(0);
-    });
-  });
-
   describe('save()/unsave()/listSaved()', () => {
     const fixtureFilename = 'test-save-photo.jpg';
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
