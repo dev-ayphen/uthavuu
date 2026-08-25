@@ -52,6 +52,8 @@
     "tabAll": "All",
     "tabRequests": "Requests",
     "tabUpdates": "Updates",
+    "tabNearby": "Nearby",
+    "tabSystem": "System",
     "emptyTitle": "இன்னும் அறிவிப்புகள் இல்லை",
     "emptySubtitle": "ஒரு தன்னார்வலர் உங்கள் கோரிக்கைகளுக்குப் பதிலளிக்கும்போது புதுப்பிப்புகள் இங்கே தோன்றும்.",
     "content": {
@@ -143,6 +145,7 @@
     "emptyTitle": "தற்போது எதுவும் திறந்திருக்கவில்லை",
     "emptySubtitle": "{{radius}} கிமீ க்குள் {{category}} கோரிக்கைகள் இல்லை. புதுப்பிக்க இழுக்கவும்.",
     "rowLabel": "{{title}}, {{distance}} கிமீ தொலைவில், {{time}} மீதம்",
-    "distanceAway": "{{distance}} கிமீ தொலைவில்"
+    "distanceAway": "{{distance}} கிமீ தொலைவில்",
+    "shareMessage": "உதவு-வில் அருகில் ஒருவருக்கு உதவி தேவை: \"{{title}}\""
   }
 }

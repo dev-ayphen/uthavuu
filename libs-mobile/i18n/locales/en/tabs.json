@@ -52,6 +52,8 @@
     "tabAll": "All",
     "tabRequests": "Requests",
     "tabUpdates": "Updates",
+    "tabNearby": "Nearby",
+    "tabSystem": "System",
     "emptyTitle": "No alerts yet",
     "emptySubtitle": "You'll see updates here when a volunteer responds to your reports.",
     "content": {
@@ -143,6 +145,7 @@
     "emptyTitle": "Nothing open right now",
     "emptySubtitle": "No {{category}} requests within {{radius}} km. Pull to refresh.",
     "rowLabel": "{{title}}, {{distance}} km away, {{time}} remaining",
-    "distanceAway": "{{distance}} km away"
+    "distanceAway": "{{distance}} km away",
+    "shareMessage": "Someone nearby needs help on Uthavu: \"{{title}}\""
   }
 }
