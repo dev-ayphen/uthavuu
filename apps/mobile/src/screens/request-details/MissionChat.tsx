@@ -1,21 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Lock, MessageSquare, Send } from 'lucide-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { COLORS, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { listMissionMessages, sendMissionMessage, type MissionMessage } from '@uthavu/libs-mobile/api/missions';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
-import TextField from '@uthavu/libs-mobile/components/TextField';
-import Button from '@uthavu/libs-mobile/components/Button';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 
 type Props = { reportId: string; locked?: boolean };
 
-// docs/features/accept-and-mission-chat.md US-5/BR-4 — REST poll/refresh
-// only, no realtime transport (ADR 0005). Refetches on send; the screen's
-// own useFocusEffect (RequestDetailsScreen) covers refresh-on-return.
 export default function MissionChat({ reportId, locked = false }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation(['requestDetails', 'common']);
@@ -34,9 +30,6 @@ export default function MissionChat({ reportId, locked = false }: Props) {
       queryClient.setQueryData(['missionMessages', reportId], updated);
       setDraft('');
     },
-    // The draft is only cleared on success (above), so a failed send never
-    // loses what the user typed — this just makes sure they're told it failed
-    // rather than silently doing nothing.
     onError: (e) => {
       Alert.alert(t('messageNotSentTitle'), e instanceof ApiError ? e.message : t('common:tryAgain'));
     },
@@ -48,44 +41,63 @@ export default function MissionChat({ reportId, locked = false }: Props) {
     sendMutation.mutate(body);
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t('missionChatTitle')}</Text>
+  const count = (messages ?? []).length;
 
+  return (
+    <View style={styles.section}>
+      {/* ── Section Header ── */}
+      <View style={styles.headerRow}>
+        <MessageSquare size={16} color={colors.textPrimary} style={styles.headerIcon} />
+        <Text style={styles.title}>{t('missionChatTitle')}</Text>
+      </View>
+
+      {/* ── Body ── */}
       {isLoading ? (
-        <View style={styles.list}>
-          <Skeleton width="55%" height={32} borderRadius={RADIUS.md} style={styles.skeletonBubbleTheirs} />
-          <Skeleton width="45%" height={32} borderRadius={RADIUS.md} style={styles.skeletonBubbleMine} />
+        <View style={styles.bubbleList}>
+          <Skeleton width="60%" height={28} borderRadius={RADIUS.md} style={styles.skLeft} />
+          <Skeleton width="45%" height={28} borderRadius={RADIUS.md} style={styles.skRight} />
         </View>
+      ) : count === 0 ? (
+        <Text style={styles.emptyHint}>{t('emptyMessages')}</Text>
       ) : (
-        <FlatList
-          data={messages ?? []}
-          keyExtractor={(m) => m.id}
-          style={styles.list}
-          renderItem={({ item }: { item: MissionMessage }) => (
-            <View style={[styles.bubbleRow, item.isMine && styles.bubbleRowMine]}>
-              <View style={[styles.bubble, item.isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                {!item.isMine && <Text style={styles.senderName}>{item.senderName}</Text>}
-                <Text style={item.isMine ? styles.bubbleTextMine : styles.bubbleText}>{item.body}</Text>
+        <View style={styles.bubbleList}>
+          {(messages ?? []).map((m: MissionMessage) => (
+            <View key={m.id} style={[styles.bRow, m.isMine && styles.bRowMine]}>
+              <View style={[styles.bubble, m.isMine ? styles.bMine : styles.bTheirs]}>
+                {!m.isMine && (
+                  <Text style={styles.bSender}>{m.senderDeleted ? t('deletedUserLabel') : m.senderName}</Text>
+                )}
+                <Text style={m.isMine ? styles.bTextMine : styles.bText}>{m.body}</Text>
               </View>
             </View>
-          )}
-          ListEmptyComponent={<Text style={styles.empty}>{t('emptyMessages')}</Text>}
-        />
+          ))}
+        </View>
       )}
 
+      {/* ── Composer / Locked ── */}
       {locked ? (
-        <Text style={styles.lockedNote}>{t('chatLockedNote')}</Text>
+        <View style={styles.lockedRow}>
+          <Lock size={12} color={colors.textSecondary} />
+          <Text style={styles.lockedText}>{t('chatLockedNote')}</Text>
+        </View>
       ) : (
-        <View style={styles.composerRow}>
-          <TextField
+        <View style={styles.composer}>
+          <TextInput
             value={draft}
             onChangeText={setDraft}
             placeholder={t('messagePlaceholder')}
+            placeholderTextColor={colors.textSecondary}
             style={styles.input}
             accessibilityLabel={t('messagePlaceholder')}
           />
-          <Button label={t('send')} onPress={onSend} loading={sendMutation.isPending} disabled={!draft.trim()} />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!draft.trim() || sendMutation.isPending) && styles.sendOff]}
+            onPress={onSend}
+            disabled={!draft.trim() || sendMutation.isPending}
+            accessibilityRole="button"
+          >
+            <Send size={14} color={draft.trim() ? '#FFF' : colors.textSecondary} />
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -94,28 +106,88 @@ export default function MissionChat({ reportId, locked = false }: Props) {
 
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
-    container: {
-      marginTop: SPACING.md,
-      padding: SPACING.md,
-      borderRadius: RADIUS.lg,
+    section: {
+      marginTop: SPACING.sm,
       backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.sm,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: SPACING.xs,
+    },
+    headerIcon: {
+      marginRight: 2,
+    },
+    title: {
+      ...TYPE.bodyStrong,
+      color: colors.textPrimary,
+    },
+    bubbleList: { gap: 6 },
+    bRow: { flexDirection: 'row' },
+    bRowMine: { justifyContent: 'flex-end' },
+    bubble: {
+      maxWidth: '82%',
+      borderRadius: RADIUS.md,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    bTheirs: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
+    bMine: { backgroundColor: COLORS.primaryGreen },
+    bSender: { ...TYPE.caption, color: colors.textSecondary, marginBottom: 1 },
+    bText: { ...TYPE.body, color: colors.textPrimary },
+    bTextMine: { ...TYPE.body, color: COLORS.textOnTint },
+    skLeft: { alignSelf: 'flex-start', marginBottom: 4 },
+    skRight: { alignSelf: 'flex-end' },
+    emptyHint: {
+      ...TYPE.caption,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      paddingVertical: SPACING.xs,
+    },
+    lockedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      marginTop: SPACING.xs,
+      paddingTop: SPACING.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    lockedText: { ...TYPE.caption, color: colors.textSecondary },
+    composer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: SPACING.xs,
+    },
+    input: {
+      flex: 1,
+      height: 36,
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: SPACING.sm,
+      ...TYPE.footnoteRegular,
+      color: colors.textPrimary,
+    },
+    sendBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: COLORS.primaryGreen,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sendOff: {
+      backgroundColor: colors.bg,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    title: { ...TYPE.bodyStrong, color: colors.textPrimary, marginBottom: SPACING.xs },
-    list: { maxHeight: 260 },
-    empty: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center', paddingVertical: SPACING.md },
-    bubbleRow: { flexDirection: 'row', marginBottom: SPACING.xs },
-    bubbleRowMine: { justifyContent: 'flex-end' },
-    bubble: { maxWidth: '80%', borderRadius: RADIUS.md, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
-    bubbleTheirs: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
-    bubbleMine: { backgroundColor: colors.primaryGreen },
-    senderName: { ...TYPE.caption, color: colors.textSecondary, marginBottom: 2 },
-    bubbleText: { ...TYPE.body, color: colors.textPrimary },
-    bubbleTextMine: { ...TYPE.body, color: colors.textOnTint },
-    skeletonBubbleTheirs: { marginBottom: SPACING.xs, alignSelf: 'flex-start' },
-    skeletonBubbleMine: { alignSelf: 'flex-end' },
-    composerRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.sm, alignItems: 'center' },
-    input: { flex: 1 },
-    lockedNote: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm },
   });

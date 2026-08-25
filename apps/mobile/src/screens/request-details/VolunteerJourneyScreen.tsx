@@ -208,11 +208,19 @@ export default function VolunteerJourneyScreen({ route }: Props) {
                 </Text>
               </View>
             )}
+            {report.reporterDeleted && (
+              <View style={[styles.teamChip, styles.teamChipReporter]}>
+                <Avatar uri={null} label={t('deletedUserLabel')} size={22} />
+                <Text style={styles.teamChipText} numberOfLines={1}>
+                  {t('deletedUserLabel')} (Reporter)
+                </Text>
+              </View>
+            )}
             {roster.volunteers.map((v) => (
               <View key={v.id} style={[styles.teamChip, v.status === 'released' && styles.teamChipReleased]}>
-                <Avatar uri={v.avatarUrl} label={v.name} size={22} />
+                <Avatar uri={v.volunteerDeleted ? null : v.avatarUrl} label={v.volunteerDeleted ? t('deletedUserLabel') : v.name} size={22} />
                 <Text style={styles.teamChipText} numberOfLines={1}>
-                  {v.name}{' '}
+                  {v.volunteerDeleted ? t('deletedUserLabel') : v.name}{' '}
                   {v.status === 'active'
                     ? `🟢${v.progressStatus ? ` ${v.progressStatus.label}` : ''}`
                     : v.status === 'released'

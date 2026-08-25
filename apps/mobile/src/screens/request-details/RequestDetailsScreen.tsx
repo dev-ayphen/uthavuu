@@ -183,23 +183,32 @@ export default function RequestDetailsScreen({ route }: Props) {
       {report.photos[0] && <Image source={{ uri: report.photos[0] }} style={styles.photo} />}
 
       <View style={styles.content}>
-        <Text style={styles.categoryLabel}>
-          {report.category.emoji} {report.category.label}
-        </Text>
+        <View style={styles.categoryBadge}>
+          <Text style={styles.categoryLabel}>
+            {report.category.emoji} {report.category.label}
+          </Text>
+        </View>
         <Text style={styles.title}>{report.title}</Text>
         <Text style={styles.description}>{report.description}</Text>
 
-        <View style={styles.locationRow}>
-          <MapPin size={ICON_SIZE.sm} color={colors.textSecondary} />
-          <Text style={styles.locationText}>{report.landmark || t('locationSharedFallback')}</Text>
-        </View>
-
-        {report.reporter && (
-          <View style={styles.reporterRow}>
-            <Avatar uri={report.reporter.avatarUrl} label={report.reporter.name} size={40} />
-            <Text style={styles.reporterName}>{report.reporter.name}</Text>
+        <View style={styles.metaRow}>
+          <View style={styles.locationGroup}>
+            <MapPin size={14} color={colors.textSecondary} />
+            <Text style={styles.locationText} numberOfLines={1}>{report.landmark || t('locationSharedFallback')}</Text>
           </View>
-        )}
+          {report.reporter && (
+            <View style={styles.reporterGroup}>
+              <Avatar uri={report.reporter.avatarUrl} label={report.reporter.name} size={28} />
+              <Text style={styles.reporterName}>{report.reporter.name}</Text>
+            </View>
+          )}
+          {report.reporterDeleted && (
+            <View style={styles.reporterGroup}>
+              <Avatar uri={null} label={t('deletedUserLabel')} size={28} />
+              <Text style={styles.reporterName}>{t('deletedUserLabel')}</Text>
+            </View>
+          )}
+        </View>
 
         {report.status === 'completed' ? (
           <ImpactStorySection reportId={reportId} report={report} roster={roster} />
@@ -279,14 +288,33 @@ const createStyles = (colors: ColorScheme) =>
       justifyContent: 'center',
     },
     photo: { width: '100%', height: 220 },
-    content: { padding: SIZES.padding },
-    categoryLabel: { ...TYPE.captionStrong, color: colors.textSecondary, marginBottom: SPACING.xxs },
-    title: { ...TYPE.pageTitle, color: colors.textPrimary, marginBottom: SPACING.xs },
-    description: { ...TYPE.body, color: colors.textSecondary, marginBottom: SPACING.sm, lineHeight: 19 },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, marginBottom: SPACING.md },
-    locationText: { ...TYPE.body, color: colors.textSecondary },
-    reporterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: SPACING.lg },
-    reporterName: { ...TYPE.bodyStrong, color: colors.textPrimary },
+    content: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.lg },
+    categoryBadge: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      marginBottom: 6,
+    },
+    categoryLabel: { ...TYPE.captionStrong, color: colors.textSecondary },
+    title: { ...TYPE.title, fontSize: 18, lineHeight: 24, color: colors.textPrimary, marginBottom: 4 },
+    description: { ...TYPE.body, color: colors.textSecondary, marginBottom: 10, lineHeight: 18 },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: SPACING.sm,
+    },
+    locationGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, marginRight: SPACING.sm },
+    locationText: { ...TYPE.caption, color: colors.textSecondary, flexShrink: 1 },
+    reporterGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    reporterName: { ...TYPE.captionStrong, color: colors.textPrimary },
     chatLocked: {
       marginTop: SPACING.lg,
       padding: SPACING.md,

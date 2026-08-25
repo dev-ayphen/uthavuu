@@ -1,5 +1,6 @@
 {
   "locationSharedFallback": "Location shared",
+  "deletedUserLabel": "Deleted User",
   "chatLockedMessage": "🔒 Mission Chat is available after you accept this request.",
   "impactStoryLabel": "✨ Impact Story",
   "helpedInDuration": "Helped in {{duration}}",
@@ -31,14 +32,14 @@
   "leaveConfirmAction": "Leave",
   "couldNotCompleteThat": "Could not complete that",
 
-  "missionChatTitle": "💬 Mission Chat",
+  "missionChatTitle": "Mission Chat",
   "emptyMessages": "No messages yet — say hello.",
   "messagePlaceholder": "Message…",
   "send": "Send",
-  "chatLockedNote": "🔒 This mission is complete — chat is read-only.",
+  "chatLockedNote": "This mission is complete — chat is read-only.",
   "messageNotSentTitle": "Message not sent",
 
-  "communityCommentsTitle": "💬 Community Comments",
+  "communityCommentsTitle": "Community Comments",
   "communityCommentsSubtitle": "Public — visible to anyone viewing this request.",
   "reporterBadge": "Reporter",
   "flagAction": "Report",

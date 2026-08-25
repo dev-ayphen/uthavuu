@@ -82,9 +82,9 @@ export default function RosterSection({ reportId, report, roster }: Props) {
 
       {roster.volunteers.map((v) => (
         <View key={v.id} style={[styles.row, v.status === 'released' && styles.rowReleased]}>
-          <Avatar uri={v.avatarUrl} label={v.name} size={32} />
+          <Avatar uri={v.volunteerDeleted ? null : v.avatarUrl} label={v.volunteerDeleted ? t('deletedUserLabel') : v.name} size={32} />
           <Text style={styles.name} numberOfLines={1}>
-            {v.name}
+            {v.volunteerDeleted ? t('deletedUserLabel') : v.name}
           </Text>
           <Text style={styles.status}>
             {v.status === 'active' ? t('statusActive') : v.status === 'joined' ? t('statusJoined') : t('statusReleased')}

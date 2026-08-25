@@ -15,10 +15,10 @@ import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMyMissions, type MyMission } from '@uthavu/libs-mobile/api/missions';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
-import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Button from '@uthavu/libs-mobile/components/Button';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import ScreenHeader from '@uthavu/libs-mobile/components/ScreenHeader';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -68,10 +68,7 @@ export default function MyHelpsScreen() {
   if (isLoading) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-        <View style={styles.headerRow}>
-          <BackButton />
-          <Text style={styles.headerTitle}>{t('myHelps.header')}</Text>
-        </View>
+        <ScreenHeader title={t('myHelps.header')} />
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
             <ActiveQueueCardSkeleton key={i} styles={styles} />
@@ -88,15 +85,11 @@ export default function MyHelpsScreen() {
   const data = tab === 'active' ? active : stories;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-      <View style={styles.headerRow}>
-        <BackButton />
-        <Text style={styles.headerTitle}>{t('myHelps.header')}</Text>
-        <View style={styles.headerCountBadge}>
-          <Text style={styles.headerCountBadgeText}>{active.length}</Text>
-        </View>
-      </View>
-      <Text style={styles.subtitle}>{t('myHelps.subtitle')}</Text>
+    <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
+      <ScreenHeader
+        title={t('myHelps.header')}
+        badge={active.length > 0 ? active.length : undefined}
+      />
 
       <View style={styles.tabsRow}>
         <TouchableOpacity
@@ -227,7 +220,11 @@ function ActiveQueueCard({
 
       <View style={styles.cardBottomRow}>
         <Text style={styles.cardPostedBy} numberOfLines={1}>
-          {mission.reporterName ? t('myHelps.postedBy', { name: mission.reporterName }) : t('myHelps.postedAnonymously')}
+          {mission.reporterDeleted
+            ? t('myHelps.postedByDeletedUser')
+            : mission.reporterName
+              ? t('myHelps.postedBy', { name: mission.reporterName })
+              : t('myHelps.postedAnonymously')}
         </Text>
         <Button
           label={t('myHelps.viewProgress')}
@@ -309,40 +306,17 @@ function ActiveQueueCardSkeleton({ styles }: { styles: ReturnType<typeof createS
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xs,
-      paddingHorizontal: SIZES.padding,
-      marginBottom: SPACING.xxs,
-    },
-    headerTitle: { ...TYPE.pageTitle, color: colors.textPrimary },
-    headerCountBadge: {
-      backgroundColor: colors.bgElevated,
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: SPACING.xs,
-      paddingVertical: 2,
-      minWidth: 24,
-      alignItems: 'center',
-    },
-    headerCountBadgeText: { ...TYPE.captionStrong, color: colors.textSecondary },
-    subtitle: {
-      ...TYPE.body,
-      color: colors.textSecondary,
-      paddingHorizontal: SIZES.padding,
-      marginBottom: SPACING.sm,
-    },
     tabsRow: {
       flexDirection: 'row',
-      gap: SPACING.xs,
+      gap: 6,
       paddingHorizontal: SIZES.padding,
-      marginBottom: SPACING.sm,
+      marginBottom: SPACING.xs,
     },
     tabPill: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: SPACING.xs,
-      borderRadius: RADIUS.lg,
+      paddingVertical: 6,
+      borderRadius: RADIUS.md,
       backgroundColor: colors.bgElevated,
     },
     tabPillActive: {
@@ -350,55 +324,60 @@ const createStyles = (colors: ColorScheme) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    tabText: { ...TYPE.footnote, color: colors.textSecondary },
-    tabTextActive: { color: colors.textPrimary, fontWeight: '700' },
-    list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.sm },
-    skeletonLine: { marginTop: SPACING.xs },
+    tabText: { ...TYPE.caption, fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+    tabTextActive: { color: colors.textPrimary, fontWeight: '800' },
+    list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.xs },
+    skeletonLine: { marginTop: SPACING.xxs },
     card: {
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: RADIUS.xl,
-      padding: SPACING.md,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.xs + 2,
     },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     statusBadge: {
       borderWidth: 1,
       borderRadius: RADIUS.pill,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xxs / 2,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
     },
-    statusBadgeText: { ...TYPE.captionStrong, fontWeight: '700' },
-    cardTime: { ...TYPE.caption, color: colors.textSecondary },
-    cardTitle: { ...TYPE.title, color: colors.textPrimary, marginTop: SPACING.sm },
+    statusBadgeText: { ...TYPE.microLabel, fontSize: 9.5, fontWeight: '800' },
+    cardTime: { ...TYPE.caption, fontSize: 10.5, color: colors.textSecondary },
+    cardTitle: { ...TYPE.bodyStrong, fontSize: 13.5, color: colors.textPrimary, marginTop: 4, marginBottom: 2 },
     cardMetaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.xxs,
-      marginTop: SPACING.xxs,
+      gap: 3,
+      marginTop: 1,
       flexWrap: 'wrap',
     },
-    cardMetaText: { ...TYPE.body, color: colors.textSecondary },
-    cardMetaDot: { ...TYPE.body, color: colors.textSecondary },
-    cardDivider: { height: 1, backgroundColor: colors.border, marginVertical: SPACING.sm },
-    cardBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.sm },
-    cardPostedBy: { ...TYPE.body, color: colors.textSecondary, flex: 1 },
-    viewProgressButton: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm },
+    cardMetaText: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
+    cardMetaDot: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
+    cardDivider: { height: 1, backgroundColor: colors.border, marginVertical: 6 },
+    cardBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.xs },
+    cardPostedBy: { ...TYPE.caption, fontSize: 11.5, color: colors.textSecondary, flex: 1 },
+    viewProgressButton: {
+      paddingVertical: 3,
+      paddingHorizontal: 8,
+      borderRadius: RADIUS.pill,
+      minHeight: 28,
+    },
     storyCard: {
       flexDirection: 'row',
-      gap: SPACING.sm,
+      gap: SPACING.xs,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: RADIUS.xl,
-      padding: SPACING.sm,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.xs,
     },
-    storyPhoto: { width: 72, height: 72, borderRadius: RADIUS.md },
+    storyPhoto: { width: 54, height: 54, borderRadius: RADIUS.sm },
     storyPhotoPlaceholder: { backgroundColor: colors.border },
     storyBody: { flex: 1, justifyContent: 'center' },
-    storyLinkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, marginTop: SPACING.xs },
-    storyLinkText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
-    empty: { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.xs, paddingHorizontal: SPACING.xl },
-    emptyTitle: { ...TYPE.title, color: colors.textPrimary, marginTop: SPACING.xs },
-    emptySubtitle: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
+    storyLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
+    storyLinkText: { ...TYPE.microLabel, color: colors.primaryGreen, fontWeight: '700' },
+    empty: { alignItems: 'center', paddingTop: SPACING.xl, gap: SPACING.xs, paddingHorizontal: SPACING.lg },
+    emptyTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginTop: SPACING.xs },
+    emptySubtitle: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center' },
   });

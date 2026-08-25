@@ -35,6 +35,7 @@
     "acceptedTimeAgo": "Accepted {{time}}",
     "postedBy": "Posted by {{name}}",
     "postedAnonymously": "Posted anonymously",
+    "postedByDeletedUser": "Posted by Deleted User",
     "viewProgress": "View Progress",
     "viewStory": "View Story",
     "emptyActiveTitle": "No active missions",

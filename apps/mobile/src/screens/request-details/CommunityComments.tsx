@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Flag } from 'lucide-react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Send, Flag, MessageSquare } from 'lucide-react-native';
+import { TextInput } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { COLORS, ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import {
   flagComment,
   listComments,
@@ -16,16 +17,10 @@ import {
 import { getMe } from '@uthavu/libs-mobile/api/users';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
-import TextField from '@uthavu/libs-mobile/components/TextField';
-import Button from '@uthavu/libs-mobile/components/Button';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 
 type Props = { reportId: string };
 
-// docs/PRODUCT-DECISIONS.md Decision 2 — public, unlike Mission Chat
-// (MissionChat.tsx): every user who can view this request can read and
-// post here, not just the reporter + accepted volunteers. No
-// hasActiveAccess-style gating.
 export default function CommunityComments({ reportId }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation(['requestDetails', 'common']);
@@ -94,30 +89,36 @@ export default function CommunityComments({ reportId }: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t('communityCommentsTitle')}</Text>
-      <Text style={styles.subtitle}>{t('communityCommentsSubtitle')}</Text>
+    <View style={styles.section}>
+      {/* ── Section Header ── */}
+      <View style={styles.headerRow}>
+        <MessageSquare size={16} color={colors.textPrimary} style={styles.headerIcon} />
+        <Text style={styles.title}>{t('communityCommentsTitle')}</Text>
+      </View>
 
+      {/* ── Comment List ── */}
       {isLoading ? (
         <View style={styles.list}>
-          <Skeleton width="70%" height={36} borderRadius={RADIUS.md} style={styles.skeletonRow} />
-          <Skeleton width="55%" height={36} borderRadius={RADIUS.md} style={styles.skeletonRow} />
+          <Skeleton width="70%" height={32} borderRadius={RADIUS.md} style={styles.skeletonRow} />
+          <Skeleton width="55%" height={32} borderRadius={RADIUS.md} style={styles.skeletonRow} />
         </View>
+      ) : (comments ?? []).length === 0 ? (
+        <Text style={styles.empty}>{t('emptyComments')}</Text>
       ) : (
-        <FlatList
-          data={comments ?? []}
-          keyExtractor={(c) => c.id}
-          style={styles.list}
-          scrollEnabled={false}
-          renderItem={({ item }: { item: Comment }) => (
-            <View style={styles.row}>
+        <View style={styles.list}>
+          {(comments ?? []).map((item: Comment, idx: number) => (
+            <View key={item.id} style={[styles.row, idx === 0 && styles.firstRow]}>
               <View style={styles.rowHeader}>
-                <Text style={styles.authorName}>{item.authorName}</Text>
-                {item.authorIsReporter && (
-                  <View style={styles.reporterBadge}>
-                    <Text style={styles.reporterBadgeText}>{t('reporterBadge')}</Text>
-                  </View>
-                )}
+                <View style={styles.nameGroup}>
+                  <Text style={styles.authorName} numberOfLines={1}>
+                    {item.authorDeleted ? t('deletedUserLabel') : item.authorName}
+                  </Text>
+                  {item.authorIsReporter && (
+                    <View style={styles.reporterBadge}>
+                      <Text style={styles.reporterBadgeText}>{t('reporterBadge')}</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
               </View>
               <Text style={styles.body}>{item.body}</Text>
@@ -126,27 +127,37 @@ export default function CommunityComments({ reportId }: Props) {
                   style={styles.flagButton}
                   onPress={() => onFlag(item.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={t('flagAccessibilityLabel', { name: item.authorName })}
+                  accessibilityLabel={t('flagAccessibilityLabel', {
+                    name: item.authorDeleted ? t('deletedUserLabel') : item.authorName,
+                  })}
                 >
                   <Flag size={ICON_SIZE.xs} color={colors.textSecondary} />
                   <Text style={styles.flagButtonText}>{t('flagAction')}</Text>
                 </TouchableOpacity>
               )}
             </View>
-          )}
-          ListEmptyComponent={<Text style={styles.empty}>{t('emptyComments')}</Text>}
-        />
+          ))}
+        </View>
       )}
 
-      <View style={styles.composerRow}>
-        <TextField
+      {/* ── Composer ── */}
+      <View style={styles.composer}>
+        <TextInput
           value={draft}
           onChangeText={setDraft}
           placeholder={t('commentPlaceholder')}
+          placeholderTextColor={colors.textSecondary}
           style={styles.input}
           accessibilityLabel={t('commentPlaceholder')}
         />
-        <Button label={t('post')} onPress={onSend} loading={postMutation.isPending} disabled={!draft.trim()} />
+        <TouchableOpacity
+          style={[styles.sendBtn, (!draft.trim() || postMutation.isPending) && styles.sendOff]}
+          onPress={onSend}
+          disabled={!draft.trim() || postMutation.isPending}
+          accessibilityRole="button"
+        >
+          <Send size={14} color={draft.trim() ? '#FFF' : colors.textSecondary} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -154,43 +165,79 @@ export default function CommunityComments({ reportId }: Props) {
 
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
-    container: {
-      marginTop: SPACING.md,
-      padding: SPACING.md,
-      borderRadius: RADIUS.lg,
+    section: {
+      marginTop: SPACING.sm,
       backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
+      padding: SPACING.sm,
     },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: SPACING.xs,
+    },
+    headerIcon: {
+      marginRight: 2,
+    },
+    headerTextGroup: { flex: 1 },
     title: { ...TYPE.bodyStrong, color: colors.textPrimary },
-    subtitle: { ...TYPE.caption, color: colors.textSecondary, marginBottom: SPACING.xs },
-    list: { marginTop: SPACING.xs },
-    empty: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center', paddingVertical: SPACING.md },
-    row: { paddingVertical: SPACING.xs, borderTopWidth: 1, borderTopColor: colors.border },
-    rowHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs },
-    authorName: { ...TYPE.captionStrong, color: colors.textPrimary },
-    // paddingVertical below the SPACING scale's floor (xxs=4) is deliberate —
-    // this badge sits inline with footnote-sized text and needs to stay
-    // visually flush with it; SPACING.xxs here would make it noticeably taller
-    // than the text next to it.
+    subtitle: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
+    list: { marginTop: 2 },
+    empty: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center', paddingVertical: SPACING.xs },
+    row: { paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border },
+    firstRow: { borderTopWidth: 0, paddingTop: 0 },
+    rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    nameGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 6 },
+    authorName: { ...TYPE.captionStrong, color: colors.textPrimary, flexShrink: 1 },
     reporterBadge: {
       backgroundColor: colors.primaryGreenLight,
       borderRadius: RADIUS.sm,
-      paddingHorizontal: SPACING.xxs,
+      paddingHorizontal: 5,
       paddingVertical: 1,
     },
-    reporterBadgeText: { ...TYPE.footnoteRegular, color: colors.primaryGreen },
-    time: { ...TYPE.footnoteRegular, color: colors.textSecondary, marginLeft: 'auto' },
-    body: { ...TYPE.body, color: colors.textPrimary, marginTop: SPACING.xxs },
+    reporterBadgeText: { ...TYPE.caption, fontSize: 10, color: colors.primaryGreen, fontWeight: '600' },
+    time: { ...TYPE.caption, color: colors.textSecondary },
+    body: { ...TYPE.body, color: colors.textPrimary, marginTop: 2 },
     flagButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.xxs,
-      marginTop: SPACING.xxs,
+      gap: 3,
+      marginTop: 3,
       alignSelf: 'flex-start',
     },
-    flagButtonText: { ...TYPE.footnoteRegular, color: colors.textSecondary },
-    skeletonRow: { marginBottom: SPACING.xs },
-    composerRow: { flexDirection: 'row', gap: SPACING.xs, marginTop: SPACING.sm, alignItems: 'center' },
-    input: { flex: 1 },
+    flagButtonText: { ...TYPE.caption, color: colors.textSecondary },
+    skeletonRow: { marginBottom: 4 },
+    composer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: SPACING.xs,
+    },
+    input: {
+      flex: 1,
+      height: 36,
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: SPACING.sm,
+      ...TYPE.footnoteRegular,
+      color: colors.textPrimary,
+    },
+    sendBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: COLORS.primaryGreen,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sendOff: {
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
   });

@@ -1,5 +1,6 @@
 {
   "locationSharedFallback": "இருப்பிடம் பகிரப்பட்டது",
+  "deletedUserLabel": "Deleted User",
   "chatLockedMessage": "🔒 இந்த கோரிக்கையை ஏற்றுக்கொண்ட பிறகு மிஷன் சாட் கிடைக்கும்.",
   "impactStoryLabel": "✨ உதவியின் கதை",
   "helpedInDuration": "{{duration}}இல் உதவப்பட்டது",
@@ -31,14 +32,14 @@
   "leaveConfirmAction": "வெளியேறு",
   "couldNotCompleteThat": "அதை முடிக்க முடியவில்லை",
 
-  "missionChatTitle": "💬 மிஷன் சாட்",
+  "missionChatTitle": "மிஷன் சாட்",
   "emptyMessages": "இதுவரை செய்திகள் இல்லை — வணக்கம் சொல்லுங்கள்.",
   "messagePlaceholder": "செய்தி…",
   "send": "அனுப்பு",
-  "chatLockedNote": "🔒 இந்த பணி முடிந்துவிட்டது — சாட் படிக்க மட்டுமே.",
+  "chatLockedNote": "இந்த பணி முடிந்துவிட்டது — சாட் படிக்க மட்டுமே.",
   "messageNotSentTitle": "செய்தி அனுப்பப்படவில்லை",
 
-  "communityCommentsTitle": "💬 சமூக கருத்துகள்",
+  "communityCommentsTitle": "சமூக கருத்துகள்",
   "communityCommentsSubtitle": "பொது — இந்த கோரிக்கையைப் பார்க்கும் அனைவருக்கும் தெரியும்.",
   "reporterBadge": "புகார் அளித்தவர்",
   "flagAction": "புகார் செய்",
