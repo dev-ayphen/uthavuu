@@ -24,6 +24,11 @@ export class ImpactStoriesService {
       this.missionsService.listMyMissions(userId),
     ]);
 
+    const completedReportIds = myReports.filter((r) => r.status === 'completed').map((r) => r.id);
+    // The outcome/after-photo, not the original report's before-photo — an
+    // Impact Story shows what happened, not the problem that was reported.
+    const completionPhotos = await this.missionsService.getCompletionPhotosByReportIds(completedReportIds);
+
     const stories = new Map<
       string,
       { reportId: string; title: string; category: { key: string; label: string; emoji: string }; photo: string | null; sortKey: string }
@@ -35,7 +40,7 @@ export class ImpactStoriesService {
         reportId: r.id,
         title: r.title,
         category: r.category,
-        photo: r.photos[0] ?? null,
+        photo: completionPhotos.get(r.id) ?? r.photos[0] ?? null,
         sortKey: r.createdAt as unknown as string,
       });
     }

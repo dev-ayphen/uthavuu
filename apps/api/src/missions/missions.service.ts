@@ -286,6 +286,21 @@ export class MissionsService {
     ];
   }
 
+  // My Impact Stories (reporter angle — ImpactStoriesService.list()): the
+  // outcome/after-photo for reports this user reported themselves, keyed by
+  // reportId. A report with no completed mission simply has no entry here.
+  async getCompletionPhotosByReportIds(reportIds: string[]): Promise<Map<string, string>> {
+    if (reportIds.length === 0) return new Map();
+
+    const rows = await db
+      .select({ reportId: missions.reportId, photoUrl: missionCompletions.photoUrl })
+      .from(missionCompletions)
+      .innerJoin(missions, eq(missionCompletions.missionId, missions.id))
+      .where(inArray(missions.reportId, reportIds));
+
+    return new Map(rows.map((r) => [r.reportId, r.photoUrl]));
+  }
+
   async accept(reportId: string, volunteerId: string): Promise<RosterResponse> {
     const [report] = await db
       .select()
@@ -739,6 +754,23 @@ export class MissionsService {
         firstPhotoByReportId.set(p.reportId, p.url);
     }
 
+    // Impact Stories (MyHelpsScreen's own tab, and ImpactStoriesService which
+    // reuses this method for the volunteer angle) should show the outcome —
+    // the completion's after-photo — not the report's original before-photo.
+    // Missions still in progress have no completion row yet, so this map is
+    // naturally empty for them and firstPhotoByReportId below still applies.
+    const missionIds = rows.map((r) => r.mission.id);
+    const completionRows = await db
+      .select({ missionId: missionCompletions.missionId, photoUrl: missionCompletions.photoUrl })
+      .from(missionCompletions)
+      .where(inArray(missionCompletions.missionId, missionIds));
+    const missionIdToReportId = new Map(rows.map((r) => [r.mission.id, r.mission.reportId]));
+    const completionPhotoByReportId = new Map<string, string>();
+    for (const c of completionRows) {
+      const reportId = missionIdToReportId.get(c.missionId);
+      if (reportId) completionPhotoByReportId.set(reportId, c.photoUrl);
+    }
+
     return rows
       .map((r): MyMissionSummary | null => {
         const found = reportById.get(r.mission.reportId);
@@ -752,7 +784,10 @@ export class MissionsService {
             emoji: found.category.emoji,
           },
           reportStatus: found.status.key,
-          photo: firstPhotoByReportId.get(found.report.id) ?? null,
+          photo:
+            completionPhotoByReportId.get(found.report.id) ??
+            firstPhotoByReportId.get(found.report.id) ??
+            null,
           landmark: found.report.landmark,
           lat: found.report.lat,
           lng: found.report.lng,
