@@ -25,6 +25,22 @@ export const missionVolunteerStatuses = pgTable('mission_volunteer_statuses', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Deliberately separate from missionVolunteerStatuses: that table answers
+// "is this volunteer part of the mission" (joined/active/released) — this
+// one answers "what is an active volunteer currently doing" (on_the_way /
+// reached_location / helping_now). Conflating the two would mean a
+// volunteer's progress and their participation share one FK, which breaks
+// the moment a released volunteer needs to keep their last-known progress
+// for history, or a progress value needs to exist independent of whether
+// the mission has ended.
+export const progressStatuses = pgTable('progress_statuses', {
+  id: uuid('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  label: text('label').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const missionVolunteers = pgTable(
   'mission_volunteers',
   {
@@ -46,6 +62,16 @@ export const missionVolunteers = pgTable(
     // 'timeout' | 'voluntary' — not a lookup table, just two known literals
     // used internally; never rendered to a user as raw text.
     releaseReason: text('release_reason'),
+    // Null until this volunteer's first progress update (only meaningful
+    // once status = 'active'). The three timestamps below are each set once,
+    // the first time that specific milestone is reached — re-selecting an
+    // earlier progress value moves progressStatusId but never overwrites an
+    // already-set timestamp, so the real history of when each milestone was
+    // first reached survives even if the volunteer later corrects course.
+    progressStatusId: uuid('progress_status_id').references(() => progressStatuses.id),
+    onWayAt: timestamp('on_way_at', { withTimezone: true }),
+    reachedAt: timestamp('reached_at', { withTimezone: true }),
+    helpingAt: timestamp('helping_at', { withTimezone: true }),
   },
   (table) => [
     index('mission_volunteers_mission_id_idx').on(table.missionId),
@@ -112,6 +138,10 @@ export const missionVolunteerRelations = relations(missionVolunteers, ({ one }) 
   status: one(missionVolunteerStatuses, {
     fields: [missionVolunteers.statusId],
     references: [missionVolunteerStatuses.id],
+  }),
+  progressStatus: one(progressStatuses, {
+    fields: [missionVolunteers.progressStatusId],
+    references: [progressStatuses.id],
   }),
 }));
 

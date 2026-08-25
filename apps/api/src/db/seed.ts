@@ -6,7 +6,7 @@ import { uuidv7 } from 'uuidv7';
 import { sql } from 'drizzle-orm';
 import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
-import { missionCompletionStatuses, missionVolunteerStatuses } from './schema/missions-schema';
+import { missionCompletionStatuses, missionVolunteerStatuses, progressStatuses } from './schema/missions-schema';
 import { flagStatuses } from './schema/comments-schema';
 import { ticketCategories, ticketStatuses } from './schema/tickets-schema';
 
@@ -48,6 +48,15 @@ const MISSION_COMPLETION_STATUSES = [
   { key: 'submitted', label: 'Submitted' },
   { key: 'waiting_verification', label: 'Waiting Verification' },
   { key: 'verified', label: 'Verified' },
+] as const;
+
+// accept-and-mission-chat.md — what an *active* volunteer is currently
+// doing, separate from mission_volunteers.status (whether they're part of
+// the mission at all). Only reachable once a volunteer is 'active'.
+const PROGRESS_STATUSES = [
+  { key: 'on_the_way', label: 'On the Way' },
+  { key: 'reached_location', label: 'Reached Location' },
+  { key: 'helping_now', label: 'Helping Now' },
 ] as const;
 
 // Profile → Flagged Comments. No admin console exists yet to move a flag
@@ -113,6 +122,16 @@ async function seed() {
       .values({ id: uuidv7(), ...status })
       .onConflictDoUpdate({
         target: missionVolunteerStatuses.key,
+        set: { label: status.label, updatedAt: sql`now()` },
+      });
+  }
+
+  for (const status of PROGRESS_STATUSES) {
+    await db
+      .insert(progressStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: progressStatuses.key,
         set: { label: status.label, updatedAt: sql`now()` },
       });
   }
