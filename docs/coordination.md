@@ -47,7 +47,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — | Resolved 2026-08-25 — 0014+0015 (account-deletion FK changes: reports/mission_volunteers/mission_completions/mission_messages/report_comments -> ON DELETE SET NULL, plus reports.deleted_by fix) are committed and applied. |
+| migration series | claude-code | dropping report_likes table (Impact Story: remove Like per product decision, keep Save) — claimed 2026-08-25 |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
