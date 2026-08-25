@@ -83,6 +83,17 @@ export function getReportsSummary(lat: number, lng: number, radiusKm: number): P
   );
 }
 
+export type CommunityStats = { activeVolunteers: number; helped: number };
+
+// Dashboard header stats — activeVolunteers is radius-scoped (same area as
+// the rest of the screen), helped is a real app-wide all-time count.
+export function getCommunityStats(lat: number, lng: number, radiusKm: number): Promise<CommunityStats> {
+  return apiRequest(
+    `/reports/community-stats?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`,
+    { method: 'GET', auth: true }
+  );
+}
+
 // discover-nearby-requests.md US-3 — one category's open reports, nearest-first.
 export function listReports(
   categoryKey: CategoryId,
