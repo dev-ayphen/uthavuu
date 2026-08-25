@@ -69,6 +69,23 @@ else if I can't continue**.
 - **AC1:** Given I'm currently joined or active on a request, when I tap "I can't continue," then
   my slot releases immediately and I lose chat/phone access for this request.
 
+### US-5a — Update progress while active
+
+As an **active volunteer**, I can **mark my progress** (On the Way, Reached Location, Helping Now)
+so that **the reporter and my teammates know where things stand without asking in chat**.
+
+- **AC1:** Given I'm currently `active` on a mission, when I set a progress status, then it's
+  persisted server-side and visible to the reporter and every other participant via the roster —
+  not a local-only UI state (2026-08-25 reversal of this doc's earlier "quick status pills, out of
+  scope" call; see BR-8).
+- **AC2:** Given I'm still `joined` (haven't tapped Start Helping yet) or I'm not a participant on
+  this mission at all, when I try to set a progress status, then the server rejects it — not just a
+  disabled button.
+- **AC3:** Given I've already reached a milestone (e.g. Reached Location) and I re-select an
+  earlier one (e.g. On the Way) to correct a mistake, when the update is applied, then the visible
+  status changes but the original milestone's timestamp is preserved — real history isn't lost to
+  a correction.
+
 ### US-5 — Coordinate via Mission Chat
 
 As the **reporter or an active volunteer**, I can **send and read messages scoped to this
@@ -107,6 +124,15 @@ request** so that **we can coordinate the help in private**.
   expiry/completion work, out of scope here) changes it.
 - **BR-7:** Volunteers are never anonymous — only a reporter can post anonymously (US-4,
   `report-a-request.md`). The roster always shows a volunteer's real name/avatar.
+- **BR-8 (added 2026-08-25):** Progress status (`on_the_way` / `reached_location` / `helping_now`)
+  is a **separate concept from participation status** (`joined` / `active` / `released`) — one
+  lookup table each, one nullable FK each on `mission_volunteers`. Participation answers "is this
+  volunteer part of the mission"; progress answers "what is an *active* volunteer currently doing."
+  A progress update is only accepted while participation status is `active` (US-5a AC2). Each of
+  the three milestone timestamps (`on_way_at`, `reached_at`, `helping_at`) is set exactly once, the
+  first time that status is genuinely reached — a later re-selection moves the current status but
+  never overwrites an already-recorded timestamp (US-5a AC3). No Lead-volunteer designation and no
+  automatic Impact Story generation from this data — both remain explicitly out of scope.
 
 ## Data touched
 
@@ -116,6 +142,8 @@ request** so that **we can coordinate the help in private**.
 | `missions` | new | `id`, `report_id` (unique FK → `reports`), `created_at`. Auto-created on the first accept. **No status column in this build, deliberately** — mission-level lifecycle status (accepted/helping/completed) is intentionally deferred to the mission-completion feature; what `mission_volunteers.status` tracks below is only each volunteer's own participation state, not the mission's. |
 | `mission_volunteer_statuses` | new lookup | `joined` → `active` → `released` (CLAUDE.md: lookup table, not a hardcoded enum) |
 | `mission_volunteers` | new | `mission_id` (FK), `volunteer_id` (FK → `user`), `status_id` (FK), `confirm_deadline`, `joined_at`, `confirmed_at`, `released_at`, `release_reason` ('timeout' \| 'voluntary') |
+| `progress_statuses` | new lookup (added 2026-08-25) | `on_the_way` → `reached_location` → `helping_now` — separate from `mission_volunteer_statuses`, see BR-8 |
+| `mission_volunteers` | changed (added 2026-08-25) | + `progress_status_id` (nullable FK → `progress_statuses`), `on_way_at`, `reached_at`, `helping_at` (nullable timestamps, each set once — BR-8) |
 | `mission_messages` | new | `mission_id` (FK), `sender_id` (FK → `user`), `body`, `created_at`. **Not** where flags/reports on a message live — moderation (flagging a message, a comment, a report) is a separate feature and touches none of these tables in this build; see Out of scope. |
 
 **Invariants this introduces:** at most one **active** (`joined`/`active`) `mission_volunteers` row
@@ -144,9 +172,9 @@ coordination, not a persistent messaging product.
   `PRODUCT-DECISIONS.md` Decision 2/3; not touched by this build.
 - **Flagging/reporting content, share sheets** — separate features; still real product scope, just
   not part of this build (same treatment `report-a-request.md` gave moderation).
-- **Quick status broadcast pills** ("On the way," "Reached location," etc.) — a nice-to-have from
-  the old prototype's design; the roster + chat already cover real coordination for v1.
 - **Editing `neededVolunteers` after publish** (BR-1).
+- **Lead-volunteer designation** and **automatic Impact Story generation from progress data** —
+  both explicitly still deferred (BR-8).
 - **Realtime chat** (websockets/push) — REST poll/refresh only, per ADR 0005 (no realtime
   transport yet).
 - **A background job for the 15-minute deadline** — explicit v1 scope decision (BR-3); lazy

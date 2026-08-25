@@ -82,16 +82,23 @@ attempts remaining, expired code `410`, rate limit `429`, wrong admin credential
 
 ### Missions
 
+Real, built routes — nested under the report they belong to (`/reports/:id/...`), not a separate
+`/missions/:id` prefix; the mission row itself is created lazily on first accept and is otherwise
+an implementation detail.
+
 | Method | Endpoint | Purpose | Consumed by |
 |---|---|---|---|
-| `GET` | `/users/me/missions?status=` | Active / completed queue | [My Helps](./mobile/09-my-helps-screen.md) |
-| `POST` | `/missions/:id/volunteers` | Join | [Volunteer Journey](./mobile/15-volunteer-journey-screen.md) · Request Details |
-| `PATCH` | `/missions/:id/volunteers/me` | `{ status: onway \| arrived }` | Status controls |
-| `DELETE` | `/missions/:id/volunteers/me` | **Release the request** | "I cannot continue" — currently releases nothing |
-| `POST` | `/missions/:id/complete` | `{ note, proofPhotoUrl }` | Completion form |
+| `GET` | `/users/me/missions` | Every mission this user has ever volunteered for, all statuses, no server-side filtering — My Helps / Mission Journal each bucket it differently client-side | My Helps, Mission Journal |
+| `GET` | `/reports/:id/volunteers` | Full roster: `neededVolunteers`, each volunteer's participation + progress status, `myStatus`/`myProgressStatus`, completion info if any | Request Details, Volunteer Journey |
+| `POST` | `/reports/:id/volunteers` | Accept ("I'll Help") — creates a `joined` row with a 15-minute `confirmDeadline` | Request Details |
+| `PATCH` | `/reports/:id/volunteers/me` | Confirm ("Start Helping") — `joined` → `active` | Volunteer Journey |
+| `PATCH` | `/reports/:id/volunteers/me/progress` | `{ status: on_the_way \| reached_location \| helping_now }` — only while `active`; each milestone timestamp set once (added 2026-08-25) | Volunteer Journey |
+| `DELETE` | `/reports/:id/volunteers/me` | Leave — releases this volunteer's own slot | Volunteer Journey |
+| `POST` | `/reports/:id/complete` | `{ photoUrl, note }` — camera-only photo, note required; sets the report `completed` | Complete Mission sheet |
 
-**Server-side rule already implemented client-side:** a volunteer who does not confirm
-within **15 minutes** is auto-released. Today the timer runs only on the device.
+**15-minute confirm window:** enforced server-side, checked lazily on every roster read/action —
+not a scheduled job. A `joined` row past its deadline is rewritten to `released` before the caller
+sees it.
 
 ### Moderation
 
