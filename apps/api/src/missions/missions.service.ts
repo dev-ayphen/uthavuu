@@ -23,11 +23,13 @@ import {
   missionVolunteerStatuses,
   missionVolunteers,
   missions,
+  progressStatuses,
 } from '../db/schema/missions-schema';
 import { AlertsService } from '../alerts/alerts.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
 
 type VolunteerStatusKey = 'joined' | 'active' | 'released';
+type ProgressStatusKey = 'on_the_way' | 'reached_location' | 'helping_now';
 
 type MyMissionSummary = {
   reportId: string;
@@ -46,6 +48,14 @@ type MyMissionSummary = {
   joinedAt: string;
 };
 
+type ProgressStatusInfo = {
+  key: ProgressStatusKey;
+  label: string;
+  onWayAt: string | null;
+  reachedAt: string | null;
+  helpingAt: string | null;
+};
+
 type RosterVolunteer = {
   id: string;
   volunteerId: string;
@@ -54,6 +64,9 @@ type RosterVolunteer = {
   status: VolunteerStatusKey;
   confirmDeadline: string | null;
   joinedAt: string;
+  // Only ever non-null for an 'active' volunteer — participation and
+  // progress are deliberately separate concepts, see missions-schema.ts.
+  progressStatus: ProgressStatusInfo | null;
 };
 
 type RosterResponse = {
@@ -61,6 +74,7 @@ type RosterResponse = {
   volunteers: RosterVolunteer[];
   myStatus: VolunteerStatusKey | null;
   myConfirmDeadline: string | null;
+  myProgressStatus: ProgressStatusInfo | null;
   completion: { photoUrl: string; note: string; verifiedAt: string } | null;
 };
 
@@ -80,6 +94,20 @@ export class MissionsService {
     if (!status)
       throw new Error(
         `mission_volunteer_statuses row missing for key "${key}" — did db:seed run?`,
+      );
+    return status.id;
+  }
+
+  private async getProgressStatusIdByKey(
+    key: ProgressStatusKey,
+  ): Promise<string> {
+    const [status] = await db
+      .select()
+      .from(progressStatuses)
+      .where(eq(progressStatuses.key, key));
+    if (!status)
+      throw new Error(
+        `progress_statuses row missing for key "${key}" — did db:seed run?`,
       );
     return status.id;
   }
@@ -158,12 +186,13 @@ export class MissionsService {
   // the caller sees it.
   private async expireStaleAndListVolunteers(missionId: string) {
     const rows = await db
-      .select({ mv: missionVolunteers, status: missionVolunteerStatuses })
+      .select({ mv: missionVolunteers, status: missionVolunteerStatuses, progress: progressStatuses })
       .from(missionVolunteers)
       .innerJoin(
         missionVolunteerStatuses,
         eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
       )
+      .leftJoin(progressStatuses, eq(missionVolunteers.progressStatusId, progressStatuses.id))
       .where(eq(missionVolunteers.missionId, missionId));
 
     const now = new Date();
@@ -185,12 +214,13 @@ export class MissionsService {
     }
 
     return db
-      .select({ mv: missionVolunteers, status: missionVolunteerStatuses })
+      .select({ mv: missionVolunteers, status: missionVolunteerStatuses, progress: progressStatuses })
       .from(missionVolunteers)
       .innerJoin(
         missionVolunteerStatuses,
         eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
       )
+      .leftJoin(progressStatuses, eq(missionVolunteers.progressStatusId, progressStatuses.id))
       .where(eq(missionVolunteers.missionId, missionId));
   }
 
@@ -355,6 +385,54 @@ export class MissionsService {
     return this.getRoster(reportId, volunteerId);
   }
 
+  // accept-and-mission-chat.md — progress status (on_the_way/reached_location/
+  // helping_now) is deliberately separate from participation status: only
+  // an 'active' volunteer's progress means anything, so this requires that
+  // status explicitly rather than just "any non-released row". Each
+  // milestone timestamp is set once, the first time it's genuinely reached —
+  // re-selecting an earlier status moves progressStatusId but never
+  // overwrites an already-recorded timestamp, so real history survives a
+  // correction.
+  async updateProgress(
+    reportId: string,
+    volunteerId: string,
+    status: ProgressStatusKey,
+  ): Promise<RosterResponse> {
+    const missionId = await this.requireMissionId(reportId);
+    const rows = await this.expireStaleAndListVolunteers(missionId);
+    const mine = rows.find((r) => r.mv.volunteerId === volunteerId);
+    if (!mine) {
+      throw new ForbiddenException(
+        'You are not part of this mission',
+      );
+    }
+    if (mine.status.key !== 'active') {
+      throw new BadRequestException(
+        'Start Helping before updating your progress',
+      );
+    }
+
+    const progressStatusId = await this.getProgressStatusIdByKey(status);
+    const now = new Date();
+    const timestampColumn =
+      status === 'on_the_way'
+        ? 'onWayAt'
+        : status === 'reached_location'
+          ? 'reachedAt'
+          : 'helpingAt';
+    const alreadySet = mine.mv[timestampColumn] !== null;
+
+    await db
+      .update(missionVolunteers)
+      .set({
+        progressStatusId,
+        ...(alreadySet ? {} : { [timestampColumn]: now }),
+      })
+      .where(eq(missionVolunteers.id, mine.mv.id));
+
+    return this.getRoster(reportId, volunteerId);
+  }
+
   // docs/features/mission-completion.md US-1/US-2/BR-1..BR-6.
   async complete(
     reportId: string,
@@ -446,6 +524,7 @@ export class MissionsService {
         volunteers: [],
         myStatus: null,
         myConfirmDeadline: null,
+        myProgressStatus: null,
         completion: null,
       };
     }
@@ -463,6 +542,19 @@ export class MissionsService {
       .from(missionCompletions)
       .where(eq(missionCompletions.missionId, missionId));
 
+    const toProgressStatus = (
+      r: (typeof rows)[number],
+    ): ProgressStatusInfo | null =>
+      r.progress
+        ? {
+            key: r.progress.key as ProgressStatusKey,
+            label: r.progress.label,
+            onWayAt: r.mv.onWayAt ? r.mv.onWayAt.toISOString() : null,
+            reachedAt: r.mv.reachedAt ? r.mv.reachedAt.toISOString() : null,
+            helpingAt: r.mv.helpingAt ? r.mv.helpingAt.toISOString() : null,
+          }
+        : null;
+
     return {
       neededVolunteers: report.neededVolunteers,
       volunteers: rows.map((r) => ({
@@ -474,12 +566,14 @@ export class MissionsService {
         confirmDeadline:
           r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
         joinedAt: r.mv.joinedAt.toISOString(),
+        progressStatus: toProgressStatus(r),
       })),
       myStatus: mine ? (mine.status.key as VolunteerStatusKey) : null,
       myConfirmDeadline:
         mine && mine.status.key === 'joined'
           ? mine.mv.confirmDeadline.toISOString()
           : null,
+      myProgressStatus: mine ? toProgressStatus(mine) : null,
       completion: completionRow
         ? {
             photoUrl: completionRow.photoUrl,

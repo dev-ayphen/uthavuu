@@ -207,6 +207,59 @@ describe('MissionsService', () => {
     });
   });
 
+  describe('updateProgress()', () => {
+    it('rejects when no mission exists yet for the report at all', async () => {
+      await expect(service.updateProgress(reportId, volunteerAId, 'on_the_way')).rejects.toThrow(
+        'No mission exists yet'
+      );
+    });
+
+    it('rejects a user who is not a participant of an existing mission', async () => {
+      await service.accept(reportId, volunteerAId);
+      await expect(service.updateProgress(reportId, volunteerBId, 'on_the_way')).rejects.toThrow(
+        'not part of this mission'
+      );
+    });
+
+    it('rejects a volunteer who is only joined, not active', async () => {
+      await service.accept(reportId, volunteerAId);
+      await expect(service.updateProgress(reportId, volunteerAId, 'on_the_way')).rejects.toThrow(
+        'Start Helping before updating your progress'
+      );
+    });
+
+    it('succeeds once active, and is visible in the roster to another participant', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+      const roster = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+
+      expect(roster.myProgressStatus?.key).toBe('on_the_way');
+      expect(roster.myProgressStatus?.onWayAt).toEqual(expect.any(String));
+      expect(roster.myProgressStatus?.reachedAt).toBeNull();
+
+      // Reporter's own view of the same roster sees the real status too —
+      // this is the team-visibility requirement, not just a self-view.
+      const asReporter = await service.getRoster(reportId, reporterId);
+      const mine = asReporter.volunteers.find((v) => v.volunteerId === volunteerAId);
+      expect(mine?.progressStatus?.key).toBe('on_the_way');
+    });
+
+    it('does not overwrite an already-recorded milestone timestamp on re-selection', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+
+      const first = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+      const onWayAt = first.myProgressStatus?.onWayAt;
+
+      await service.updateProgress(reportId, volunteerAId, 'reached_location');
+      const corrected = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+
+      expect(corrected.myProgressStatus?.key).toBe('on_the_way');
+      expect(corrected.myProgressStatus?.onWayAt).toBe(onWayAt);
+      expect(corrected.myProgressStatus?.reachedAt).toEqual(expect.any(String));
+    });
+  });
+
   describe('sendMessage() after completion', () => {
     const fixtureFilename = 'test-completion-photo-2.jpg';
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
