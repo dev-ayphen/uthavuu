@@ -80,5 +80,9 @@
   "journeyNavigateViaMaps": "Navigate via Google Maps",
   "journeyMissionTeam": "Mission Team ({{ready}}/{{needed}} Ready)",
   "journeyTemporaryMissionChat": "Temporary Mission Chat",
-  "journeyCannotContinue": "I cannot continue (Release request)"
+  "journeyCannotContinue": "I cannot continue (Release request)",
+  "journeyProgressTitle": "Update Your Progress",
+  "journeyProgressOnWay": "On the Way",
+  "journeyProgressReached": "Reached Location",
+  "journeyProgressHelping": "Helping Now"
 }
