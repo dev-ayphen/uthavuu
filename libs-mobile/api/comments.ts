@@ -12,8 +12,9 @@ export type FlagStatus = 'submitted' | 'under_review' | 'action_taken' | 'dismis
 
 export type Comment = {
   id: string;
-  authorId: string;
+  authorId: string | null;
   authorName: string;
+  authorDeleted: boolean;
   authorIsReporter: boolean;
   body: string;
   createdAt: string;

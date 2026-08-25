@@ -18,8 +18,12 @@ export type ProgressStatusInfo = {
 
 export type RosterVolunteer = {
   id: string;
-  volunteerId: string;
+  // Null when this volunteer's account has been deleted — their
+  // participation row (and history) survives, only the identity goes. See
+  // volunteerDeleted.
+  volunteerId: string | null;
   name: string;
+  volunteerDeleted: boolean;
   avatarUrl: string | null;
   status: VolunteerStatus;
   confirmDeadline: string | null;
@@ -44,8 +48,9 @@ export type Roster = {
 
 export type MissionMessage = {
   id: string;
-  senderId: string;
+  senderId: string | null;
   senderName: string;
+  senderDeleted: boolean;
   body: string;
   createdAt: string;
   isMine: boolean;
@@ -106,7 +111,10 @@ export type MyMission = {
   landmark: string | null;
   lat: number;
   lng: number;
+  // Null either because the report is anonymous or because the reporter's
+  // account has been deleted — check reporterDeleted before rendering.
   reporterName: string | null;
+  reporterDeleted: boolean;
   myStatus: VolunteerStatus;
   myConfirmDeadline: string | null;
   joinedAt: string;

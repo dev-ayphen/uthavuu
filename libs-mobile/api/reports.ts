@@ -35,7 +35,13 @@ export type Report = {
   closedAt: string | null;
   createdAt: string;
   isOwner: boolean;
+  // Null either because the reporter posted anonymously (reporterDeleted:
+  // false) or because their account has since been deleted (reporterDeleted:
+  // true) — always check reporterDeleted before rendering; "Deleted User"
+  // and "Posted anonymously" are different states and must never be
+  // conflated on screen.
   reporter: { name: string; avatarUrl: string | null } | null;
+  reporterDeleted: boolean;
   reporterPhone: string | null;
   likeCount: number;
   likedByMe: boolean;
