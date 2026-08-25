@@ -26,9 +26,10 @@ export const reportComments = pgTable(
     reportId: uuid('report_id')
       .notNull()
       .references(() => reports.id, { onDelete: 'cascade' }),
-    authorId: text('author_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    // Nullable + SET NULL — a comment is preserved for other participants'
+    // context even if its author later deletes their account; only the
+    // identity is removed, never the body.
+    authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
     body: text('body').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },

@@ -34,9 +34,14 @@ export const reports = pgTable(
   'reports',
   {
     id: uuid('id').primaryKey(),
-    reporterId: text('reporter_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    // Nullable + SET NULL, not CASCADE: a report a volunteer has already
+    // responded to (or completed) is community activity other people
+    // depend on, not the reporter's personal data — deleting the reporter's
+    // account must anonymize the report, never destroy it. See
+    // UsersService.deleteAccount() for the full policy (only a genuinely
+    // unclaimed report — one no volunteer ever joined — gets soft-deleted
+    // alongside the account).
+    reporterId: text('reporter_id').references(() => user.id, { onDelete: 'set null' }),
     categoryId: uuid('category_id')
       .notNull()
       .references(() => reportCategories.id),
@@ -68,7 +73,14 @@ export const reports = pgTable(
     // docs/decisions/ for the local-disk-photo-storage precedent of picking
     // the simplest choice that doesn't foreclose a real one later).
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
-    deletedBy: text('deleted_by').references(() => user.id),
+    // SET NULL, not the previous no-onDelete-clause (Postgres default NO
+    // ACTION): deletedBy is only ever the reporter themselves (see
+    // ReportsService.delete()) — with NO ACTION, UsersService.deleteAccount()
+    // deleting the user row would be blocked by this FK for any report that
+    // user (or their own account-deletion's Rule 1) ever soft-deleted. This
+    // is just an audit trail of who triggered the soft-delete; it should go
+    // null along with reporterId when that account is gone, not block deletion.
+    deletedBy: text('deleted_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },

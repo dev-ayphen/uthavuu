@@ -48,9 +48,12 @@ export const missionVolunteers = pgTable(
     missionId: uuid('mission_id')
       .notNull()
       .references(() => missions.id, { onDelete: 'cascade' }),
-    volunteerId: text('volunteer_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    // Nullable + SET NULL, not CASCADE — a deleted volunteer's participation
+    // is community mission history (the report/mission survive), only their
+    // identity is removed. See UsersService.deleteAccount(): it also
+    // explicitly releases this row (status -> 'released') so the slot
+    // reopens, not just relying on the FK to null the column.
+    volunteerId: text('volunteer_id').references(() => user.id, { onDelete: 'set null' }),
     statusId: uuid('status_id')
       .notNull()
       .references(() => missionVolunteerStatuses.id),
@@ -59,8 +62,12 @@ export const missionVolunteers = pgTable(
     joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     releasedAt: timestamp('released_at', { withTimezone: true }),
-    // 'timeout' | 'voluntary' — not a lookup table, just two known literals
-    // used internally; never rendered to a user as raw text.
+    // 'timeout' | 'voluntary' | 'account_deleted' — not a lookup table, just
+    // three known literals used internally; never rendered to a user as raw
+    // text. 'account_deleted': UsersService.deleteAccount() releases this
+    // volunteer's own row so their slot genuinely reopens, rather than
+    // leaving it to the FK's SET NULL alone (which anonymizes but doesn't
+    // change status).
     releaseReason: text('release_reason'),
     // Null until this volunteer's first progress update (only meaningful
     // once status = 'active'). The three timestamps below are each set once,
@@ -86,9 +93,10 @@ export const missionMessages = pgTable(
     missionId: uuid('mission_id')
       .notNull()
       .references(() => missions.id, { onDelete: 'cascade' }),
-    senderId: text('sender_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    // Nullable + SET NULL — a chat message is preserved for the other
+    // participant's context even if its sender later deletes their account;
+    // only the identity is removed, never the body.
+    senderId: text('sender_id').references(() => user.id, { onDelete: 'set null' }),
     body: text('body').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -113,9 +121,10 @@ export const missionCompletions = pgTable('mission_completions', {
     .notNull()
     .unique()
     .references(() => missions.id, { onDelete: 'cascade' }),
-  completedById: text('completed_by_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
+  // Nullable + SET NULL — a completed mission's record (photo/note/who
+  // helped) is preserved community history even if the volunteer who
+  // completed it later deletes their account.
+  completedById: text('completed_by_id').references(() => user.id, { onDelete: 'set null' }),
   photoUrl: text('photo_url').notNull(),
   note: text('note').notNull(),
   statusId: uuid('status_id')
