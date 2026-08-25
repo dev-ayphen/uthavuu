@@ -45,7 +45,7 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — | Resolved 2026-08-24 — 0012 (flag_statuses, report_comment_flags.status_id, plus support_tickets/user.default_* picked up in the same diff from other concurrent schema edits) is committed and applied. |
+| migration series | claude-code (background fork) | generating 0013 (progress_statuses + mission_volunteers progress columns) for the Volunteer Journey granular-status feature — will release once committed and applied |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
