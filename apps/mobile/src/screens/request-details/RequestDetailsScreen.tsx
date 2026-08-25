@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, RefreshControl, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, MapPin, MoreVertical, Pencil, Share2, Trash2, Video, XCircle } from 'lucide-react-native';
+import { Camera, MapPin, MoreVertical, Pencil, Share2, Trash2, XCircle } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -208,7 +208,7 @@ export default function RequestDetailsScreen({ route }: Props) {
         </View>
       </View>
 
-      {/* ── Media Carousel (Swipe Photos 1/N + Video overlay) ── */}
+      {/* ── Media Carousel (Swipe Photos 1/N) ── */}
       {report.photos && report.photos.length > 0 && (
         <View style={styles.carouselContainer}>
           <ScrollView
@@ -224,18 +224,6 @@ export default function RequestDetailsScreen({ route }: Props) {
             {report.photos.map((photoUri, index) => (
               <View key={index} style={styles.carouselSlide}>
                 <Image source={{ uri: photoUri }} style={styles.photo} />
-                {index === report.photos.length - 1 && (
-                  <TouchableOpacity
-                    style={styles.videoOverlayBadge}
-                    activeOpacity={0.85}
-                    onPress={() => Alert.alert('Video Preview', 'Playing attached video clip...')}
-                  >
-                    <View style={styles.videoPlayCircle}>
-                      <Video size={20} color="#FFFFFF" fill="#FFFFFF" />
-                    </View>
-                    <Text style={styles.videoBadgeText}>Play Video Clip</Text>
-                  </TouchableOpacity>
-                )}
               </View>
             ))}
           </ScrollView>
@@ -401,29 +389,6 @@ const createStyles = (colors: ColorScheme) =>
       gap: 4,
     },
     photoBadgeText: { ...TYPE.microLabel, color: '#FFFFFF', fontWeight: '700' },
-    videoOverlayBadge: {
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
-      backgroundColor: 'rgba(15,23,42,0.85)',
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.3)',
-    },
-    videoPlayCircle: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      backgroundColor: COLORS.secondaryBlue,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    videoBadgeText: { ...TYPE.captionStrong, color: '#FFFFFF' },
     content: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.lg },
     categoryBadge: {
       alignSelf: 'flex-start',

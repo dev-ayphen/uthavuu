@@ -355,12 +355,16 @@ export default function DashboardScreen() {
                     <Skeleton width={22} height={22} borderRadius={11} />
                   ) : (
                     <View style={[styles.countBadge, (counts?.urgentCount ?? 0) > 0 && styles.countBadgeUrgent]}>
-                      <Text style={styles.countBadgeText}>• {counts?.activeCount ?? (cat.id === 'animalRescue' ? 3 : 2)}</Text>
+                      <Text style={styles.countBadgeText}>• {counts?.activeCount ?? 0}</Text>
                     </View>
                   )}
                 </View>
                 <Text style={styles.cardTitle}>{cat.title}</Text>
-                <Text style={styles.cardActiveSub}>{counts?.activeCount ?? (cat.id === 'animalRescue' ? 12 : 5)} Active</Text>
+                {summaryLoading ? (
+                  <Skeleton width={60} height={14} style={{ marginTop: 2 }} />
+                ) : (
+                  <Text style={styles.cardActiveSub}>{counts?.activeCount ?? 0} Active</Text>
+                )}
                 <View style={styles.cardViewRow}>
                   <Text style={styles.cardViewText}>View →</Text>
                 </View>
