@@ -245,6 +245,77 @@ describe('ReportsService', () => {
     });
   });
 
+  describe('communityStats()', () => {
+    // Deliberately far from every "Chennai-area" point other spec files use
+    // (e.g. missions.service.spec.ts's 13.08/80.27) — this suite runs in
+    // parallel against the same dev DB, so anything within ~10km of a
+    // commonly-reused test point makes activeVolunteers' delta assertions
+    // flaky (another file's concurrently-created active volunteer lands
+    // inside the same radius query). Tokyo has no other fixtures anywhere
+    // in this codebase, so it's a genuinely private test area.
+    const NEAR = { lat: 35.6762, lng: 139.6503 };
+    const fixtureFilename = 'test-community-stats-photo.jpg';
+    const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
+
+    beforeAll(() => {
+      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    });
+    afterAll(() => {
+      unlinkSync(join(UPLOADS_DIR, fixtureFilename));
+    });
+
+    // activeVolunteers is radius-scoped, isolated to NEAR (a point nothing
+    // else in this codebase uses) so an exact delta is safe under parallel
+    // test-file execution.
+    //
+    // helped is deliberately app-wide/unfiltered by design (a real running
+    // total, not scoped to any test's own area) — which makes it an
+    // inherently unstable target for a delta assertion here: other spec
+    // files run as parallel Jest workers against this same dev DB, and
+    // their own beforeAll/afterAll fixture churn can both increment *and*
+    // decrement the global completed-reports count during this exact
+    // window (e.g. another file's afterAll deleting its own already-
+    // completed fixture). That's not a bug in communityStats() — it's a
+    // real number reacting to real, concurrent, unrelated activity. Proven
+    // correct in isolation instead: a live curl round trip (report created
+    // → helped=N; accepted+confirmed → activeVolunteers=+1, helped
+    // unchanged; completed → activeVolunteers back to baseline, helped=N+1
+    // exactly) during this feature's implementation, with no other test
+    // process running concurrently. Here, only assert the field is real
+    // response data of the right shape, not a specific value.
+    it('activeVolunteers reflects a real active volunteer within radius; helped is a real non-negative count', async () => {
+      const report = await service.create(reporterId, baseInput({ ...NEAR }));
+
+      const before = await service.communityStats({ lat: NEAR.lat, lng: NEAR.lng, radiusKm: 10 });
+      expect(Number.isInteger(before.helped)).toBe(true);
+      expect(before.helped).toBeGreaterThanOrEqual(0);
+
+      await missionsService.accept(report.id, otherUserId);
+      await missionsService.confirm(report.id, otherUserId);
+      const duringActive = await service.communityStats({ lat: NEAR.lat, lng: NEAR.lng, radiusKm: 10 });
+      expect(duringActive.activeVolunteers).toBe(before.activeVolunteers + 1);
+
+      await missionsService.complete(report.id, otherUserId, fixturePhotoUrl, 'Verified via spec');
+      const after = await service.communityStats({ lat: NEAR.lat, lng: NEAR.lng, radiusKm: 10 });
+      expect(after.activeVolunteers).toBe(before.activeVolunteers);
+      expect(Number.isInteger(after.helped)).toBe(true);
+    });
+
+    it('does not count an active volunteer far outside the query radius', async () => {
+      const FAR = { lat: 1.3521, lng: 103.8198 };
+      const before = await service.communityStats({ lat: NEAR.lat, lng: NEAR.lng, radiusKm: 10 });
+
+      const report = await service.create(reporterId, baseInput({ ...FAR }));
+      await missionsService.accept(report.id, otherUserId);
+      await missionsService.confirm(report.id, otherUserId);
+
+      const during = await service.communityStats({ lat: NEAR.lat, lng: NEAR.lng, radiusKm: 10 });
+      expect(during.activeVolunteers).toBe(before.activeVolunteers);
+
+      await missionsService.complete(report.id, otherUserId, fixturePhotoUrl, 'Verified via spec (far)');
+    });
+  });
+
   describe('like()/unlike()', () => {
     const fixtureFilename = 'test-like-photo.jpg';
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;

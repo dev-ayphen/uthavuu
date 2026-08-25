@@ -7,6 +7,7 @@ import { UpdateReportDto } from './dto/update-report.dto';
 import { AddPhotoDto } from './dto/add-photo.dto';
 import { ListReportsDto } from './dto/list-reports.dto';
 import { ReportsSummaryDto } from './dto/reports-summary.dto';
+import { CommunityStatsDto } from './dto/community-stats.dto';
 
 @Controller('reports')
 export class ReportsController {
@@ -31,6 +32,11 @@ export class ReportsController {
   @Get('summary')
   summary(@Query() query: ReportsSummaryDto) {
     return this.reportsService.summary(query);
+  }
+
+  @Get('community-stats')
+  communityStats(@Query() query: CommunityStatsDto) {
+    return this.reportsService.communityStats(query);
   }
 
   @Get(':id')

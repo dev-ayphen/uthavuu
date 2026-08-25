@@ -6,10 +6,12 @@ import { user } from '../db/schema/auth-schema';
 import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
 import { reportLikes } from '../db/schema/likes-schema';
 import { reportSaves } from '../db/schema/saves-schema';
+import { missionVolunteerStatuses, missionVolunteers, missions } from '../db/schema/missions-schema';
 import type { CreateReportDto } from './dto/create-report.dto';
 import type { UpdateReportDto } from './dto/update-report.dto';
 import type { ListReportsDto } from './dto/list-reports.dto';
 import type { ReportsSummaryDto } from './dto/reports-summary.dto';
+import type { CommunityStatsDto } from './dto/community-stats.dto';
 import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
 
@@ -282,6 +284,44 @@ export class ReportsService {
       activeCount: Number(byKey.get(c.key)?.activeCount ?? 0),
       urgentCount: Number(byKey.get(c.key)?.urgentCount ?? 0),
     }));
+  }
+
+  // Dashboard header stats block. "Active Volunteers" is radius-scoped (same
+  // area the rest of the screen is looking at); "Helped" is deliberately
+  // app-wide — a running total of all-time completed missions, not filtered
+  // by location, matching how a cumulative community-impact number should
+  // read. Two independent counts, not derived from summary() (that's
+  // per-category and open-reports-only; these need a cross-report volunteer
+  // join and an unfiltered completed count respectively).
+  async communityStats(input: CommunityStatsDto) {
+    const openStatusId = await this.getStatusIdByKey('open');
+    const completedStatusId = await this.getStatusIdByKey('completed');
+    const dist = distanceKmExpr(input.lat, input.lng);
+
+    const [activeVolunteersRow] = await db
+      .select({ count: sql<string>`count(*)` })
+      .from(missionVolunteers)
+      .innerJoin(missions, eq(missionVolunteers.missionId, missions.id))
+      .innerJoin(reports, eq(missions.reportId, reports.id))
+      .innerJoin(missionVolunteerStatuses, eq(missionVolunteers.statusId, missionVolunteerStatuses.id))
+      .where(
+        and(
+          eq(missionVolunteerStatuses.key, 'active'),
+          eq(reports.statusId, openStatusId),
+          isNull(reports.deletedAt),
+          sql`${dist} <= ${input.radiusKm}`
+        )
+      );
+
+    const [helpedRow] = await db
+      .select({ count: sql<string>`count(*)` })
+      .from(reports)
+      .where(and(eq(reports.statusId, completedStatusId), isNull(reports.deletedAt)));
+
+    return {
+      activeVolunteers: Number(activeVolunteersRow?.count ?? 0),
+      helped: Number(helpedRow?.count ?? 0),
+    };
   }
 
   // discover-nearby-requests.md US-3/BR-3 — one category's open reports,
