@@ -24,15 +24,23 @@ export class CommentsService {
     const rows = await db
       .select({ comment: reportComments, author: user })
       .from(reportComments)
-      .innerJoin(user, eq(reportComments.authorId, user.id))
+      // leftJoin, not innerJoin: a comment survives its author's account
+      // deletion (reportComments.authorId is SET NULL, not cascade) — the
+      // body stays visible for other participants' context, only the
+      // identity goes.
+      .leftJoin(user, eq(reportComments.authorId, user.id))
       .where(eq(reportComments.reportId, reportId))
       .orderBy(asc(reportComments.createdAt));
 
     return rows.map((r) => ({
       id: r.comment.id,
       authorId: r.comment.authorId,
-      authorName: r.author.name,
-      authorIsReporter: r.comment.authorId === report.reporterId,
+      authorName: r.author?.name ?? 'Deleted User',
+      authorDeleted: r.comment.authorId === null,
+      // A deleted reporter's report can never equal a live commenter's id,
+      // so this naturally reads false once the reporter is gone too — a
+      // deleted-author comment is never mislabeled as "from the reporter".
+      authorIsReporter: r.comment.authorId !== null && r.comment.authorId === report.reporterId,
       body: r.comment.body,
       createdAt: r.comment.createdAt.toISOString(),
     }));

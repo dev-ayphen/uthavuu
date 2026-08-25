@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { count, eq } from 'drizzle-orm';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reports } from '../db/schema/reports-schema';
-import { missionVolunteers } from '../db/schema/missions-schema';
+import { missions, missionVolunteers, missionVolunteerStatuses } from '../db/schema/missions-schema';
 import type { CompleteProfileDto } from './dto/complete-profile.dto';
 import type { UpdateRadiusDto } from './dto/update-radius.dto';
 import type { UpdateLocaleDto } from './dto/update-locale.dto';
@@ -62,23 +62,93 @@ export class UsersService {
     return updated;
   }
 
-  // Settings → Delete Account. A real hard delete, deliberately — unlike
-  // Delete Report (soft, audit-preserving: other people's mission/comment
-  // history depends on that report row surviving), a *user* asking to
-  // delete their own account is asking for genuine removal, and every FK
-  // that references user.id cascades (account, session, reports,
-  // mission_volunteers, mission_messages, alerts, report_comments,
-  // report_comment_flags, report_likes, report_saves, devices,
-  // mission_completions) — deleting the row is sufficient, no manual
-  // cleanup pass needed. reports.deleted_by is NO ACTION, not CASCADE, but
-  // never violates this: only a report's own owner can soft-delete it (see
-  // ReportsService.delete(), which always sets deletedBy: requestingUserId),
-  // so deleted_by always equals reporter_id for any row that has it set —
-  // and that row is already gone via reporter_id's cascade by the time
-  // deleted_by would be checked. Verified live, not just reasoned about —
-  // see this task's commit message.
+  // Settings → Delete Account. PII (name, avatar, phone, contact email —
+  // every column on the user row) is genuinely erased: the row is really
+  // deleted, not retained-but-hidden. But community activity other people
+  // depend on is NOT collateral damage of that deletion:
+  //
+  //  - A report nobody ever volunteered for is this user's own, personal,
+  //    unclaimed data -> soft-deleted via the same mechanism as a manual
+  //    Delete Report (reports.deletedAt/deletedBy), never a hard delete.
+  //  - A report that has (or ever had) a volunteer is community activity a
+  //    volunteer is relying on mid-mission, or a completed record future
+  //    Impact Stories read from -> left fully intact. reports.reporterId
+  //    becomes NULL via the FK's ON DELETE SET NULL (see reports-schema.ts)
+  //    when the user row is deleted below; the client renders that as
+  //    "Deleted User", distinct from reports.anonymous ("posted
+  //    anonymously") — see ReportsService.toResponse()'s reporterDeleted flag.
+  //  - This user's own mission_volunteers rows (them acting as a volunteer
+  //    elsewhere) are explicitly released here — not left to the FK alone —
+  //    so a still-open slot genuinely reopens for someone else to join, with
+  //    releaseReason: 'account_deleted' alongside the existing
+  //    'timeout' | 'voluntary' literals.
+  //  - mission_completions.completedById, report_comments.authorId, and
+  //    mission_messages.senderId are also ON DELETE SET NULL (not cascade):
+  //    a completion record, comment, or chat message is preserved for other
+  //    participants' context; only the identity is removed, never the body.
+  //
+  // Everything else — session, account, report_likes, report_saves,
+  // report_comment_flags, devices, support_tickets — is personal, not
+  // community-authored, and stays a hard ON DELETE CASCADE.
+  //
+  // Wrapped in one transaction: the report classification + volunteer
+  // release + final user delete must all commit together or not at all.
   async deleteAccount(userId: string): Promise<void> {
-    await db.delete(user).where(eq(user.id, userId));
+    await db.transaction(async (tx) => {
+      // Rule 1: soft-delete this user's own reports that no volunteer has
+      // EVER joined (including released ones — "ever had a row" is the
+      // bar, not "currently has an active volunteer"). Reports with any
+      // volunteer history are left alone; their reporterId is anonymized
+      // by the FK when the user row is deleted at the end.
+      const myReports = await tx
+        .select({ id: reports.id })
+        .from(reports)
+        .where(and(eq(reports.reporterId, userId), isNull(reports.deletedAt)));
+
+      for (const report of myReports) {
+        const [missionRow] = await tx.select({ id: missions.id }).from(missions).where(eq(missions.reportId, report.id));
+
+        let everHadVolunteer = false;
+        if (missionRow) {
+          const [{ value }] = await tx
+            .select({ value: count() })
+            .from(missionVolunteers)
+            .where(eq(missionVolunteers.missionId, missionRow.id));
+          everHadVolunteer = value > 0;
+        }
+
+        if (!everHadVolunteer) {
+          await tx.update(reports).set({ deletedAt: new Date(), deletedBy: userId }).where(eq(reports.id, report.id));
+        }
+      }
+
+      // Rule 5: release this user's own mission_volunteers rows (them as a
+      // volunteer on someone else's report) so a not-yet-released slot
+      // genuinely reopens, rather than relying on the FK's SET NULL alone
+      // (which anonymizes the row but doesn't change its status).
+      const [releasedStatus] = await tx
+        .select({ id: missionVolunteerStatuses.id })
+        .from(missionVolunteerStatuses)
+        .where(eq(missionVolunteerStatuses.key, 'released'));
+
+      const myVolunteerRows = await tx
+        .select({ id: missionVolunteers.id, statusId: missionVolunteers.statusId })
+        .from(missionVolunteers)
+        .where(eq(missionVolunteers.volunteerId, userId));
+
+      for (const mv of myVolunteerRows) {
+        if (releasedStatus && mv.statusId !== releasedStatus.id) {
+          await tx
+            .update(missionVolunteers)
+            .set({ statusId: releasedStatus.id, releasedAt: new Date(), releaseReason: 'account_deleted' })
+            .where(eq(missionVolunteers.id, mv.id));
+        }
+      }
+
+      // Real hard delete of the account itself. See the comment block above
+      // for exactly which FKs cascade vs. SET NULL from here.
+      await tx.delete(user).where(eq(user.id, userId));
+    });
   }
 
   // Reported by the client whenever the in-app language changes, so push

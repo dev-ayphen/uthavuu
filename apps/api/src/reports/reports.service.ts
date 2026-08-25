@@ -112,7 +112,7 @@ export class ReportsService {
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-      .innerJoin(user, eq(reports.reporterId, user.id))
+      .leftJoin(user, eq(reports.reporterId, user.id))
       .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
 
     if (!row) throw new NotFoundException('Report not found');
@@ -161,7 +161,7 @@ export class ReportsService {
       .innerJoin(reports, eq(reportSaves.reportId, reports.id))
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-      .innerJoin(user, eq(reports.reporterId, user.id))
+      .leftJoin(user, eq(reports.reporterId, user.id))
       .where(eq(reportSaves.userId, requestingUserId))
       .orderBy(desc(reportSaves.createdAt));
 
@@ -218,7 +218,7 @@ export class ReportsService {
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-      .innerJoin(user, eq(reports.reporterId, user.id))
+      .leftJoin(user, eq(reports.reporterId, user.id))
       .where(and(eq(reports.reporterId, requestingUserId), isNull(reports.deletedAt)))
       .orderBy(desc(reports.createdAt));
 
@@ -347,7 +347,7 @@ export class ReportsService {
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-      .innerJoin(user, eq(reports.reporterId, user.id))
+      .leftJoin(user, eq(reports.reporterId, user.id))
       .where(
         and(
           eq(reports.categoryId, category.id),
@@ -568,7 +568,12 @@ export class ReportsService {
     category: CategoryRow,
     status: StatusRow,
     photoUrls: string[],
-    reporter: typeof user.$inferSelect,
+    // Null when the reporter's account has been deleted (reports.reporterId
+    // is ON DELETE SET NULL, not cascade — see reports-schema.ts). Distinct
+    // from report.anonymous, which is the reporter's own choice to hide
+    // their name while their account still exists — see reporterDeleted
+    // below for how the two stay distinguishable in the response.
+    reporter: typeof user.$inferSelect | null,
     requestingUserId: string,
     hasActiveVolunteerAccess: boolean,
     likeCount = 0,
@@ -577,6 +582,7 @@ export class ReportsService {
     hasAnyActiveVolunteer = false
   ) {
     const isOwner = report.reporterId === requestingUserId;
+    const reporterDeleted = report.reporterId === null;
     return {
       id: report.id,
       category: { key: category.key, label: category.label, emoji: category.emoji },
@@ -595,14 +601,22 @@ export class ReportsService {
       createdAt: report.createdAt,
       isOwner,
       // US-4: the public shape of who reported this — masked when anonymous,
-      // always visible to the reporter themselves.
+      // null (with reporterDeleted: true below) when the account was
+      // deleted. Two different reasons for the same null — the client must
+      // check reporterDeleted to render "Deleted User" vs "Posted
+      // anonymously" and must never conflate the two.
       reporter:
-        report.anonymous && !isOwner
+        reporterDeleted || (report.anonymous && !isOwner)
           ? null
-          : { name: reporter.name, avatarUrl: reporter.avatarUrl },
+          : { name: reporter!.name, avatarUrl: reporter!.avatarUrl },
+      reporterDeleted,
       // BR-4: reporter always sees it; an active volunteer sees it only if
-      // the reporter opted in — never from phoneVisible alone.
-      reporterPhone: isOwner || (hasActiveVolunteerAccess && report.phoneVisible) ? reporter.phoneNumber : null,
+      // the reporter opted in — never from phoneVisible alone. A deleted
+      // reporter has no phone number left to show, regardless of who's asking.
+      reporterPhone:
+        reporterDeleted || !(isOwner || (hasActiveVolunteerAccess && report.phoneVisible))
+          ? null
+          : reporter!.phoneNumber,
       likeCount,
       likedByMe,
       savedByMe,

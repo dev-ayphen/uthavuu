@@ -43,6 +43,10 @@ type MyMissionSummary = {
   // Same anonymity rule as ReportsService.toResponse(): null when the
   // report is anonymous, regardless of the requester's volunteer access.
   reporterName: string | null;
+  // True when the report's reporter account was deleted (reports.reporterId
+  // is SET NULL, not cascade) — distinct from the report being anonymous,
+  // which is reporterName === null with reporterDeleted === false.
+  reporterDeleted: boolean;
   myStatus: VolunteerStatusKey;
   myConfirmDeadline: string | null;
   joinedAt: string;
@@ -58,8 +62,16 @@ type ProgressStatusInfo = {
 
 type RosterVolunteer = {
   id: string;
-  volunteerId: string;
+  // Null when this volunteer's account has been deleted (mission_volunteers
+  // .volunteerId is SET NULL, not cascade) — the row itself (and their
+  // participation history) survives.
+  volunteerId: string | null;
   name: string;
+  // True when volunteerId is null for that reason — see above. Kept as its
+  // own flag (rather than making the caller infer it from volunteerId)
+  // since the roster already draws a hard distinction between deleted and
+  // anonymous elsewhere in this response shape.
+  volunteerDeleted: boolean;
   avatarUrl: string | null;
   status: VolunteerStatusKey;
   confirmDeadline: string | null;
@@ -262,7 +274,16 @@ export class MissionsService {
     if (!missionId) return [];
 
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    return [...new Set(rows.filter((r) => r.status.key !== 'released').map((r) => r.mv.volunteerId))];
+    // A row only loses its volunteerId (SET NULL on account deletion) once
+    // it's released — UsersService.deleteAccount() always releases the row
+    // in the same transaction before the FK can null it out — so this
+    // filter never actually needs to drop anything live; it's here so the
+    // return type stays string[], not (string | null)[].
+    return [
+      ...new Set(
+        rows.filter((r) => r.status.key !== 'released').map((r) => r.mv.volunteerId).filter((id): id is string => id !== null)
+      ),
+    ];
   }
 
   async accept(reportId: string, volunteerId: string): Promise<RosterResponse> {
@@ -308,12 +329,18 @@ export class MissionsService {
       .select()
       .from(user)
       .where(eq(user.id, volunteerId));
-    await this.alertsService.create(
-      report.reporterId,
-      'volunteer_accepted',
-      { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
-      reportId,
-    );
+    // reporterId can be null if the reporter's account was since deleted
+    // (reports.reporterId is SET NULL — see reports-schema.ts) — nobody to
+    // notify in that case, alerts.userId stays NOT NULL on purpose (a
+    // personal notification log, not community content).
+    if (report.reporterId) {
+      await this.alertsService.create(
+        report.reporterId,
+        'volunteer_accepted',
+        { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
+        reportId,
+      );
+    }
 
     return this.getRoster(reportId, volunteerId);
   }
@@ -373,7 +400,7 @@ export class MissionsService {
       .select()
       .from(user)
       .where(eq(user.id, volunteerId));
-    if (report) {
+    if (report?.reporterId) {
       await this.alertsService.create(
         report.reporterId,
         'volunteer_released',
@@ -497,12 +524,14 @@ export class MissionsService {
       .select()
       .from(user)
       .where(eq(user.id, volunteerId));
-    await this.alertsService.create(
-      report.reporterId,
-      'mission_completed',
-      { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
-      reportId,
-    );
+    if (report.reporterId) {
+      await this.alertsService.create(
+        report.reporterId,
+        'mission_completed',
+        { volunteerName: volunteer?.name ?? null, reportTitle: report.title },
+        reportId,
+      );
+    }
 
     return this.getRoster(reportId, volunteerId);
   }
@@ -530,7 +559,7 @@ export class MissionsService {
     }
 
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    const volunteerIds = [...new Set(rows.map((r) => r.mv.volunteerId))];
+    const volunteerIds = [...new Set(rows.map((r) => r.mv.volunteerId).filter((id): id is string => id !== null))];
     const volunteerUsers = volunteerIds.length
       ? await db.select().from(user).where(inArray(user.id, volunteerIds))
       : [];
@@ -560,8 +589,9 @@ export class MissionsService {
       volunteers: rows.map((r) => ({
         id: r.mv.id,
         volunteerId: r.mv.volunteerId,
-        name: userById.get(r.mv.volunteerId)?.name ?? 'Volunteer',
-        avatarUrl: userById.get(r.mv.volunteerId)?.avatarUrl ?? null,
+        name: (r.mv.volunteerId ? userById.get(r.mv.volunteerId)?.name : null) ?? 'Deleted User',
+        volunteerDeleted: r.mv.volunteerId === null,
+        avatarUrl: (r.mv.volunteerId ? userById.get(r.mv.volunteerId)?.avatarUrl : null) ?? null,
         status: r.status.key as VolunteerStatusKey,
         confirmDeadline:
           r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
@@ -596,14 +626,18 @@ export class MissionsService {
     const rows = await db
       .select({ msg: missionMessages, sender: user })
       .from(missionMessages)
-      .innerJoin(user, eq(missionMessages.senderId, user.id))
+      // leftJoin, not innerJoin: a message survives its sender's account
+      // deletion (missionMessages.senderId is SET NULL, not cascade) — the
+      // body stays visible to the other participant, only the identity goes.
+      .leftJoin(user, eq(missionMessages.senderId, user.id))
       .where(eq(missionMessages.missionId, missionId))
       .orderBy(missionMessages.createdAt);
 
     return rows.map((r) => ({
       id: r.msg.id,
       senderId: r.msg.senderId,
-      senderName: r.sender.name,
+      senderName: r.sender?.name ?? 'Deleted User',
+      senderDeleted: r.msg.senderId === null,
       body: r.msg.body,
       createdAt: r.msg.createdAt.toISOString(),
       isMine: r.msg.senderId === requestingUserId,
@@ -691,7 +725,7 @@ export class MissionsService {
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-      .innerJoin(user, eq(reports.reporterId, user.id))
+      .leftJoin(user, eq(reports.reporterId, user.id))
       .where(inArray(reports.id, reportIds));
     const reportById = new Map(reportRows.map((r) => [r.report.id, r]));
 
@@ -722,7 +756,9 @@ export class MissionsService {
           landmark: found.report.landmark,
           lat: found.report.lat,
           lng: found.report.lng,
-          reporterName: found.report.anonymous ? null : found.reporter.name,
+          reporterName:
+            found.report.reporterId === null || found.report.anonymous ? null : (found.reporter?.name ?? null),
+          reporterDeleted: found.report.reporterId === null,
           myStatus: r.status.key as VolunteerStatusKey,
           myConfirmDeadline:
             r.status.key === 'joined'
