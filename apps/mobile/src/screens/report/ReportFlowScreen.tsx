@@ -35,10 +35,9 @@ import ReportLocationPage from './steps/ReportLocationPage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportFlow'>;
 
-// Page 0 = Category selection (inline, no separate screen)
-// Page 1 = Details (photo, description, title, volunteers)
-// Page 2 = Location & Privacy → Publish
-const PAGES = ['category', 'details', 'location'] as const;
+// Page 0 = Details (photo, description, title, volunteers, category inline)
+// Page 1 = Location & Privacy → Publish
+const PAGES = ['details', 'location'] as const;
 
 // Accent palettes for category tiles
 const CAT_ACCENT: Record<CategoryId, { iconBg: string }> = {
@@ -70,9 +69,9 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(route.params?.categoryKey ? 1 : 0);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(
-    route.params?.categoryKey ?? null,
+  const [page, setPage] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId>(
+    route.params?.categoryKey ?? 'animalRescue',
   );
   const [draft, setDraft] = useState<ReportDraft>({ ...EMPTY_DRAFT });
   const [locating, setLocating] = useState(true);
@@ -212,7 +211,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
     }
   };
 
-  const pageTitles = ['Select Category', 'Add Details', 'Location & Privacy'];
+  const pageTitles = ['Add Details', 'Location & Privacy'];
 
   return (
     <KeyboardAvoidingView
@@ -226,7 +225,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         <View style={styles.navSpacer} />
       </View>
 
-      {/* ── Progress bar ── */}
+      {/* ── Progress bar (2 steps only: Add Details & Location) ── */}
       <View style={styles.progressRow}>
         {PAGES.map((_, i) => (
           <View
@@ -242,53 +241,12 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── PAGE 0: Category Selection ── */}
+        {/* ── PAGE 0: Details ── */}
         {page === 0 && (
-          <View>
-            <Text style={styles.pageTitle}>What kind of help{'\n'}is needed?</Text>
-            <Text style={styles.pageSubtitle}>Select the closest category to continue.</Text>
-
-            <View style={styles.catList}>
-              {CATEGORIES.map((cat, idx) => {
-                const acc = CAT_ACCENT[cat.id as CategoryId];
-                const isLast = idx === CATEGORIES.length - 1;
-                return (
-                  <Pressable
-                    key={cat.id}
-                    style={({ pressed }) => [
-                      styles.catRow,
-                      !isLast && styles.catRowBorder,
-                      pressed && styles.catRowPressed,
-                    ]}
-                    onPress={() => {
-                      setSelectedCategory(cat.id as CategoryId);
-                      onNext();
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={cat.title}
-                  >
-                    <View style={[styles.catIconBubble, { backgroundColor: acc.iconBg }]}>
-                      <Text style={styles.catEmoji}>{cat.emoji}</Text>
-                    </View>
-                    <View style={styles.catText}>
-                      <Text style={styles.catTitle}>{cat.title}</Text>
-                      <Text style={styles.catSub} numberOfLines={1}>
-                        {CAT_TAGLINE[cat.id as CategoryId]}
-                      </Text>
-                    </View>
-                    <ChevronRight size={18} color={colors.textSecondary} strokeWidth={2} />
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* ── PAGE 1: Details ── */}
-        {page === 1 && selectedCategory && (
           <ReportDetailsPage
             draft={draft}
             categoryKey={selectedCategory}
+            onChangeCategory={(catKey) => setSelectedCategory(catKey as CategoryId)}
             onChangeTitle={(title) => setDraft((d) => ({ ...d, title }))}
             onChangeDescription={(description) => setDraft((d) => ({ ...d, description }))}
             onChangeNeededVolunteers={(neededVolunteers) =>
@@ -299,8 +257,8 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
           />
         )}
 
-        {/* ── PAGE 2: Location & Privacy ── */}
-        {page === 2 && (
+        {/* ── PAGE 1: Location & Privacy ── */}
+        {page === 1 && (
           <ReportLocationPage
             locating={locating}
             locationLabel={draft.locationLabel}
@@ -310,14 +268,16 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             shareWithNGOs={false}
             confirmed={confirmed}
             category={category}
+            customExpiryHours={draft.customExpiryHours}
             onChangeLandmark={(landmark) => setDraft((d) => ({ ...d, landmark }))}
             onToggleAnonymous={(anonymous) => setDraft((d) => ({ ...d, anonymous }))}
             onTogglePhoneVisible={(phoneVisible) => setDraft((d) => ({ ...d, phoneVisible }))}
             onToggleConfirmed={(val) => setConfirmed(val)}
+            onChangeCustomExpiryHours={(h) => setDraft((d) => ({ ...d, customExpiryHours: h }))}
           />
         )}
 
-        {page === 2 && locationError ? (
+        {page === 1 && locationError ? (
           <View style={styles.locationErrorBox}>
             <Text style={styles.locationErrorText}>{locationError}</Text>
             <TouchableOpacity onPress={fetchLocation}>
@@ -329,8 +289,8 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
-      {/* ── Footer button (pages 1 & 2 only; page 0 uses row taps) ── */}
-      {page === 1 && (
+      {/* ── Footer button (page 0 = Details, page 1 = Location & Publish) ── */}
+      {page === 0 && (
         <View style={styles.footer}>
           <Button
             label="Next: Location & Privacy →"
@@ -339,7 +299,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
           />
         </View>
       )}
-      {page === 2 && (
+      {page === 1 && (
         <View style={styles.footer}>
           <Button
             label={t('flow.publish')}
