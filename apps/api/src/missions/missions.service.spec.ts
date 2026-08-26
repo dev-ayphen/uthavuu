@@ -95,6 +95,12 @@ describe('MissionsService', () => {
     const roster = await service.getRoster(reportId, volunteerBId);
     expect(roster.volunteers[0].status).toBe('released');
 
+    // The volunteer who left sees myStatus: null too, not stuck on
+    // 'released' — they should be offered "I'll Help" again, same as
+    // anyone else, matching accept()'s own re-join eligibility.
+    const ownRoster = await service.getRoster(reportId, volunteerAId);
+    expect(ownRoster.myStatus).toBe(null);
+
     const secondAccept = await service.accept(reportId, volunteerBId);
     expect(secondAccept.myStatus).toBe('joined');
   });
@@ -109,8 +115,13 @@ describe('MissionsService', () => {
       .set({ confirmDeadline: new Date(Date.now() - 60_000) })
       .where(eq(missionVolunteers.missionId, mission.id));
 
+    // myStatus must go back to null once released, not get stuck at
+    // 'released' forever — accept() itself already allows this exact user
+    // to rejoin (it only checks active, non-released rows), so the roster
+    // view from their own perspective must agree, or "I'll Help" would
+    // never be offered to them again.
     const roster = await service.getRoster(reportId, volunteerAId);
-    expect(roster.myStatus).toBe('released');
+    expect(roster.myStatus).toBe(null);
 
     // The slot is free again — a second volunteer can now accept.
     const secondAccept = await service.accept(reportId, volunteerBId);

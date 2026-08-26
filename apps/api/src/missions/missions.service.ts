@@ -579,7 +579,13 @@ export class MissionsService {
       ? await db.select().from(user).where(inArray(user.id, volunteerIds))
       : [];
     const userById = new Map(volunteerUsers.map((u) => [u.id, u]));
-    const mine = rows.find((r) => r.mv.volunteerId === requestingUserId);
+    // Mirrors accept()'s own eligibility check: a released row must not
+    // keep myStatus stuck non-null forever, or a volunteer who left can
+    // never see "I'll Help" again even though accept() would happily let
+    // them rejoin (accept-and-mission-chat.md documents re-accepting after
+    // release as intended). Only an active (non-released) row counts as
+    // "mine" here.
+    const mine = rows.find((r) => r.mv.volunteerId === requestingUserId && r.status.key !== 'released');
 
     const [completionRow] = await db
       .select()
