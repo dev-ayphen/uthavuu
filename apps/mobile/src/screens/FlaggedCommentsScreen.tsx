@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flag } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -77,8 +77,9 @@ export default function FlaggedCommentsScreen() {
         data={flags ?? []}
         keyExtractor={(f) => f.id}
         contentContainerStyle={styles.list}
-        refreshing={isFetching}
-        onRefresh={refetch}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+        }
         ListEmptyComponent={
           <EmptyState
             icon={<Flag size={40} color={colors.textSecondary} strokeWidth={1.5} />}

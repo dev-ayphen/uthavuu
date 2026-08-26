@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, FileText, MapPin, Users } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -35,10 +35,6 @@ export default function MyReportsScreen() {
     queryFn: getMyReports,
   });
 
-  // Real backend vocabulary: 'open' covers the whole "still live" lifetime
-  // (including an active mission — the report itself doesn't have its own
-  // 'active' status), and a cancelled report is 'closed', not 'cancelled' —
-  // see docs/features/edit-cancel-report.md.
   const filteredReports = useMemo(() => {
     if (!reports) return [];
     switch (activeTab) {
@@ -99,24 +95,35 @@ export default function MyReportsScreen() {
         </View>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabsRow}>
-        {(['active', 'completed', 'cancelled', 'expired'] as TabType[]).map((tab) => {
-          const isSelected = activeTab === tab;
-          const label = tab.charAt(0).toUpperCase() + tab.slice(1);
-          const count = counts[tab];
-          return (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tabPill, isSelected && styles.tabPillActive]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
-                {label} ({count})
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Horizontally scrollable pill tabs — prevents text wrapping */}
+      <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+        >
+          {(['active', 'completed', 'cancelled', 'expired'] as TabType[]).map((tab) => {
+            const isSelected = activeTab === tab;
+            const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+            const count = counts[tab];
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabPill, isSelected && styles.tabPillActive]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
+                  {label}
+                </Text>
+                <View style={[styles.countBadge, isSelected && styles.countBadgeActive]}>
+                  <Text style={[styles.countText, isSelected && styles.countTextActive]}>
+                    {count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Reports List */}
@@ -124,8 +131,9 @@ export default function MyReportsScreen() {
         data={filteredReports}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        refreshing={isFetching}
-        onRefresh={refetch}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <FileText size={40} color={colors.textSecondary} strokeWidth={1.5} />
@@ -164,11 +172,11 @@ function ReportItemCard({
   const statusBadge = useMemo(() => {
     switch (report.status) {
       case 'completed':
-        return { label: 'Completed', tone: TONES.normal };
+        return { label: 'Completed', tone: { fg: '#15803D', fill: '#DCFCE7', border: '#BBF7D0' } };
       case 'closed':
-        return { label: 'Cancelled', tone: TONES.expired };
+        return { label: 'Cancelled', tone: { fg: '#64748B', fill: '#F1F5F9', border: '#E2E8F0' } };
       case 'expired':
-        return { label: 'Expired', tone: TONES.expired };
+        return { label: 'Expired', tone: { fg: '#64748B', fill: '#F1F5F9', border: '#E2E8F0' } };
       default:
         return report.assignedVolunteersCount && report.assignedVolunteersCount > 0
           ? { label: 'Active Mission', tone: TONES.soon }
@@ -237,36 +245,54 @@ const createStyles = (colors: ColorScheme) =>
     },
     headerTitle: { ...TYPE.title, fontSize: 18, color: colors.textPrimary, fontWeight: '800' },
     totalBadge: {
-      backgroundColor: colors.bgElevated,
+      backgroundColor: colors.primaryGreenLight,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.primaryGreen,
       borderRadius: RADIUS.pill,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
     },
-    totalBadgeText: { ...TYPE.microLabel, color: colors.textSecondary },
+    totalBadgeText: { ...TYPE.microLabel, fontSize: 12, color: colors.primaryGreen, fontWeight: '800' },
 
-    tabsRow: {
-      flexDirection: 'row',
-      gap: 6,
-      paddingHorizontal: SIZES.padding,
+    tabsContainer: {
       marginBottom: SPACING.sm,
     },
+    tabsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: SIZES.padding,
+    },
     tabPill: {
-      flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 6,
-      borderRadius: RADIUS.md,
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: RADIUS.pill,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
     },
     tabPillActive: {
-      backgroundColor: colors.bg,
+      backgroundColor: colors.primaryGreenLight,
       borderColor: colors.primaryGreen,
     },
-    tabText: { ...TYPE.caption, fontSize: 11.5, color: colors.textSecondary, fontWeight: '600' },
+    tabText: { ...TYPE.footnote, color: colors.textSecondary, fontWeight: '600' },
     tabTextActive: { color: colors.primaryGreen, fontWeight: '800' },
+
+    countBadge: {
+      backgroundColor: colors.bg,
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      minWidth: 18,
+      alignItems: 'center',
+    },
+    countBadgeActive: {
+      backgroundColor: colors.primaryGreen,
+    },
+    countText: { fontSize: 11, color: colors.textSecondary, fontWeight: '700' },
+    countTextActive: { color: '#FFFFFF', fontWeight: '800' },
 
     list: { paddingHorizontal: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.sm },
     cardSkeleton: {

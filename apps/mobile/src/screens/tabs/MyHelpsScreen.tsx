@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, HeartHandshake, MapPin } from 'lucide-react-native';
 import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -118,8 +118,9 @@ export default function MyHelpsScreen() {
         data={data}
         keyExtractor={(item) => item.reportId}
         contentContainerStyle={styles.list}
-        refreshing={isFetching}
-        onRefresh={refetch}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <HeartHandshake size={40} color={colors.textSecondary} strokeWidth={1.5} />

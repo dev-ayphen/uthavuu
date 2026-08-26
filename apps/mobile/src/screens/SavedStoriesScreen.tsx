@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Bookmark } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -57,8 +57,9 @@ export default function SavedStoriesScreen({ navigation }: Props) {
           data={reports ?? []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          refreshing={isFetching}
-          onRefresh={refetch}
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+          }
           ListEmptyComponent={
             <EmptyState
               icon={<Bookmark size={40} color={colors.textSecondary} strokeWidth={1.5} />}

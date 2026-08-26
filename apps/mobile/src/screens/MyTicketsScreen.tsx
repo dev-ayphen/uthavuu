@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HelpCircle } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -59,8 +59,9 @@ export default function MyTicketsScreen() {
         data={tickets ?? []}
         keyExtractor={(ticket) => ticket.id}
         contentContainerStyle={styles.list}
-        refreshing={isFetching}
-        onRefresh={refetch}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+        }
         ListEmptyComponent={
           <EmptyState
             icon={<HelpCircle size={40} color={colors.textSecondary} strokeWidth={1.5} />}

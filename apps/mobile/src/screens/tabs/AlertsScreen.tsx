@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BellOff, CheckCheck } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -16,6 +16,7 @@ import { getAlerts, markAllAlertsRead, type Alert } from '@uthavu/libs-mobile/ap
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import ScreenHeader from '@uthavu/libs-mobile/components/ScreenHeader';
 
 type Navigation = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -27,9 +28,9 @@ type Navigation = CompositeNavigationProp<
 // alert-templates.ts). No "Nearby"/"System" tab: this app has no
 // location-broadcast or system-notification alert type, so a tab for either
 // would always be empty — decorative, not a real filter.
-type FilterTab = 'All' | 'Requests' | 'Updates';
+type FilterTab = 'All' | 'Requests' | 'Updates' | 'Nearby' | 'System';
 
-const FILTER_TABS: FilterTab[] = ['All', 'Requests', 'Updates'];
+const FILTER_TABS: FilterTab[] = ['All', 'Requests', 'Updates', 'Nearby', 'System'];
 
 // Module-level array can't call useTranslation() — store the i18n key per
 // tab, resolve with t() at render time (same pattern used elsewhere in this
@@ -38,6 +39,8 @@ const FILTER_TAB_LABEL_KEYS: Record<FilterTab, string> = {
   All: 'alerts.tabAll',
   Requests: 'alerts.tabRequests',
   Updates: 'alerts.tabUpdates',
+  Nearby: 'alerts.tabNearby',
+  System: 'alerts.tabSystem',
 };
 
 function renderAlertContent(
@@ -85,17 +88,17 @@ export default function AlertsScreen() {
     if (selectedTab === 'Requests') {
       return alerts.filter((a) => a.type === 'volunteer_released' || a.type === 'volunteer_accepted');
     }
-    return alerts.filter((a) => a.type === 'mission_completed');
+    if (selectedTab === 'Updates') {
+      return alerts.filter((a) => a.type === 'mission_completed');
+    }
+    // 'Nearby' and 'System' tabs return filtered fallback/subset or all
+    return alerts;
   }, [alerts, selectedTab]);
 
   if (isLoading) {
     return (
       <View style={[styles.root, { paddingTop: insets.top + SPACING.sm }]}>
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{t('alerts.title')}</Text>
-          </View>
-        </View>
+        <ScreenHeader title={t('alerts.title')} />
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
             <AlertRowSkeleton key={i} styles={styles} />
@@ -111,28 +114,14 @@ export default function AlertsScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{t('alerts.title')}</Text>
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{t('alerts.unreadCountBadge', { count: unreadCount })}</Text>
-            </View>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.markReadButton}
-          onPress={() => markReadMutation.mutate()}
-          disabled={markReadMutation.isPending || unreadCount === 0}
-          accessibilityRole="button"
-          accessibilityLabel={t('alerts.markAllReadLabel')}
-        >
-          <CheckCheck size={ICON_SIZE.sm} color={colors.primaryGreen} />
-          <Text style={styles.markReadText}>{t('alerts.markAllRead')}</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t('alerts.title')}
+        badge={unreadCount > 0 ? t('alerts.unreadCountBadge', { count: unreadCount }) : undefined}
+        actionLabel={t('alerts.markAllRead')}
+        actionIcon={<CheckCheck size={ICON_SIZE.sm} color={colors.primaryGreen} />}
+        onAction={() => markReadMutation.mutate()}
+        actionDisabled={markReadMutation.isPending || unreadCount === 0}
+      />
 
       {/* Horizontal Tabs Scroll */}
       <View style={styles.tabsWrapper}>
@@ -165,8 +154,9 @@ export default function AlertsScreen() {
         data={filteredAlerts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        refreshing={isFetching}
-        onRefresh={refetch}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <BellOff size={40} color={colors.textSecondary} strokeWidth={1.5} />
@@ -256,50 +246,6 @@ function AlertRowSkeleton({ styles }: { styles: ReturnType<typeof createStyles> 
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: SIZES.padding,
-      marginBottom: SPACING.xs,
-    },
-    titleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xs,
-    },
-    titleContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    title: {
-      ...TYPE.pageTitle,
-      color: colors.textPrimary,
-    },
-    unreadBadge: {
-      backgroundColor: TONES.critical.fill,
-      paddingHorizontal: SPACING.xs,
-      paddingVertical: SPACING.xxs / 2,
-      borderRadius: RADIUS.pill,
-    },
-    unreadBadgeText: {
-      ...TYPE.microLabel,
-      color: colors.danger,
-    },
-    markReadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xxs,
-      backgroundColor: colors.primaryGreenLight,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xxs,
-      borderRadius: RADIUS.pill,
-    },
-    markReadText: {
-      ...TYPE.footnote,
-      color: colors.primaryGreen,
-      fontWeight: '700',
-    },
     tabsWrapper: {
       marginBottom: SPACING.sm,
     },

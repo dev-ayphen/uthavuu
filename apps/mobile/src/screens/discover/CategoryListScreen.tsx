@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, Modal, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronDown, Clock, PackageOpen, Search, Share2, SlidersHorizontal } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -93,8 +93,9 @@ export default function CategoryListScreen({ navigation, route }: Props) {
           data={reportsList ?? []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, { paddingTop: SPACING.md }]}
-          refreshing={isFetching}
-          onRefresh={refetch}
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <PackageOpen size={40} color={colors.textSecondary} strokeWidth={1.5} />

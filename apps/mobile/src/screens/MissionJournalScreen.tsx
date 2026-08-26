@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -104,8 +104,9 @@ export default function MissionJournalScreen({ navigation }: Props) {
           data={filtered}
           keyExtractor={(item) => item.reportId}
           contentContainerStyle={styles.list}
-          refreshing={isFetching}
-          onRefresh={refetch}
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+          }
           ListEmptyComponent={
             <EmptyState
               icon={<BookOpen size={40} color={colors.textSecondary} strokeWidth={1.5} />}

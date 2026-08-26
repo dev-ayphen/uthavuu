@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Sparkles } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -63,8 +63,9 @@ export default function MyImpactStoriesScreen() {
         data={stories ?? []}
         keyExtractor={(s) => s.reportId}
         contentContainerStyle={styles.list}
-        refreshing={isFetching}
-        onRefresh={refetch}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
+        }
         ListEmptyComponent={
           <EmptyState
             icon={<Sparkles size={40} color={colors.textSecondary} strokeWidth={1.5} />}
