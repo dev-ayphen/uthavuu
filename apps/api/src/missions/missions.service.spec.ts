@@ -216,6 +216,20 @@ describe('MissionsService', () => {
         'already been completed'
       );
     });
+
+    it('completes correctly after the same volunteer left and rejoined (stale released row must not shadow the current one)', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.leave(reportId, volunteerAId);
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+
+      const roster = await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'Second attempt, done right.');
+      expect(roster.completion).toEqual({
+        photoUrl: fixturePhotoUrl,
+        note: 'Second attempt, done right.',
+        verifiedAt: expect.any(String),
+      });
+    });
   });
 
   describe('updateProgress()', () => {
@@ -268,6 +282,16 @@ describe('MissionsService', () => {
       expect(corrected.myProgressStatus?.key).toBe('on_the_way');
       expect(corrected.myProgressStatus?.onWayAt).toBe(onWayAt);
       expect(corrected.myProgressStatus?.reachedAt).toEqual(expect.any(String));
+    });
+
+    it('succeeds after the same volunteer left and rejoined (stale released row must not shadow the current one)', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.leave(reportId, volunteerAId);
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+
+      const roster = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+      expect(roster.myProgressStatus?.key).toBe('on_the_way');
     });
   });
 

@@ -442,7 +442,10 @@ export class MissionsService {
   ): Promise<RosterResponse> {
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    const mine = rows.find((r) => r.mv.volunteerId === volunteerId);
+    // Same filter as confirm()/leave() — a volunteer who left and rejoined
+    // has an old released row alongside their current one; matching without
+    // excluding released rows can grab the wrong (stale) one.
+    const mine = rows.find((r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released');
     if (!mine) {
       throw new ForbiddenException(
         'You are not part of this mission',
@@ -493,7 +496,10 @@ export class MissionsService {
 
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    const mine = rows.find((r) => r.mv.volunteerId === volunteerId);
+    // Same filter as confirm()/leave() — a volunteer who left and rejoined
+    // has an old released row alongside their current one; matching without
+    // excluding released rows can grab the wrong (stale) one.
+    const mine = rows.find((r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released');
     if (!mine || mine.status.key !== 'active') {
       throw new BadRequestException(
         'You must be an active volunteer on this mission to complete it',
