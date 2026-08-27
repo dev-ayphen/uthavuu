@@ -16,6 +16,7 @@ import { SavedReportsModule } from './saved-reports/saved-reports.module';
 import { FlaggedCommentsModule } from './flagged-comments/flagged-comments.module';
 import { ImpactStoriesModule } from './impact-stories/impact-stories.module';
 import { SupportModule } from './support/support.module';
+import { AdminModule } from './admin/admin.module';
 import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
 
@@ -29,6 +30,12 @@ const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'p
   imports: [
     AuthModule.forRoot({
       auth,
+      // CORS is owned by main.ts's app.enableCors() instead. Leaving this false
+      // would register a SECOND cors middleware from `auth.options.trustedOrigins`
+      // and send duplicate Access-Control-Allow-Origin headers, which browsers
+      // treat as invalid. `trustedOrigins` itself stays in force — this only
+      // opts out of the library deriving CORS from it.
+      disableTrustedOriginsCors: true,
       bodyParser: {
         json: { limit: '2mb' },
         urlencoded: { limit: '2mb', extended: true },
@@ -46,6 +53,7 @@ const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'p
     FlaggedCommentsModule,
     ImpactStoriesModule,
     SupportModule,
+    AdminModule,
     ...(devOtpFallbackActive ? [DevModule] : []),
   ],
   controllers: [AppController],
