@@ -118,8 +118,14 @@ export default function DashboardScreen() {
     queryKey: ['myMissions'],
     queryFn: getMyMissions,
   });
+  // myStatus stays 'active' forever after a mission completes (mission-
+  // completion.md BR-7, not a bug — completion never changes the
+  // volunteer's own participation status, only the report's status does).
+  // MyHelpsScreen's splitMissions() already accounts for this by also
+  // checking reportStatus; this banner must too, or it keeps announcing a
+  // completed mission as still in progress.
   const activeMission = (myMissions ?? [])
-    .filter((m) => m.myStatus === 'active')
+    .filter((m) => m.myStatus === 'active' && m.reportStatus !== 'completed')
     .sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime())[0];
 
   // BR-4 (discover-nearby-requests.md): no realtime — pull-to-refresh is the

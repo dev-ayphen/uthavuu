@@ -75,7 +75,11 @@ export default function CategoryListScreen({ navigation, route }: Props) {
             onChangeText={setSearchQuery}
           />
         </View>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalOpen(true)}>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setFilterModalOpen(true)}
+          accessibilityLabel="Filter and sort"
+        >
           <SlidersHorizontal size={18} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -277,14 +281,10 @@ function ReportRow({
         </View>
       </View>
 
-      {/* Main Request Image */}
-      {report.photos[0] ? (
+      {/* Main Request Image (only rendered if photo exists) */}
+      {report.photos && report.photos[0] ? (
         <Image source={{ uri: report.photos[0] }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <PackageOpen size={28} color={colors.textSecondary} strokeWidth={1.5} />
-        </View>
-      )}
+      ) : null}
 
       {/* Title & Reporter Metadata */}
       <Text style={styles.cardTitle}>{report.title}</Text>
