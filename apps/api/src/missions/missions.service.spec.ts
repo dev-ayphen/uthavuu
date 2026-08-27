@@ -295,6 +295,21 @@ describe('MissionsService', () => {
     });
   });
 
+  describe('listMyMissions()', () => {
+    it('returns one entry per report even with multiple historical rows (leave + rejoin)', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.leave(reportId, volunteerAId);
+      await service.accept(reportId, volunteerAId);
+
+      const mine = await service.listMyMissions(volunteerAId);
+      const forThisReport = mine.filter((m) => m.reportId === reportId);
+      expect(forThisReport).toHaveLength(1);
+      // The current (rejoined) row, not a stale released one — matches what
+      // GET /reports/:id/volunteers already returns for the same user.
+      expect(forThisReport[0].myStatus).toBe('joined');
+    });
+  });
+
   describe('sendMessage() after completion', () => {
     const fixtureFilename = 'test-completion-photo-2.jpg';
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;

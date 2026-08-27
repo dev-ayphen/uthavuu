@@ -741,7 +741,21 @@ export class MissionsService {
 
     if (rows.length === 0) return [];
 
-    const reportIds = [...new Set(rows.map((r) => r.mission.reportId))];
+    // A volunteer who left and rejoined the same mission has more than one
+    // mission_volunteers row for the same report — one per accept/release
+    // cycle. My Helps must show each report once, not once per historical
+    // row. rows is already ordered desc(joinedAt), so keeping the first
+    // occurrence per reportId keeps the most recent row — the current
+    // active/joined one when one exists, or the most recent release
+    // otherwise — and drops the older stale ones.
+    const seenReportIds = new Set<string>();
+    const dedupedRows = rows.filter((r) => {
+      if (seenReportIds.has(r.mission.reportId)) return false;
+      seenReportIds.add(r.mission.reportId);
+      return true;
+    });
+
+    const reportIds = [...new Set(dedupedRows.map((r) => r.mission.reportId))];
     const reportRows = await db
       .select({
         report: reports,
@@ -771,19 +785,19 @@ export class MissionsService {
     // the completion's after-photo — not the report's original before-photo.
     // Missions still in progress have no completion row yet, so this map is
     // naturally empty for them and firstPhotoByReportId below still applies.
-    const missionIds = rows.map((r) => r.mission.id);
+    const missionIds = dedupedRows.map((r) => r.mission.id);
     const completionRows = await db
       .select({ missionId: missionCompletions.missionId, photoUrl: missionCompletions.photoUrl })
       .from(missionCompletions)
       .where(inArray(missionCompletions.missionId, missionIds));
-    const missionIdToReportId = new Map(rows.map((r) => [r.mission.id, r.mission.reportId]));
+    const missionIdToReportId = new Map(dedupedRows.map((r) => [r.mission.id, r.mission.reportId]));
     const completionPhotoByReportId = new Map<string, string>();
     for (const c of completionRows) {
       const reportId = missionIdToReportId.get(c.missionId);
       if (reportId) completionPhotoByReportId.set(reportId, c.photoUrl);
     }
 
-    return rows
+    return dedupedRows
       .map((r): MyMissionSummary | null => {
         const found = reportById.get(r.mission.reportId);
         if (!found) return null;
