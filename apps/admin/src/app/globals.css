@@ -1,0 +1,413 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Dark mode
+   ---------------------------------------------------------------------------
+   Theme is driven by a `data-theme` attribute on <html>, written by next-themes
+   before first paint (see src/components/providers/theme-provider.tsx). We use
+   an attribute rather than a class so the value is readable/serialisable and so
+   a third state ("system") can be added later without churn.
+--------------------------------------------------------------------------- */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------------------------------------------------------------------------
+   1. RAW TOKENS — light is the base, dark is a remap
+   ---------------------------------------------------------------------------
+   THE RULE: every colour is declared here on :root with a light value, and
+   re-declared in the [data-theme="dark"] block below. A colour that exists in
+   only one block is a bug — it will render as `unset` in the other theme.
+
+   Components consume ROLES (--surface, --fg-muted, --primary), never the brand
+   hexes and never a raw colour. That is what makes dark mode and a future
+   rebrand a token remap instead of a codebase sweep.
+--------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* -- Brand ------------------------------------------------------------- */
+  /* The one true brand green, shared with apps/mobile
+     (docs/design/design-system.md -> COLORS.primaryGreen). Identity only:
+     components must reference --primary, never --brand-green. */
+  --brand-green: #16a34a;
+  --brand-green-bright: #22c55e;
+
+  /* -- Canvas & surfaces -------------------------------------------------- */
+  --canvas: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+  --surface-inset: #f8fafc;
+  --overlay: rgb(15 23 42 / 0.45);
+
+  /* -- Foreground -------------------------------------------------------- */
+  --fg: #0f172a;
+  /* Every step clears WCAG AA (4.5:1) on --surface. --fg-faint carries 10px
+     micro-labels, so it is the one that has to be checked, not eyeballed:
+     #64748b is 4.76:1 on white, #94a3b8 was 2.85:1 and failed. */
+  --fg-muted: #334155; /* 10.9:1 */
+  --fg-subtle: #475569; /* 7.5:1  */
+  --fg-faint: #64748b; /*  4.8:1  */
+  --fg-on-tint: #ffffff;
+
+  /* -- Lines ------------------------------------------------------------- */
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-hairline: #f1f5f9;
+
+  /* -- Primary ----------------------------------------------------------- */
+  --primary: var(--brand-green);
+  --primary-hover: #15803d;
+  --primary-active: #166534;
+  --primary-fg: #ffffff;
+  --primary-soft: #dcfce7;
+  --primary-soft-fg: #15803d;
+  --primary-soft-border: #bbf7d0;
+
+  /* -- Focus ring -------------------------------------------------------- */
+  --ring: var(--brand-green);
+  --ring-offset: #ffffff;
+
+  /* -- Data accents ------------------------------------------------------
+     One family per hue, three roles each: fg (text/icon), soft (tint fill),
+     soft-border (tint outline). Dashboard tiles, category chips and status
+     pills all draw from these — nothing invents a one-off tint pair. */
+  --accent-emerald-fg: #15803d;
+  --accent-emerald-soft: #dcfce7;
+  --accent-emerald-soft-border: #bbf7d0;
+
+  --accent-blue-fg: #1d4ed8;
+  --accent-blue-soft: #dbeafe;
+  --accent-blue-soft-border: #bfdbfe;
+
+  --accent-amber-fg: #b45309;
+  --accent-amber-soft: #fef3c7;
+  --accent-amber-soft-border: #fde68a;
+
+  --accent-rose-fg: #b91c1c;
+  --accent-rose-soft: #fee2e2;
+  --accent-rose-soft-border: #fecaca;
+
+  --accent-violet-fg: #6d28d9;
+  --accent-violet-soft: #ede9fe;
+  --accent-violet-soft-border: #ddd6fe;
+
+  --accent-cyan-fg: #0e7490;
+  --accent-cyan-soft: #cffafe;
+  --accent-cyan-soft-border: #a5f3fc;
+
+  --accent-pink-fg: #be185d;
+  --accent-pink-soft: #fce7f3;
+  --accent-pink-soft-border: #fbcfe8;
+
+  --accent-slate-fg: #475569;
+  --accent-slate-soft: #f1f5f9;
+  --accent-slate-soft-border: #e2e8f0;
+
+  /* -- Shadows ----------------------------------------------------------- */
+  --elevation-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --elevation-raised: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --elevation-popover: 0 12px 32px -8px rgb(15 23 42 / 0.18);
+  --elevation-chrome: 0 1px 0 0 rgb(15 23 42 / 0.04);
+
+  /* -- Layout ------------------------------------------------------------
+     Chrome dimensions are tokens because BOTH the content offset padding and
+     the inner-scroll height math derive from them. Never hardcode these. */
+  --layout-header-height: 4rem;
+  --layout-sidebar-width: 15rem;
+  --layout-sidebar-width-collapsed: 4.25rem;
+  --app-content-height: calc(100svh - var(--layout-header-height));
+  --page-header-sticky-offset: var(--layout-header-height);
+  --page-padding-inline: 1.25rem;
+  --page-padding-block: 1.25rem;
+
+  /* Container widths, selected by PageLayout's `contentWidth` prop. */
+  --container-narrow: 48rem;
+  --container-default: 80rem;
+  --container-wide: 100%;
+
+  /* -- Shape ------------------------------------------------------------- */
+  --shape-control: 0.625rem;
+  --shape-card: 0.875rem;
+  --shape-panel: 1.25rem;
+  --shape-pill: 9999px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --brand-green: #16a34a;
+  --brand-green-bright: #22c55e;
+
+  --canvas: #020617;
+  --surface: #0f172a;
+  --surface-2: #1e293b;
+  --surface-3: #334155;
+  --surface-inset: #020617;
+  --overlay: rgb(2 6 23 / 0.72);
+
+  --fg: #f8fafc;
+  /* Same audit against --surface (#0f172a): #64748b was 3.6:1 and failed, so
+     --fg-faint is lifted to #8b9bb0 (6.0:1). */
+  --fg-muted: #cbd5e1; /* 13.1:1 */
+  --fg-subtle: #94a3b8; /* 7.0:1 */
+  --fg-faint: #8b9bb0; /*  6.0:1 */
+  --fg-on-tint: #ffffff;
+
+  --border: #1e293b;
+  --border-strong: #334155;
+  --border-hairline: #172033;
+
+  /* The brand green is lifted one step on dark ground so it clears contrast
+     against #020617 — same identity, corrected for the substrate. */
+  --primary: var(--brand-green-bright);
+  --primary-hover: #16a34a;
+  --primary-active: #15803d;
+  --primary-fg: #052e16;
+  --primary-soft: rgb(34 197 94 / 0.14);
+  --primary-soft-fg: #4ade80;
+  --primary-soft-border: rgb(34 197 94 / 0.28);
+
+  --ring: var(--brand-green-bright);
+  --ring-offset: #020617;
+
+  --accent-emerald-fg: #4ade80;
+  --accent-emerald-soft: rgb(34 197 94 / 0.12);
+  --accent-emerald-soft-border: rgb(34 197 94 / 0.24);
+
+  --accent-blue-fg: #60a5fa;
+  --accent-blue-soft: rgb(59 130 246 / 0.14);
+  --accent-blue-soft-border: rgb(59 130 246 / 0.26);
+
+  --accent-amber-fg: #fbbf24;
+  --accent-amber-soft: rgb(245 158 11 / 0.14);
+  --accent-amber-soft-border: rgb(245 158 11 / 0.26);
+
+  --accent-rose-fg: #f87171;
+  --accent-rose-soft: rgb(239 68 68 / 0.14);
+  --accent-rose-soft-border: rgb(239 68 68 / 0.28);
+
+  --accent-violet-fg: #a78bfa;
+  --accent-violet-soft: rgb(139 92 246 / 0.14);
+  --accent-violet-soft-border: rgb(139 92 246 / 0.26);
+
+  --accent-cyan-fg: #22d3ee;
+  --accent-cyan-soft: rgb(6 182 212 / 0.14);
+  --accent-cyan-soft-border: rgb(6 182 212 / 0.26);
+
+  --accent-pink-fg: #f472b6;
+  --accent-pink-soft: rgb(236 72 153 / 0.14);
+  --accent-pink-soft-border: rgb(236 72 153 / 0.26);
+
+  --accent-slate-fg: #cbd5e1;
+  --accent-slate-soft: rgb(148 163 184 / 0.12);
+  --accent-slate-soft-border: rgb(148 163 184 / 0.2);
+
+  --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --elevation-raised: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --elevation-popover: 0 12px 32px -8px rgb(0 0 0 / 0.65);
+  --elevation-chrome: 0 1px 0 0 rgb(255 255 255 / 0.04);
+}
+
+/* ---------------------------------------------------------------------------
+   2. SEMANTIC STATUS ALIASES
+   ---------------------------------------------------------------------------
+   Declared once, outside the theme blocks, because var() resolves lazily at
+   use time: an element in dark mode resolves --success-fg through the DARK
+   value of --accent-emerald-fg. One declaration, both themes, no duplication.
+--------------------------------------------------------------------------- */
+:root {
+  --success-fg: var(--accent-emerald-fg);
+  --success-soft: var(--accent-emerald-soft);
+  --success-soft-border: var(--accent-emerald-soft-border);
+
+  --warning-fg: var(--accent-amber-fg);
+  --warning-soft: var(--accent-amber-soft);
+  --warning-soft-border: var(--accent-amber-soft-border);
+
+  --danger-fg: var(--accent-rose-fg);
+  --danger-soft: var(--accent-rose-soft);
+  --danger-soft-border: var(--accent-rose-soft-border);
+
+  --info-fg: var(--accent-blue-fg);
+  --info-soft: var(--accent-blue-soft);
+  --info-soft-border: var(--accent-blue-soft-border);
+
+  --neutral-fg: var(--accent-slate-fg);
+  --neutral-soft: var(--accent-slate-soft);
+  --neutral-soft-border: var(--accent-slate-soft-border);
+}
+
+/* ---------------------------------------------------------------------------
+   3. TAILWIND THEME MAPPING
+   ---------------------------------------------------------------------------
+   `inline` matters: it makes the generated utilities reference var(--surface)
+   rather than copying its light value, so one class works in both themes.
+--------------------------------------------------------------------------- */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-inset: var(--surface-inset);
+  --color-overlay: var(--overlay);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-fg-on-tint: var(--fg-on-tint);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-hairline: var(--border-hairline);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-fg: var(--primary-soft-fg);
+  --color-primary-soft-border: var(--primary-soft-border);
+
+  --color-ring: var(--ring);
+
+  --color-success-fg: var(--success-fg);
+  --color-success-soft: var(--success-soft);
+  --color-success-soft-border: var(--success-soft-border);
+  --color-warning-fg: var(--warning-fg);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-border: var(--warning-soft-border);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-soft-border: var(--danger-soft-border);
+  --color-info-fg: var(--info-fg);
+  --color-info-soft: var(--info-soft);
+  --color-info-soft-border: var(--info-soft-border);
+  --color-neutral-fg: var(--neutral-fg);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-soft-border: var(--neutral-soft-border);
+
+  --color-accent-emerald-fg: var(--accent-emerald-fg);
+  --color-accent-emerald-soft: var(--accent-emerald-soft);
+  --color-accent-emerald-soft-border: var(--accent-emerald-soft-border);
+  --color-accent-blue-fg: var(--accent-blue-fg);
+  --color-accent-blue-soft: var(--accent-blue-soft);
+  --color-accent-blue-soft-border: var(--accent-blue-soft-border);
+  --color-accent-amber-fg: var(--accent-amber-fg);
+  --color-accent-amber-soft: var(--accent-amber-soft);
+  --color-accent-amber-soft-border: var(--accent-amber-soft-border);
+  --color-accent-rose-fg: var(--accent-rose-fg);
+  --color-accent-rose-soft: var(--accent-rose-soft);
+  --color-accent-rose-soft-border: var(--accent-rose-soft-border);
+  --color-accent-violet-fg: var(--accent-violet-fg);
+  --color-accent-violet-soft: var(--accent-violet-soft);
+  --color-accent-violet-soft-border: var(--accent-violet-soft-border);
+  --color-accent-cyan-fg: var(--accent-cyan-fg);
+  --color-accent-cyan-soft: var(--accent-cyan-soft);
+  --color-accent-cyan-soft-border: var(--accent-cyan-soft-border);
+  --color-accent-pink-fg: var(--accent-pink-fg);
+  --color-accent-pink-soft: var(--accent-pink-soft);
+  --color-accent-pink-soft-border: var(--accent-pink-soft-border);
+  --color-accent-slate-fg: var(--accent-slate-fg);
+  --color-accent-slate-soft: var(--accent-slate-soft);
+  --color-accent-slate-soft-border: var(--accent-slate-soft-border);
+
+  --radius-control: var(--shape-control);
+  --radius-card: var(--shape-card);
+  --radius-panel: var(--shape-panel);
+  --radius-pill: var(--shape-pill);
+
+  --shadow-card: var(--elevation-card);
+  --shadow-raised: var(--elevation-raised);
+  --shadow-popover: var(--elevation-popover);
+  --shadow-chrome: var(--elevation-chrome);
+
+  /* Latin first, Tamil second: Inter carries no Tamil glyphs, so Tamil
+     codepoints fall through to Noto Sans Tamil automatically. That is what
+     lets an english-only chrome render Tamil user content correctly without
+     any per-string font switching. */
+  --font-sans: var(--font-inter), var(--font-noto-tamil), ui-sans-serif, system-ui, sans-serif;
+  --font-tamil-display: var(--font-noto-serif-tamil), var(--font-noto-tamil), serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+/* ---------------------------------------------------------------------------
+   4. BASE
+--------------------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem; /* 13px — dense console base, per the type ramp */
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Every interactive element gets a visible focus state. Non-negotiable. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--shape-control);
+  }
+
+  ::selection {
+    background-color: var(--primary-soft);
+    color: var(--primary-soft-fg);
+  }
+
+  /* Metrics must not jitter as they tick. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* The standard in-card section label, lifted from the mobile design system's
+     micro-label so both surfaces read as one product. */
+  .micro-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Scrollbars inside the console read as chrome, not as OS furniture. */
+@layer utilities {
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border-radius: var(--shape-pill);
+  }
+}
