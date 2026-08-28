@@ -13,9 +13,33 @@
 Complete documentation for both products, ~~verified against the code~~ **— see the correction
 above; this claim is false.**
 
+---
+
+## 🟢 Ground truth (written from the code, 2026-08-27)
+
+Everything below the fold in this file describes a prototype that never existed. **These docs do
+not.** They were written by opening `apps/api`, `apps/mobile` and `apps/admin` and confirming every
+`path:line`. Start here for anything technical.
+
+| Doc | Answers |
+|---|---|
+| [**architecture/**](./architecture/) | The index for everything below |
+| [**architecture/system.md**](./architecture/system.md) | Surfaces, deployables, request lifecycle, cross-cutting concerns — and the CORS correction (it was a stale `ADMIN_URL` port, not a missing config) |
+| [**architecture/admin-console-integration.md**](./architecture/admin-console-integration.md) | *"The admin console needs to show the mobile app's data — how does that connect?"* Entity → section matrix for all 8 sidebar sections, ranked gap analysis, the privacy boundary, and moderation write paths |
+| [**architecture/data.md**](./architecture/data.md) | 24 live tables, the ER diagram, the invariants a new feature must not break, and the data-truth traps (`expired` is never written; `report_likes` doesn't exist) |
+| [**decisions/**](./decisions/) | ADRs 0001–0009 — real decisions with real trade-offs |
+| [**_audit/issues.md**](./_audit/issues.md) | 7 verified issues, ranked by severity |
+| [**_audit/open-questions.md**](./_audit/open-questions.md) | 12 things the code can't answer — 4 of them block an endpoint |
+
+**The one-sentence architecture:** one PostgreSQL, one NestJS API, two clients. No admin database,
+no ETL, no sync job, no realtime channel. The admin console reads the rows the mobile app writes,
+through admin-scoped `/admin/*` endpoints.
+
+---
+
 ✅ **49 documents · 13,000+ lines · every screen, tab, control, form and flow.**
 
-**Last verified:** 2026-08-18
+**Drafted:** 2026-08-18 (never verified) · **Ground-truth docs added:** 2026-08-27 against commit `84a20d3`
 
 ```
 docs/
@@ -29,8 +53,11 @@ docs/
 ├── PRODUCT-DECISIONS.md       ← decisions + their code impact
 ├── REVIEW-RESPONSE.md         ← status legend, UX directions, defect verification
 ├── ASSET-INVENTORY.md         ← all 34 images, both products
-├── mobile/    27 files        ← Uthavu mobile app  (apps/mobile)
-└── webadmin/  12 files        ← Uthavu admin console (apps/web)
+├── mobile/    27 files        ← Uthavu mobile app  (apps/mobile)   [unverified spec]
+├── webadmin/  12 files        ← Uthavu admin console               [unverified spec]
+├── architecture/              ← GROUND TRUTH, read from the code
+├── decisions/                 ← ADRs 0001-0009
+└── _audit/                    ← verified issues + open questions
 ```
 
 ---
@@ -119,7 +146,7 @@ Index: [`mobile/README.md`](./mobile/README.md)
 
 ## 🖥️ Admin console — 12 documents
 
-`apps/web` · Next.js 16.2.12 · React 19.2.4 · Tailwind v4
+~~`apps/web`~~ **`apps/admin`** (there is no `apps/web` — see `CLAUDE.md`) · the stack line below describes a prototype, not this repo
 Index: [`webadmin/README.md`](./webadmin/README.md)
 
 | # | Document | Covers |

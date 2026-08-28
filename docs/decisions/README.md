@@ -19,6 +19,11 @@ this way?"
 | [0005](./0005-no-realtime-transport-yet.md) | No realtime transport — request/response + push for now | Accepted |
 | [0006](./0006-otp-via-msg91-from-the-start.md) | OTP delivery via MSG91 from the start | Accepted, temporarily amended by 0007 |
 | [0007](./0007-temporary-dev-otp-fallback.md) | Temporary dev-console OTP fallback until real msg91 credentials exist | Accepted |
+| [0008](./0008-local-disk-photo-storage.md) | Local-disk storage for profile photos until real cloud storage exists | Accepted (temporary) |
+| [0009](./0009-admin-scoped-api-surface.md) | Admin reads/writes go through dedicated `/admin/*` controllers | Accepted |
+| [0010](./0010-mission-chat-is-not-readable-by-admins.md) | Mission Chat is not readable by admins in V1 | Accepted |
+| [0011](./0011-user-suspension-blocks-login-not-content.md) | User suspension blocks access, never content | Accepted |
+| [0012](./0012-admin-audit-log-before-the-first-mutating-endpoint.md) | The admin audit log ships before the first mutating admin endpoint | Accepted |
 
 ## Conventions
 
@@ -37,4 +42,4 @@ See [`0000-template.md`](./0000-template.md).
 
 ---
 
-*Last verified {{YYYY-MM}} against `{{BRANCH_OR_SHA}}`.*
+_Last verified 2026-08-28 against commit `d035cfd`._
