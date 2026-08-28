@@ -5,10 +5,15 @@
 //   POST /api/auth/phone-number/verify    { phoneNumber, code } -> { status, token, user }
 
 import { betterAuth } from 'better-auth';
-import { createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer, phoneNumber } from 'better-auth/plugins';
 import { db } from '../db';
+import {
+  ACCOUNT_SUSPENDED_CODE,
+  ACCOUNT_SUSPENDED_MESSAGE,
+  isUserSuspended,
+} from '../account-status/account-status';
 import { Msg91OtpProvider } from './otp/msg91-otp.provider';
 import { DevConsoleOtpProvider } from './otp/dev-console-otp.provider';
 import {
@@ -54,6 +59,86 @@ export const auth = betterAuth({
     process.env.ADMIN_URL,
     process.env.EXPO_PUBLIC_API_URL,
   ].filter((v): v is string => Boolean(v)),
+
+  // CLAUDE.md § Stack: "Admin: session-based login." The admin console signs in
+  // with email + password and rides a session cookie; mobile stays on phone +
+  // OTP with a Bearer token. Both are Better Auth sessions, so one guard
+  // resolves either — see admin/admin.guard.ts.
+  //
+  // `disableSignUp` is the load-bearing line. Enabling email+password without
+  // it would publish POST /api/auth/sign-up/email to the internet, letting
+  // anyone mint a `user` row. That would not grant admin access (an admin is a
+  // row in `admin_users`, and nothing self-service writes one), but it would be
+  // an open registration endpoint on a product where the ONLY way to become a
+  // user is to verify a real phone number over real SMS. Admin accounts are
+  // provisioned by `pnpm db:seed`; there is no self-registration path.
+  //
+  // Existing phone users are unaffected: sign-up-on-verify creates them with a
+  // synthetic @phone.uthavu.local address and no credential account, so
+  // /sign-in/email finds no password to check and refuses them — as it should.
+  //
+  // Note there is deliberately NO password reset flow: /forget-password returns
+  // 400 RESET_PASSWORD_DISABLED because `sendResetPassword` is unset, and it is
+  // unset because this project has no email provider
+  // (docs/decisions/0003-no-email-provider-at-launch.md). Rotate a seeded
+  // admin's password with SEED_ADMIN_FORCE_PASSWORD_RESET=true pnpm db:seed.
+  emailAndPassword: {
+    enabled: true,
+    disableSignUp: true,
+    minPasswordLength: 8,
+  },
+
+  // Better Auth enables rate limiting on production only (its documented
+  // default), so this rule is a production-only tightening and changes nothing
+  // in dev or in the test suite. It exists because /sign-in/email is the one
+  // endpoint in this API where guessing repeatedly is worth an attacker's time:
+  // the phone OTP routes already have their own Redis limiter
+  // (auth/otp/otp-rate-limiter.ts), and everything else needs a session first.
+  //
+  // Storage is Better Auth's in-memory default, which is per-process. That is
+  // honest protection for the single API container this project runs today and
+  // stops being sufficient the moment it is scaled horizontally — at which
+  // point this needs `storage: 'secondary-storage'` backed by the Redis that is
+  // already in the stack.
+  rateLimit: {
+    customRules: {
+      '/sign-in/email': { window: 60, max: 5 },
+    },
+  },
+
+  // ACCOUNT SUSPENSION — the login half of the block (owner decision,
+  // 2026-08-28; see db/schema/user-status-schema.ts for the full rule).
+  //
+  // `session.create.before` is the right seam because it is the ONE chokepoint
+  // every sign-in path passes through: admin email+password, mobile phone-OTP
+  // verify, and any future provider all end in a session row being written.
+  // Hooking the individual sign-in routes instead would mean remembering to add
+  // the next one. This is also exactly how Better Auth's own admin plugin
+  // enforces `user.banned` (better-auth/dist/plugins/admin/admin.mjs:33-49) —
+  // verified by reading the installed 1.7.1 source, not recalled.
+  //
+  // Uthavu does not use that plugin (it brings a whole parallel role system
+  // this project deliberately models in `admin_users` instead), so the hook is
+  // ours; the placement is borrowed because it is correct.
+  //
+  // Throwing APIError here aborts session creation, so a suspended user never
+  // receives a token or a cookie. The FORBIDDEN + ACCOUNT_SUSPENDED pair is the
+  // same status/code the request guard returns, so a client has one case to
+  // handle rather than two.
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session: { userId: string }) => {
+          if (await isUserSuspended(session.userId)) {
+            throw APIError.from('FORBIDDEN', {
+              message: ACCOUNT_SUSPENDED_MESSAGE,
+              code: ACCOUNT_SUSPENDED_CODE,
+            });
+          }
+        },
+      },
+    },
+  },
 
   // docs/features/auth.md: single-tenant, no org concept — the user table only
   // needs discover-nearby-requests.md's location fields and a signup-completion

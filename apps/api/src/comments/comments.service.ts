@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
@@ -29,7 +29,13 @@ export class CommentsService {
       // body stays visible for other participants' context, only the
       // identity goes.
       .leftJoin(user, eq(reportComments.authorId, user.id))
-      .where(eq(reportComments.reportId, reportId))
+      // A comment an admin removed is gone from the public thread — the same
+      // thing a hard DELETE would have achieved, without destroying the flag
+      // that led to the removal or the body the audit log has to be able to
+      // show. See the deletedAt note in db/schema/comments-schema.ts.
+      // Deliberately NOT applied to listMyFlags(): the flagger keeps seeing
+      // their flag reach 'Action Taken' rather than watching it vanish.
+      .where(and(eq(reportComments.reportId, reportId), isNull(reportComments.deletedAt)))
       .orderBy(asc(reportComments.createdAt));
 
     return rows.map((r) => ({

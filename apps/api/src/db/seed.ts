@@ -9,6 +9,9 @@ import { reportCategories, reportStatuses } from './schema/reports-schema';
 import { missionCompletionStatuses, missionVolunteerStatuses, progressStatuses } from './schema/missions-schema';
 import { flagStatuses } from './schema/comments-schema';
 import { ticketCategories, ticketStatuses } from './schema/tickets-schema';
+import { userStatuses } from './schema/user-status-schema';
+import { seedAdmins } from './seed-admins';
+import { seedAuditCatalogue } from './seed-audit';
 
 // Matches apps/mobile/src/data/categories.ts exactly (id -> key) — see
 // docs/features/report-a-request.md BR-1 (the 8 citizen categories) and BR-2
@@ -81,6 +84,14 @@ const TICKET_CATEGORIES = [
   { key: 'feature_request', label: 'Feature Request' },
   { key: 'complaint', label: 'Complaint' },
   { key: 'other', label: 'Other' },
+] as const;
+
+// Account suspension (db/schema/user-status-schema.ts). Absence of a
+// user_account_status row already means 'active', so the 'active' row exists
+// for the un-suspend path to write back to — not because anyone starts in it.
+const USER_STATUSES = [
+  { key: 'active', label: 'Active', sortOrder: 10 },
+  { key: 'suspended', label: 'Suspended', sortOrder: 20 },
 ] as const;
 
 const TICKET_STATUSES = [
@@ -176,8 +187,28 @@ async function seed() {
       });
   }
 
+  for (const status of USER_STATUSES) {
+    await db
+      .insert(userStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: userStatuses.key,
+        set: { label: status.label, sortOrder: status.sortOrder, updatedAt: sql`now()` },
+      });
+  }
+
+  // Admin RBAC master data + the two console accounts. Lives in its own file
+  // because it is the only part of the seed that needs the Better Auth instance
+  // (to hash passwords with the same algorithm sign-in verifies them with).
+  const admin = await seedAdmins();
+
+  // The audit action/target-type catalogue every mutating /admin route resolves
+  // against. Seeded after the admin RBAC rows purely for reading order — it has
+  // no dependency on them.
+  const audit = await seedAuditCatalogue();
+
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, and ${TICKET_STATUSES.length} ticket statuses.`
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${USER_STATUSES.length} user statuses, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, and ${audit.actions} audit actions.`
   );
   process.exit(0);
 }

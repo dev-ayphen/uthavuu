@@ -17,6 +17,7 @@ import { FlaggedCommentsModule } from './flagged-comments/flagged-comments.modul
 import { ImpactStoriesModule } from './impact-stories/impact-stories.module';
 import { SupportModule } from './support/support.module';
 import { AdminModule } from './admin/admin.module';
+import { AccountStatusModule } from './account-status/account-status.module';
 import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
 
@@ -55,6 +56,10 @@ const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'p
     SupportModule,
     AdminModule,
     ...(devOtpFallbackActive ? [DevModule] : []),
+    // LAST, and that matters: it registers the global SuspendedAccountGuard,
+    // which must run after AuthModule's own APP_GUARD has resolved the session
+    // onto the request. See account-status.module.ts for what happens otherwise.
+    AccountStatusModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_PIPE, useClass: ZodValidationPipe }],

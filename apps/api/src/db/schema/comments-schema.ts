@@ -31,6 +31,28 @@ export const reportComments = pgTable(
     // identity is removed, never the body.
     authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
     body: text('body').notNull(),
+    // Moderation removal, added deliberately for the admin console's comment
+    // moderation — CLAUDE.md's rule is soft-delete only where a feature needs
+    // it, and this one does, for two specific reasons a hard DELETE would break:
+    //
+    //   1. report_comment_flags CASCADEs on comment_id. Hard-deleting a comment
+    //      to resolve a flag would destroy the flag row along with it — and the
+    //      flagger's Profile -> Flagged Comments screen reads through that row
+    //      (CommentsService.listMyFlags()). Their flag would vanish rather than
+    //      show "Action Taken", which is the one moderation outcome a citizen
+    //      can see today.
+    //   2. A moderation decision has to stay reviewable. The audit log stores
+    //      the body in its `before` snapshot, but the row itself staying put is
+    //      what lets a flag, its comment and the action taken be read together.
+    //
+    // Every citizen-facing read filters this out, so a removed comment is gone
+    // from the public thread exactly as a hard delete would have made it.
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    // The admin who removed it. SET NULL for the same reason reports.deletedBy
+    // is: this is an audit breadcrumb, not a dependency, and it must never block
+    // deletion of the account it points at. The durable record of who did it
+    // lives in admin_audit_logs, which snapshots the actor's identity.
+    deletedBy: text('deleted_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index('report_comments_report_id_idx').on(table.reportId)]
