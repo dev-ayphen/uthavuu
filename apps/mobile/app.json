@@ -12,6 +12,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.uthavu.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Uthavu needs your location to show help requests near you and to attach a location to reports you post.",
         "NSCameraUsageDescription": "Uthavu needs camera access so you can attach a live photo as proof when reporting a request."

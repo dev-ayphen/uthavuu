@@ -303,13 +303,6 @@ export default function ProfileScreen() {
       {/* Menu List */}
       <Text style={styles.sectionTitle}>Menu</Text>
       <View style={styles.menuCard}>
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MyReports')}>
-          <FileText size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>My Reports</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
         <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MissionJournal')}>
           <BookOpen size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>Mission Journal (My Activity)</Text>
@@ -334,17 +327,6 @@ export default function ProfileScreen() {
 
         <View style={styles.cardDivider} />
 
-        <TouchableOpacity
-          style={styles.menuRow}
-          onPress={() => navigation.dispatch(CommonActions.navigate({ name: 'MyHelpsTab' }))}
-        >
-          <Clock size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>My Active Helps</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
         <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('SavedStories')}>
           <Bookmark size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>Saved Stories</Text>
@@ -353,7 +335,7 @@ export default function ProfileScreen() {
 
         <View style={styles.cardDivider} />
 
-        <TouchableOpacity style={styles.menuRow} onPress={() => setSupportModalOpen(true)}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('SupportHome')}>
           <HelpCircle size={18} color={colors.textSecondary} />
           <Text style={styles.menuText}>Help & Support / Submit Ticket</Text>
           <ChevronRight size={16} color={colors.textSecondary} />

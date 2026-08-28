@@ -22,6 +22,7 @@ export type ReportDraft = {
   anonymous: boolean;
   phoneVisible: boolean;
   neededVolunteers: number;
+  customExpiryHours: number | null;
 };
 
 // BR-2's default expiry is stored in minutes; this is purely a display label
@@ -46,4 +47,5 @@ export const EMPTY_DRAFT: ReportDraft = {
   anonymous: false,
   phoneVisible: false,
   neededVolunteers: 1,
+  customExpiryHours: null,
 };

@@ -27,6 +27,8 @@ export type RootStackParamList = {
   MissionJournal: undefined;
   FlaggedComments: undefined;
   MyImpactStories: undefined;
+  SupportHome: undefined;
+  SubmitTicket: undefined;
   MyTickets: undefined;
   Legal: { topic: 'terms' | 'privacy' | 'guidelines' };
   DeleteAccount: undefined;

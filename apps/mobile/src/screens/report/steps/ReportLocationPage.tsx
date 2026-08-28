@@ -28,6 +28,8 @@ type Props = {
   onToggleAnonymous: (v: boolean) => void;
   onTogglePhoneVisible: (v: boolean) => void;
   onToggleConfirmed?: (v: boolean) => void;
+  customExpiryHours: number | null;
+  onChangeCustomExpiryHours: (h: number | null) => void;
 };
 
 export default function ReportLocationPage({
@@ -43,6 +45,8 @@ export default function ReportLocationPage({
   onToggleAnonymous,
   onTogglePhoneVisible,
   onToggleConfirmed,
+  customExpiryHours = null,
+  onChangeCustomExpiryHours,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -85,13 +89,47 @@ export default function ReportLocationPage({
 
       {/* ── Expected help window ── */}
       <Text style={styles.label}>Expected help window</Text>
-      <Text style={styles.helpWindowCaption}>How long this request stays open to volunteers.</Text>
-      <View style={styles.helpWindowBox}>
-        <Text style={styles.helpWindowText}>
-          {category
-            ? `Open for ${formatExpiryMinutes(category.defaultExpiryMinutes)}`
-            : "Pick a category first — it sets how long this request stays open."}
-        </Text>
+      <Text style={styles.helpWindowCaption}>
+        {category
+          ? `Default: Open for ${formatExpiryMinutes(category.defaultExpiryMinutes)}. Override below if needed.`
+          : 'Set a custom duration or pick a category to use its default.'}
+      </Text>
+
+      {/* Quick preset chips */}
+      <View style={styles.expiryChipRow}>
+        {[1, 2, 4, 6, 12, 24].map((h) => {
+          const active = customExpiryHours === h;
+          return (
+            <TouchableOpacity
+              key={h}
+              style={[styles.expiryChip, active && styles.expiryChipActive]}
+              onPress={() => onChangeCustomExpiryHours(active ? null : h)}
+            >
+              <Text style={[styles.expiryChipText, active && styles.expiryChipTextActive]}>
+                {h}h
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Manual hour entry */}
+      <View style={styles.expiryInputRow}>
+        <Text style={styles.expiryInputLabel}>Or type hours:</Text>
+        <TextInput
+          style={styles.expiryInput}
+          value={customExpiryHours != null ? String(customExpiryHours) : ''}
+          onChangeText={(v) => {
+            const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
+            onChangeCustomExpiryHours(isNaN(num) ? null : Math.max(1, Math.min(720, num)));
+          }}
+          keyboardType="number-pad"
+          maxLength={3}
+          placeholder="e.g. 48"
+          placeholderTextColor={colors.textSecondary}
+          returnKeyType="done"
+        />
+        <Text style={styles.expiryUnit}>hours</Text>
       </View>
 
       {/* ── Privacy & Notifications ── */}
@@ -208,6 +246,49 @@ const createStyles = (colors: ColorScheme) =>
       backgroundColor: colors.bgElevated,
     },
     helpWindowText: { ...TYPE.body, color: colors.textSecondary, lineHeight: 18 },
+
+    // Expiry hour selector
+    expiryChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: SPACING.xs },
+    expiryChip: {
+      paddingHorizontal: SPACING.sm,
+      height: 36,
+      borderRadius: RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    expiryChipActive: {
+      borderColor: colors.primaryGreen,
+      backgroundColor: colors.primaryGreenLight,
+    },
+    expiryChipText: { ...TYPE.footnote, fontWeight: '700', color: colors.textSecondary },
+    expiryChipTextActive: { color: colors.primaryGreen },
+    expiryInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      marginTop: SPACING.xs,
+      padding: SPACING.sm,
+      backgroundColor: colors.bgElevated,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    expiryInputLabel: { ...TYPE.footnote, color: colors.textSecondary, flex: 1 },
+    expiryInput: {
+      width: 60,
+      height: 36,
+      borderWidth: 1.5,
+      borderColor: colors.primaryGreen,
+      borderRadius: RADIUS.md,
+      backgroundColor: colors.bg,
+      textAlign: 'center',
+      ...TYPE.bodyStrong,
+      color: colors.primaryGreen,
+    },
+    expiryUnit: { ...TYPE.footnote, color: colors.textSecondary },
 
     sectionTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.xs },
 

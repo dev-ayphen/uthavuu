@@ -23,6 +23,8 @@ import EditReportScreen from '../screens/report/EditReportScreen';
 import MissionJournalScreen from '../screens/MissionJournalScreen';
 import FlaggedCommentsScreen from '../screens/FlaggedCommentsScreen';
 import MyImpactStoriesScreen from '../screens/MyImpactStoriesScreen';
+import SupportHomeScreen from '../screens/SupportHomeScreen';
+import SubmitTicketScreen from '../screens/SubmitTicketScreen';
 import MyTicketsScreen from '../screens/MyTicketsScreen';
 import LegalScreen from '../screens/LegalScreen';
 import DeleteAccountScreen from '../screens/DeleteAccountScreen';
@@ -44,6 +46,8 @@ const linking = {
       InviteFriends: 'invite',
       FlaggedComments: 'flagged-comments',
       MyImpactStories: 'impact-stories',
+      SupportHome: 'support',
+      SubmitTicket: 'support/submit',
       MyTickets: 'tickets',
     },
   },
@@ -138,6 +142,16 @@ export default function RootNavigator() {
         <Stack.Screen
           name="MyImpactStories"
           component={MyImpactStoriesScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="SupportHome"
+          component={SupportHomeScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="SubmitTicket"
+          component={SubmitTicketScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

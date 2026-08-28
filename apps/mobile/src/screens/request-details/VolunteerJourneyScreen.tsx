@@ -120,9 +120,16 @@ export default function VolunteerJourneyScreen({ route }: Props) {
         {/* ① Status Banner */}
         {isCompleted ? (
           <View style={[styles.bannerCard, styles.bannerCompleted]}>
-            <CheckCircle2 size={20} color="#15803D" />
+            <View style={styles.completedBadgeIcon}>
+              <CheckCircle2 size={22} color="#15803D" />
+            </View>
             <View style={styles.bannerBody}>
-              <Text style={[styles.bannerTitle, { color: '#15803D' }]}>Mission Completed ✅</Text>
+              <View style={styles.bannerHeaderTitleRow}>
+                <Text style={[styles.bannerTitle, { color: '#15803D' }]}>Mission Completed</Text>
+                <View style={styles.completedCheckTag}>
+                  <Text style={styles.completedCheckTagText}>✓</Text>
+                </View>
+              </View>
               <Text style={styles.bannerSubtitle}>
                 {roster.completion
                   ? `Completed on ${new Date(roster.completion.verifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
@@ -172,23 +179,23 @@ export default function VolunteerJourneyScreen({ route }: Props) {
 
         {/* ③ Mission Details Card */}
         <View style={styles.card}>
-          <Text style={styles.categoryText}>
-            {report.category.emoji} {report.category.label}
-          </Text>
+          <View style={styles.categoryPillHeader}>
+            <Text style={styles.categoryText}>
+              {report.category.emoji} {report.category.label}
+            </Text>
+          </View>
           <Text style={styles.reportTitle}>{report.title}</Text>
           {report.landmark && (
             <View style={styles.locationRow}>
-              <MapPin size={ICON_SIZE.sm} color={colors.textSecondary} />
+              <MapPin size={16} color={colors.textSecondary} />
               <Text style={styles.locationText}>{report.landmark}</Text>
             </View>
           )}
-          <Button
-            label={t('journeyNavigateViaMaps')}
-            variant="secondary"
-            icon={<Navigation size={ICON_SIZE.sm} color={colors.primaryGreen} />}
-            onPress={onNavigate}
-            style={styles.navigateButton}
-          />
+
+          <TouchableOpacity style={styles.navGoogleBtn} onPress={onNavigate} activeOpacity={0.8}>
+            <Navigation size={18} color={colors.primaryGreen} />
+            <Text style={styles.navGoogleBtnText}>Navigate via Google Maps</Text>
+          </TouchableOpacity>
 
           <View style={styles.divider} />
 
@@ -202,38 +209,36 @@ export default function VolunteerJourneyScreen({ route }: Props) {
           <View style={styles.teamRow}>
             {report.reporter && (
               <View style={[styles.teamChip, styles.teamChipReporter]}>
-                <Avatar uri={report.reporter.avatarUrl} label={report.reporter.name} size={22} />
-                <Text style={styles.teamChipText} numberOfLines={1}>
+                <Avatar uri={report.reporter.avatarUrl} label={report.reporter.name} size={20} />
+                <Text style={styles.teamChipTextReporter} numberOfLines={1}>
                   {report.reporter.name} (Reporter)
                 </Text>
               </View>
             )}
             {report.reporterDeleted && (
               <View style={[styles.teamChip, styles.teamChipReporter]}>
-                <Avatar uri={null} label={t('deletedUserLabel')} size={22} />
-                <Text style={styles.teamChipText} numberOfLines={1}>
+                <Avatar uri={null} label={t('deletedUserLabel')} size={20} />
+                <Text style={styles.teamChipTextReporter} numberOfLines={1}>
                   {t('deletedUserLabel')} (Reporter)
                 </Text>
               </View>
             )}
-            {roster.volunteers.map((v) => (
-              <View key={v.id} style={[styles.teamChip, v.status === 'released' && styles.teamChipReleased]}>
-                <Avatar uri={v.volunteerDeleted ? null : v.avatarUrl} label={v.volunteerDeleted ? t('deletedUserLabel') : v.name} size={22} />
-                <Text style={styles.teamChipText} numberOfLines={1}>
-                  {v.volunteerDeleted ? t('deletedUserLabel') : v.name}{' '}
-                  {v.status === 'active'
-                    ? `🟢${v.progressStatus ? ` ${v.progressStatus.label}` : ''}`
-                    : v.status === 'released'
-                      ? '(Left)'
-                      : '(Joined)'}
-                </Text>
-              </View>
-            ))}
+            {roster.volunteers
+              .filter((v) => !report.reporter || v.name !== report.reporter.name)
+              .map((v) => (
+                <View key={v.id} style={[styles.teamChip, v.status === 'released' && styles.teamChipReleased]}>
+                  <Avatar uri={v.volunteerDeleted ? null : v.avatarUrl} label={v.volunteerDeleted ? t('deletedUserLabel') : v.name} size={20} />
+                  <Text style={[styles.teamChipText, v.status === 'released' && styles.teamChipTextReleased]} numberOfLines={1}>
+                    {v.volunteerDeleted ? t('deletedUserLabel') : v.name}
+                    {v.status === 'released' ? ' (Left)' : ''}
+                  </Text>
+                  {v.status === 'active' && <View style={styles.activeVolDot} />}
+                </View>
+              ))}
           </View>
         </View>
 
-        {/* ⑤ Progress Status Update — real, server-persisted, visible to the
-            whole team (not local-only UI state) */}
+        {/* ⑤ Progress Status Update */}
         {roster.myStatus === 'active' && !isCompleted && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>{t('journeyProgressTitle')}</Text>
@@ -330,9 +335,9 @@ const createStyles = (colors: ColorScheme) =>
     bannerCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.xs,
+      gap: SPACING.sm,
       padding: SPACING.md,
-      borderRadius: RADIUS.lg,
+      borderRadius: RADIUS.xl,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
@@ -343,7 +348,34 @@ const createStyles = (colors: ColorScheme) =>
     },
     bannerCompleted: {
       backgroundColor: '#DCFCE7',
-      borderColor: '#BBF7D0',
+      borderColor: '#86EFAC',
+      borderWidth: 1,
+    },
+    completedBadgeIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bannerHeaderTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    completedCheckTag: {
+      backgroundColor: '#16A34A',
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    completedCheckTagText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '900',
     },
     dot: {
       width: 10,
@@ -357,7 +389,7 @@ const createStyles = (colors: ColorScheme) =>
 
     timerBox: {
       padding: SPACING.md,
-      borderRadius: RADIUS.lg,
+      borderRadius: RADIUS.xl,
       backgroundColor: TONES.soon.fill,
       borderWidth: 1,
       borderColor: TONES.soon.border,
@@ -379,29 +411,54 @@ const createStyles = (colors: ColorScheme) =>
 
     card: {
       padding: SPACING.md,
-      borderRadius: RADIUS.lg,
+      borderRadius: RADIUS.xl,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    categoryText: { ...TYPE.captionStrong, color: colors.textSecondary, marginBottom: SPACING.xxs },
-    reportTitle: { ...TYPE.title, color: colors.textPrimary, marginBottom: SPACING.xs },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, marginBottom: SPACING.sm },
+    categoryPillHeader: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: SPACING.xs,
+      paddingVertical: 2,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: SPACING.xs,
+    },
+    categoryText: { ...TYPE.captionStrong, color: colors.textSecondary },
+    reportTitle: { ...TYPE.title, color: colors.textPrimary, fontSize: 18, lineHeight: 24, marginBottom: SPACING.xs },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.md },
     locationText: { ...TYPE.body, color: colors.textSecondary },
-    navigateButton: { marginBottom: SPACING.md },
-    divider: { height: 1, backgroundColor: colors.border, marginBottom: SPACING.sm },
+    navGoogleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      borderRadius: RADIUS.pill,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+      marginBottom: SPACING.md,
+    },
+    navGoogleBtnText: {
+      ...TYPE.bodyStrong,
+      color: colors.textPrimary,
+    },
+    divider: { height: 1, backgroundColor: colors.border, marginBottom: SPACING.md },
 
-    teamHeaderRow: { marginBottom: SPACING.xs },
+    teamHeaderRow: { marginBottom: SPACING.sm },
     teamLabel: { ...TYPE.subheadStrong, color: colors.textPrimary },
-    teamRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
+    teamRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     teamChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.xs,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs,
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
       borderRadius: RADIUS.pill,
-      backgroundColor: colors.bg,
+      backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -409,8 +466,21 @@ const createStyles = (colors: ColorScheme) =>
       backgroundColor: colors.primaryGreenLight,
       borderColor: colors.primaryGreen,
     },
-    teamChipReleased: { opacity: 0.5 },
-    teamChipText: { ...TYPE.caption, color: colors.textPrimary, fontWeight: '600' },
+    teamChipReleased: {
+      backgroundColor: colors.bg,
+      borderColor: colors.border,
+      opacity: 0.7,
+    },
+    teamChipTextReporter: { ...TYPE.captionStrong, color: colors.primaryGreen },
+    teamChipText: { ...TYPE.captionStrong, color: colors.textPrimary },
+    teamChipTextReleased: { color: colors.textSecondary, fontWeight: '400' },
+    activeVolDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primaryGreen,
+      marginLeft: 2,
+    },
 
     sectionTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginBottom: SPACING.xs },
     statusChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginTop: SPACING.xxs },
@@ -432,12 +502,12 @@ const createStyles = (colors: ColorScheme) =>
     chatWrap: {},
     completionNoteBox: {
       padding: SPACING.md,
-      borderRadius: RADIUS.lg,
+      borderRadius: RADIUS.xl,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    completionNoteTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginBottom: SPACING.xxs },
+    completionNoteTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginBottom: 4 },
     completionNoteText: { ...TYPE.body, color: colors.textSecondary, fontStyle: 'italic' },
 
     actionsStack: { gap: SPACING.xs },

@@ -141,7 +141,7 @@ export default function OnboardingScreen({ navigation }: Props) {
         {/* Buttons */}
         <View style={styles.buttonStack}>
           <Button
-            label={isLast ? t('getStarted') || 'Get Started →' : t('next') || 'Next →'}
+            label={isLast ? t('getStarted') || 'Get Started' : t('next') || 'Next'}
             onPress={() => (isLast ? finish() : goToSlide(currentSlide + 1))}
           />
         </View>
@@ -173,24 +173,30 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     skipText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
 
     scroll: { flex: 1 },
-    slide: { flex: 1, justifyContent: 'space-between' },
+    slide: { flex: 1 },
 
     heroSection: {
-      flex: 1.3,
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: SPACING.lg,
-      paddingTop: SPACING.md,
+      paddingHorizontal: SPACING.xl,
+      paddingTop: SPACING.sm,
     },
-    heroImage: { width: '100%', height: '90%' },
+    heroImage: {
+      width: '100%',
+      aspectRatio: 1,
+      maxHeight: 280,
+    },
 
     textSection: {
       paddingHorizontal: SPACING.xl,
       alignItems: 'center',
-      marginBottom: SPACING.md,
+      paddingBottom: SPACING.sm,
+      minHeight: 100,
     },
     title: {
-      ...TYPE.pageTitle,
+      ...TYPE.headlineStrong,
+      fontSize: 20,
       color: colors.textPrimary,
       textAlign: 'center',
       fontWeight: '800',
@@ -198,6 +204,7 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     },
     description: {
       ...TYPE.subhead,
+      fontSize: 14,
       color: colors.textSecondary,
       textAlign: 'center',
       lineHeight: 20,

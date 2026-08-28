@@ -52,20 +52,39 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
-    // Auth is bearer-token-only on mobile (see auth.ts's bearer() plugin comment) —
-    // no cookie jar by design. React Native's fetch otherwise auto-stores and
-    // resends any Set-Cookie from Better Auth's session creation via the OS's
-    // shared cookie store, which then trips Better Auth's origin-check middleware
-    // (it only requires an Origin header when a Cookie header is present) — and
-    // native fetch never sends Origin, so that request gets rejected with
-    // "Missing or null Origin". Omitting credentials here stops the cookie from
-    // ever being stored in the first place.
-    credentials: 'omit',
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: isFormData
+        ? (options.body as FormData)
+        : options.body
+          ? JSON.stringify(options.body)
+          : undefined,
+      // Auth is bearer-token-only on mobile (see auth.ts's bearer() plugin
+      // comment) — no cookie jar by design. React Native's fetch otherwise
+      // auto-stores and resends any Set-Cookie from Better Auth's session
+      // creation via the OS's shared cookie store, which then trips Better
+      // Auth's origin-check middleware (it only requires an Origin header when
+      // a Cookie header is present) — and native fetch never sends Origin, so
+      // that request gets rejected with "Missing or null Origin". Omitting
+      // credentials here stops the cookie from ever being stored at all.
+      credentials: 'omit',
+    });
+  } catch {
+    // fetch rejects (rather than resolving with a bad status) when the request
+    // never completed a round trip: API not running, wrong host/port, phone off
+    // the LAN, connection dropped mid-upload. Callers used to see this as a bare
+    // TypeError and fall back to a generic message, which made a dead server and
+    // a rejected file indistinguishable — status 0 marks it as "never reached
+    // the server" so they can say so.
+    throw new ApiError(
+      0,
+      `Could not reach the server at ${BASE_URL}. Check that the API is running and the device is on the same network.`,
+      'NETWORK_UNREACHABLE'
+    );
+  }
 
   if (res.status === 202 || res.status === 204) {
     return undefined as T;

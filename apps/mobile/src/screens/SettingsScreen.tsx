@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Bell, Check, ChevronRight, FileText, Info, Languages, Laptop, Moon, Sun, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
+import {
+  getNotificationPermission,
+  type PermissionState,
+} from '@uthavu/libs-mobile/lib/notifications';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -59,13 +62,13 @@ export default function SettingsScreen({ navigation }: Props) {
     onSuccess: (updated) => queryClient.setQueryData(['me'], updated),
   });
 
-  const [notifStatus, setNotifStatus] = useState<Notifications.PermissionStatus | null>(null);
+  const [notifStatus, setNotifStatus] = useState<PermissionState | null>(null);
 
   useEffect(() => {
-    Notifications.getPermissionsAsync().then((res) => setNotifStatus(res.status));
+    getNotificationPermission().then(setNotifStatus);
   }, []);
 
-  const notifGranted = notifStatus === Notifications.PermissionStatus.GRANTED;
+  const notifGranted = notifStatus === 'granted';
   const appVersion = Constants.expoConfig?.version ?? '—';
   const appName = Constants.expoConfig?.name ?? 'Uthavu';
 
@@ -221,51 +224,53 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     content: {
-      padding: SPACING.xl,
-      paddingTop: insets.top + SPACING.md,
-      paddingBottom: insets.bottom + SPACING.xl,
+      paddingHorizontal: SPACING.md,
+      paddingTop: insets.top + SPACING.xs,
+      paddingBottom: insets.bottom + SPACING.lg,
     },
-    backButton: { marginBottom: SPACING.sm },
-    title: { ...TYPE.pageTitle, color: colors.textPrimary, marginBottom: SPACING.lg },
+    backButton: { marginBottom: SPACING.xs },
+    title: { ...TYPE.headlineStrong, fontSize: 20, color: colors.textPrimary, marginBottom: SPACING.xs },
     sectionLabel: {
-      ...TYPE.footnote,
+      ...TYPE.microLabel,
+      fontSize: 10,
       color: colors.textSecondary,
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: SPACING.xs,
-      marginTop: SPACING.lg,
+      letterSpacing: 0.8,
+      marginBottom: 4,
+      marginTop: SPACING.sm + 2,
     },
     card: {
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: RADIUS.xl,
+      borderRadius: RADIUS.lg,
       overflow: 'hidden',
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.sm,
-      padding: SPACING.sm + 2,
+      gap: SPACING.xs + 2,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs + 2,
     },
     rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
     iconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: RADIUS.md,
+      width: 28,
+      height: 28,
+      borderRadius: RADIUS.sm,
       backgroundColor: colors.bg,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    rowText: { flex: 1, ...TYPE.subheadStrong, color: colors.textPrimary },
+    rowText: { flex: 1, ...TYPE.footnote, fontSize: 13, fontWeight: '600', color: colors.textPrimary },
     rowTextGroup: { flex: 1 },
-    rowSubtext: { ...TYPE.caption, color: colors.textSecondary, marginTop: 2 },
-    inlineButton: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm },
-    toggleRow: { paddingHorizontal: SPACING.sm + 2, paddingVertical: SPACING.sm + 2 },
+    rowSubtext: { ...TYPE.microLabel, color: colors.textSecondary, marginTop: 1 },
+    inlineButton: { paddingVertical: 4, paddingHorizontal: SPACING.xs },
+    toggleRow: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs + 2 },
     dangerIconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: RADIUS.md,
+      width: 28,
+      height: 28,
+      borderRadius: RADIUS.sm,
       backgroundColor: colors.bg,
       justifyContent: 'center',
       alignItems: 'center',

@@ -82,10 +82,12 @@ export default function InviteFriendsScreen(_props: Props) {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.heroCard}>
             <View style={styles.heroIconWrap}>
-              <Gift size={ICON_SIZE.lg} color={colors.textOnTint} />
+              <Gift size={20} color={colors.textOnTint} />
             </View>
-            <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
-            <Text style={styles.heroSubtitle}>{t('heroSubtitle')}</Text>
+            <View style={styles.heroTextBlock}>
+              <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
+              <Text style={styles.heroSubtitle}>{t('heroSubtitle')}</Text>
+            </View>
           </View>
 
           <Text style={styles.sectionLabel}>{t('codeLabel')}</Text>
@@ -154,72 +156,75 @@ export default function InviteFriendsScreen(_props: Props) {
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: SIZES.padding, paddingBottom: SPACING.xxxl, gap: SPACING.md },
-    skeletonBlock: { marginTop: SPACING.sm },
+    content: { padding: SIZES.padding, paddingBottom: SPACING.xl, gap: SPACING.sm },
+    skeletonBlock: { marginTop: SPACING.xs },
     heroCard: {
       alignItems: 'center',
-      padding: SPACING.xl,
+      paddingVertical: SPACING.md,
+      paddingHorizontal: SPACING.md,
       borderRadius: RADIUS.xl,
       backgroundColor: colors.textPrimary,
-      gap: SPACING.xs,
+      gap: 4,
+      flexDirection: 'row',
     },
     heroIconWrap: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: colors.primaryGreen,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: SPACING.xs,
+      marginRight: SPACING.sm,
+      flexShrink: 0,
     },
-    heroTitle: { ...TYPE.title, color: colors.textOnTint, textAlign: 'center' },
-    heroSubtitle: { ...TYPE.body, color: colors.textOnTint, textAlign: 'center', opacity: 0.85 },
+    heroTextBlock: { flex: 1 },
+    heroTitle: { ...TYPE.subheadStrong, fontSize: 14, color: colors.textOnTint },
+    heroSubtitle: { ...TYPE.caption, color: colors.textOnTint, opacity: 0.85, marginTop: 1 },
     sectionLabel: { ...TYPE.captionStrong, color: colors.textSecondary },
     codeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
     codeBox: {
       flex: 1,
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.md,
-      borderRadius: RADIUS.lg,
+      paddingVertical: SPACING.xs + 2,
+      paddingHorizontal: SPACING.sm,
+      borderRadius: RADIUS.md,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    codeText: { ...TYPE.headlineStrong, color: colors.textPrimary, letterSpacing: 2 },
-    copyCodeButton: { paddingHorizontal: SPACING.sm },
+    codeText: { ...TYPE.bodyStrong, color: colors.textPrimary, letterSpacing: 1.5, fontSize: 14 },
+    copyCodeButton: { paddingHorizontal: SPACING.xs },
     linkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
     linkText: {
       flex: 1,
-      ...TYPE.body,
+      ...TYPE.caption,
       color: colors.textSecondary,
-      paddingVertical: SPACING.sm,
-      paddingHorizontal: SPACING.md,
-      borderRadius: RADIUS.lg,
+      paddingVertical: SPACING.xs + 2,
+      paddingHorizontal: SPACING.sm,
+      borderRadius: RADIUS.md,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    copyLinkButton: { paddingHorizontal: SPACING.sm },
-    shareButton: { marginTop: SPACING.xs },
+    copyLinkButton: { paddingHorizontal: SPACING.xs },
+    shareButton: { marginTop: 2 },
     errorText: { ...TYPE.caption, color: colors.danger, textAlign: 'center' },
     stepsCard: {
-      marginTop: SPACING.sm,
-      padding: SPACING.md,
+      padding: SPACING.sm,
       borderRadius: RADIUS.lg,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      gap: SPACING.sm,
+      gap: SPACING.xs,
     },
-    stepRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+    stepRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
     stepNumberWrap: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
       backgroundColor: colors.primaryGreenLight,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    stepNumber: { ...TYPE.captionStrong, color: colors.primaryGreen },
-    stepText: { ...TYPE.body, color: colors.textPrimary },
+    stepNumber: { ...TYPE.microLabel, color: colors.primaryGreen, fontSize: 10, fontWeight: '800' },
+    stepText: { ...TYPE.footnote, color: colors.textPrimary },
   });

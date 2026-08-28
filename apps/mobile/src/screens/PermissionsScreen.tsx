@@ -11,7 +11,11 @@ import {
 import { Bell, Check, Lock, MapPin, ShieldCheck } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import {
+  getNotificationPermission,
+  isPushSupported,
+  requestNotificationPermission,
+} from '@uthavu/libs-mobile/lib/notifications';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -43,8 +47,7 @@ export default function PermissionsScreen({ navigation }: Props) {
     (async () => {
       const loc = await Location.getForegroundPermissionsAsync();
       setLocationGranted(loc.status === 'granted');
-      const notif = await Notifications.getPermissionsAsync();
-      setNotificationsGranted(notif.status === 'granted');
+      setNotificationsGranted((await getNotificationPermission()) === 'granted');
     })();
   }, []);
 
@@ -67,8 +70,7 @@ export default function PermissionsScreen({ navigation }: Props) {
   const requestNotifications = async () => {
     setNotifRequesting(true);
     try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      setNotificationsGranted(status === 'granted');
+      setNotificationsGranted((await requestNotificationPermission()) === 'granted');
     } finally {
       setNotifRequesting(false);
     }
@@ -123,7 +125,7 @@ export default function PermissionsScreen({ navigation }: Props) {
       <TouchableOpacity
         style={[styles.row, notificationsGranted && styles.rowActive]}
         onPress={requestNotifications}
-        disabled={notificationsGranted || notifRequesting}
+        disabled={!isPushSupported || notificationsGranted || notifRequesting}
         accessibilityRole="switch"
         accessibilityState={{ checked: notificationsGranted }}
       >

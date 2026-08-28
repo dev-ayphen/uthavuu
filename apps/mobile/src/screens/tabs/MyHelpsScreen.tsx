@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight, HeartHandshake, MapPin } from 'lucide-react-native';
+import { ArrowRight, CheckCircle2, HeartHandshake, ImageOff, MapPin } from 'lucide-react-native';
 import { useFocusEffect, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -256,6 +256,7 @@ function ImpactStoryCard({
     <TouchableOpacity
       style={styles.storyCard}
       onPress={onPress}
+      activeOpacity={0.88}
       accessibilityRole="button"
       accessibilityLabel={t('myHelps.rowLabel', {
         title: mission.title,
@@ -263,21 +264,49 @@ function ImpactStoryCard({
         status: t('myHelps.tabImpactStories', { count: 0 }),
       })}
     >
+      {/* Hero image or placeholder */}
       {mission.photo ? (
-        <Image source={{ uri: mission.photo }} style={styles.storyPhoto} />
+        <Image source={{ uri: mission.photo }} style={styles.storyHeroImage} />
       ) : (
-        <View style={[styles.storyPhoto, styles.storyPhotoPlaceholder]} />
+        <View style={[styles.storyHeroImage, styles.storyHeroPlaceholder]}>
+          <ImageOff size={28} color={colors.textSecondary} strokeWidth={1.5} />
+        </View>
       )}
+
+      {/* Completed badge top-right */}
+      <View style={styles.storyCompletedBadge}>
+        <CheckCircle2 size={13} color="#16A34A" />
+        <Text style={styles.storyCompletedText}>Completed</Text>
+      </View>
+
+      {/* Card body */}
       <View style={styles.storyBody}>
-        <Text style={styles.cardMetaText}>
-          {mission.category.emoji} {mission.category.label}
-        </Text>
-        <Text style={styles.cardTitle} numberOfLines={2}>
+        {/* Category pill */}
+        <View style={styles.storyCategoryPill}>
+          <Text style={styles.storyCategoryText}>
+            {mission.category.emoji} {mission.category.label}
+          </Text>
+        </View>
+
+        <Text style={styles.storyTitle} numberOfLines={2}>
           {mission.title}
         </Text>
-        <View style={styles.storyLinkRow}>
-          <Text style={styles.storyLinkText}>{t('myHelps.viewStory')}</Text>
-          <ArrowRight size={ICON_SIZE.xs} color={colors.primaryGreen} />
+
+        {mission.landmark ? (
+          <View style={styles.storyLocationRow}>
+            <MapPin size={11} color={colors.textSecondary} />
+            <Text style={styles.storyLocationText} numberOfLines={1}>{mission.landmark}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.storyDivider} />
+
+        <View style={styles.storyFooterRow}>
+          <Text style={styles.storyHelperLabel}>You helped · {formatRelativeTime(mission.joinedAt)}</Text>
+          <View style={styles.storyViewBtn}>
+            <Text style={styles.storyViewBtnText}>View Story</Text>
+            <ArrowRight size={12} color="#FFFFFF" />
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -365,19 +394,71 @@ const createStyles = (colors: ColorScheme) =>
       minHeight: 28,
     },
     storyCard: {
-      flexDirection: 'row',
-      gap: SPACING.xs,
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: RADIUS.lg,
-      padding: SPACING.xs,
+      borderRadius: RADIUS.xl,
+      overflow: 'hidden',
     },
-    storyPhoto: { width: 54, height: 54, borderRadius: RADIUS.sm },
-    storyPhotoPlaceholder: { backgroundColor: colors.border },
-    storyBody: { flex: 1, justifyContent: 'center' },
-    storyLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-    storyLinkText: { ...TYPE.microLabel, color: colors.primaryGreen, fontWeight: '700' },
+    storyHeroImage: {
+      width: '100%',
+      height: 148,
+    },
+    storyHeroPlaceholder: {
+      backgroundColor: colors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    storyCompletedBadge: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#F0FDF4',
+      borderWidth: 1,
+      borderColor: '#86EFAC',
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    storyCompletedText: {
+      ...TYPE.microLabel,
+      color: '#16A34A',
+      fontWeight: '700',
+      fontSize: 10,
+    },
+    storyBody: {
+      padding: SPACING.sm,
+    },
+    storyCategoryPill: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      marginBottom: 6,
+    },
+    storyCategoryText: { ...TYPE.microLabel, color: colors.textSecondary, fontSize: 10.5, fontWeight: '600' },
+    storyTitle: { ...TYPE.bodyStrong, fontSize: 14.5, color: colors.textPrimary, marginBottom: 4, lineHeight: 20 },
+    storyLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
+    storyLocationText: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
+    storyDivider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
+    storyFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    storyHelperLabel: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
+    storyViewBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.primaryGreen,
+      borderRadius: RADIUS.pill,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+    },
+    storyViewBtnText: { ...TYPE.caption, fontSize: 11.5, color: '#FFFFFF', fontWeight: '700' },
     empty: { alignItems: 'center', paddingTop: SPACING.xl, gap: SPACING.xs, paddingHorizontal: SPACING.lg },
     emptyTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginTop: SPACING.xs },
     emptySubtitle: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center' },
