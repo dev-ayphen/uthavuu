@@ -100,3 +100,64 @@ export function renderAlert(type: AlertType, params: AlertParams, locale: AlertL
   const template = catalog[type];
   return { title: template.title, body: template.body(params, catalog.anonymousVolunteer) };
 }
+
+// ─── BROADCASTS ─────────────────────────────────────────────────────────────
+//
+// Everything above renders GENERATED prose: a fixed template per (type, locale)
+// with `params` interpolated in. A broadcast is the opposite — the prose is
+// typed by a member of staff in the admin console, so there is no template to
+// look up and nothing to interpolate. What has to happen at render time is a
+// per-field CHOICE between two stored columns.
+//
+// WHY 'broadcast' IS NOT A MEMBER OF `AlertType`. `AlertType` is the set of tags
+// `renderAlert()` can render, and `TEMPLATES` is exhaustive over it — that
+// exhaustiveness is what makes adding a type without adding its Tamil copy a
+// compile error, which is worth more than having one union that lists every
+// string the `alerts.type` column can hold. `alerts.type` is plain text with no
+// FK (alerts-schema.ts) precisely because it is an event-log discriminator, so
+// a tag that no template covers is a legitimate value, not a hole. Keeping the
+// two apart also means AlertsService.create() — the templated path, on which
+// five existing call sites depend — needs no change at all.
+export const BROADCAST_ALERT_TYPE = 'broadcast';
+
+/** The stored bilingual copy a broadcast renders from. */
+export type BroadcastAlertCopy = {
+  titleEn: string;
+  bodyEn: string;
+  titleTa: string | null;
+  bodyTa: string | null;
+};
+
+/**
+ * Picks the copy one recipient sees, PER FIELD.
+ *
+ * Per-field rather than per-row: a half-translated broadcast (Tamil headline
+ * over an English body, or the reverse) renders each field in the best language
+ * it actually has, instead of discarding a real translation because its sibling
+ * column is empty. Only `ta` has anything to fall back from; every other locale
+ * resolves to English, which is the column that is NOT NULL.
+ *
+ * Never throws, for the reason `renderAlert` gives: a notice shown in the wrong
+ * language is a bad experience, a notice that fails to send because a stale
+ * locale string reached the renderer is a worse one — and this is an emergency
+ * product, so the failure mode of "did not send" is the expensive one.
+ *
+ * NOTE ON WHY THIS DUPLICATES updates/update-locale.ts's `pickCopy`. That helper
+ * answers the same question for announcements and is deliberately not imported
+ * here (nor this one there): its locale union belongs to a citizen READ path
+ * that resolves on every request, this one belongs to push rendering that
+ * resolves ONCE, at fan-out, and is then frozen into an `alerts` row. Tying them
+ * together would couple a notification's permanent stored text to a read-time
+ * display concern. What must not drift is the SET of locales, and that is pinned
+ * by `user.locale`'s own contract, not by either helper.
+ */
+export function renderBroadcastAlert(
+  copy: BroadcastAlertCopy,
+  locale: AlertLocale = DEFAULT_ALERT_LOCALE,
+): RenderedAlert {
+  const tamil = locale === 'ta';
+  return {
+    title: tamil && copy.titleTa !== null ? copy.titleTa : copy.titleEn,
+    body: tamil && copy.bodyTa !== null ? copy.bodyTa : copy.bodyEn,
+  };
+}

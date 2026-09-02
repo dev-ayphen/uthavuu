@@ -60,37 +60,4 @@ export class AdminService {
       permissions: permissionRows.map((p) => p.key),
     };
   }
-
-  /**
-   * The console's Admins tab (docs/webadmin/09-admins-and-audit.md). Gated on
-   * `platform:manage` at the route, which is the server-side fix for that
-   * document's gap #2 — in the prototype an Ops Moderator, or an unauthenticated
-   * visitor, could open this tab and create a Super Admin.
-   *
-   * Returns no credential material: there is nothing password-shaped on `user`
-   * to leak (hashes live on `account`), and this query never touches that table.
-   */
-  async listAdmins() {
-    const rows = await db
-      .select({
-        userId: adminUsers.userId,
-        name: user.name,
-        email: user.email,
-        roleKey: adminRoles.key,
-        roleLabel: adminRoles.label,
-        createdAt: adminUsers.createdAt,
-      })
-      .from(adminUsers)
-      .innerJoin(user, eq(adminUsers.userId, user.id))
-      .innerJoin(adminRoles, eq(adminUsers.roleId, adminRoles.id))
-      .orderBy(asc(adminRoles.key), asc(user.email));
-
-    return rows.map((row) => ({
-      userId: row.userId,
-      name: row.name,
-      email: row.email,
-      role: { key: row.roleKey, label: row.roleLabel },
-      createdAt: row.createdAt.toISOString(),
-    }));
-  }
 }

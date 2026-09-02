@@ -16,8 +16,12 @@ import { SavedReportsModule } from './saved-reports/saved-reports.module';
 import { FlaggedCommentsModule } from './flagged-comments/flagged-comments.module';
 import { ImpactStoriesModule } from './impact-stories/impact-stories.module';
 import { SupportModule } from './support/support.module';
+import { UpdatesModule } from './updates/updates.module';
+import { SponsorsModule } from './sponsors/sponsors.module';
 import { AdminModule } from './admin/admin.module';
 import { AccountStatusModule } from './account-status/account-status.module';
+import { PlatformConfigModule } from './config/platform-config.module';
+import { MaintenanceModule } from './config/maintenance.module';
 import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
 
@@ -54,8 +58,19 @@ const devOtpFallbackActive = !hasMsg91Credentials && process.env.NODE_ENV !== 'p
     FlaggedCommentsModule,
     ImpactStoriesModule,
     SupportModule,
+    UpdatesModule,
+    SponsorsModule,
+    PlatformConfigModule,
     AdminModule,
     ...(devOtpFallbackActive ? [DevModule] : []),
+    // Registers the global MaintenanceGuard (maintenance_mode / read_only_mode).
+    // Placed here for the same enhancer-order reason AccountStatusModule is
+    // last — a global guard registered in an imported module runs after
+    // AuthModule's own APP_GUARD rather than before it. This guard does not
+    // read the session, so the order is not load-bearing for correctness; it is
+    // registered the same way so there is one pattern for "global guard" in
+    // this codebase rather than two that look interchangeable.
+    MaintenanceModule,
     // LAST, and that matters: it registers the global SuspendedAccountGuard,
     // which must run after AuthModule's own APP_GUARD has resolved the session
     // onto the request. See account-status.module.ts for what happens otherwise.

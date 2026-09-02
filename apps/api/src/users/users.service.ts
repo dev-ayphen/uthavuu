@@ -8,10 +8,26 @@ import type { CompleteProfileDto } from './dto/complete-profile.dto';
 import type { UpdateRadiusDto } from './dto/update-radius.dto';
 import type { UpdateLocaleDto } from './dto/update-locale.dto';
 import type { UpdatePrivacyDto } from './dto/update-privacy.dto';
+import { assertStoredUpload } from '../uploads/stored-upload';
 
 @Injectable()
 export class UsersService {
   async completeProfile(userId: string, input: CompleteProfileDto) {
+    // `user.avatar_url` is the third column that takes a photo URL straight
+    // from the client, and it had exactly the hole `report_photos.url` did:
+    // the DTO runs `z.string().url()`, a syntax check that
+    // `http://evil.com/tracker.png` passes. An avatar is rendered wherever a
+    // person appears — the mission roster, comment threads, the profile screen
+    // — so a poisoned one is fetched by more devices than a report photo, not
+    // fewer. Same shared predicate as reports and mission completions; see
+    // ../uploads/stored-upload.ts.
+    if (input.avatarUrl !== undefined) {
+      assertStoredUpload(
+        input.avatarUrl,
+        'Your profile photo must be one uploaded through this app.',
+      );
+    }
+
     // Optional fields (BR-5) only overwrite the column when the client actually
     // sent one — never null out an already-saved value just because a later
     // PATCH call omitted it.
@@ -87,9 +103,9 @@ export class UsersService {
   //    a completion record, comment, or chat message is preserved for other
   //    participants' context; only the identity is removed, never the body.
   //
-  // Everything else — session, account, report_likes, report_saves,
-  // report_comment_flags, devices, support_tickets — is personal, not
-  // community-authored, and stays a hard ON DELETE CASCADE.
+  // Everything else — session, account, report_saves, report_comment_flags,
+  // devices, support_tickets — is personal, not community-authored, and stays
+  // a hard ON DELETE CASCADE.
   //
   // Wrapped in one transaction: the report classification + volunteer
   // release + final user delete must all commit together or not at all.

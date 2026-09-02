@@ -47,7 +47,7 @@ jest.mock('../db', () => {
 });
 
 import { db } from '../db';
-import { user } from '../db/schema/auth-schema';
+import { session, user } from '../db/schema/auth-schema';
 import {
   reportCategories,
   reportStatuses,
@@ -77,6 +77,7 @@ describe('AdminDashboardService', () => {
     admin: uuidv7(),
     category: uuidv7(),
     openStatus: uuidv7(),
+    closedStatus: uuidv7(),
     joinedStatus: uuidv7(),
     activeStatus: uuidv7(),
     verifiedStatus: uuidv7(),
@@ -120,9 +121,13 @@ describe('AdminDashboardService', () => {
       emoji: '🤝',
       defaultExpiryMinutes: 4320,
     });
-    await db
-      .insert(reportStatuses)
-      .values({ id: ids.openStatus, key: 'open', label: 'Open' });
+    // 'closed' is seeded alongside 'open' because criticalOpen genuinely
+    // depends on report_statuses.key — proving it ignores a closed report needs
+    // a closed report to exist.
+    await db.insert(reportStatuses).values([
+      { id: ids.openStatus, key: 'open', label: 'Open' },
+      { id: ids.closedStatus, key: 'closed', label: 'Closed' },
+    ]);
     await db.insert(missionVolunteerStatuses).values([
       { id: ids.joinedStatus, key: 'joined', label: 'Joined' },
       { id: ids.activeStatus, key: 'active', label: 'Active' },
@@ -159,7 +164,11 @@ describe('AdminDashboardService', () => {
   });
 
   it('starts from a genuinely empty database', async () => {
-    const { generatedAt, ...counters } = await service.counters(query);
+    // `basis` is pulled out and asserted separately: this assertion's job is to
+    // be EXHAUSTIVE over the numbers, so adding a counter without adding it here
+    // fails. Pasting the caveat prose in as well would make it fail on every
+    // wording change instead.
+    const { generatedAt, basis, ...counters } = await service.counters(query);
 
     expect(counters).toEqual({
       totalUsers: 2,
@@ -168,9 +177,16 @@ describe('AdminDashboardService', () => {
       completedToday: 0,
       flaggedCommentsPendingReview: 0,
       flaggedReportsPendingReview: null,
+      activeUsers: 0,
+      criticalOpen: 0,
+      helpsGiven: 0,
+      fieldUpdates: 0,
+      commentsToday: 0,
+      impactStories: 0,
       timeZone: 'Asia/Kolkata',
     });
     expect(Number.isNaN(Date.parse(generatedAt))).toBe(false);
+    expect(basis.activeUsers.windowDays).toBe(30);
   });
 
   it('excludes admin accounts from totalUsers', async () => {
@@ -381,5 +397,234 @@ describe('AdminDashboardService', () => {
   it('stamps generatedAt with a parseable timestamp', async () => {
     const counters = await service.counters(query);
     expect(Number.isNaN(Date.parse(counters.generatedAt))).toBe(false);
+  });
+
+  // ---------------------------------------------------------------------
+  // The counters that used to render as em dashes in the console.
+  // Each test leaves the fixture exactly as it found it, so the ones after it
+  // still start from the state their predecessors built.
+  // ---------------------------------------------------------------------
+
+  it('counts distinct citizens who signed in, once each, staff excluded', async () => {
+    expect((await service.counters(query)).activeUsers).toBe(0);
+
+    const lapsed = uuidv7();
+    await db.insert(user).values({
+      id: lapsed,
+      name: 'Lapsed Citizen',
+      email: 'lapsed@test.local',
+      phoneNumber: '+919000000003',
+    });
+
+    const now = new Date();
+    const week = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const sessionRow = (userId: string, createdAt: Date) => ({
+      id: uuidv7(),
+      userId,
+      token: `tok-${uuidv7()}`,
+      expiresAt: week,
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    await db.insert(session).values([
+      // One citizen, two devices — Better Auth writes a row per sign-in, so
+      // without `count(distinct user_id)` this person would count twice.
+      sessionRow(ids.citizen, now),
+      sessionRow(ids.citizen, now),
+      // Staff, excluded for the same reason totalUsers excludes them.
+      sessionRow(ids.admin, now),
+      // Signed in 31 days ago — one day outside the declared 30-day window.
+      sessionRow(lapsed, new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)),
+    ]);
+
+    expect((await service.counters(query)).activeUsers).toBe(1);
+
+    // Move that sign-in inside the window and the same row now counts. This is
+    // what proves the window is applied rather than the whole table counted.
+    await db
+      .update(session)
+      .set({ createdAt: now })
+      .where(eq(session.userId, lapsed));
+    expect((await service.counters(query)).activeUsers).toBe(2);
+
+    await db.delete(session);
+    await db.delete(user).where(eq(user.id, lapsed));
+  });
+
+  it('calls an open report critical only inside the 15-minute expiry window', async () => {
+    const minutesOut = (minutes: number) =>
+      db
+        .update(reports)
+        .set({ expiryAt: new Date(Date.now() + minutes * 60 * 1000) })
+        .where(eq(reports.id, ids.report));
+
+    // The fixture expires in an hour: urgent-ish, not critical.
+    expect((await service.counters(query)).criticalOpen).toBe(0);
+
+    await minutesOut(10);
+    expect((await service.counters(query)).criticalOpen).toBe(1);
+
+    // Past its deadline. Its effective status is 'expired', not 'open' — a
+    // report nobody can still help is not an emergency on the dashboard.
+    await minutesOut(-1);
+    expect((await service.counters(query)).criticalOpen).toBe(0);
+
+    // Inside the window but closed by its reporter: still not open.
+    await minutesOut(10);
+    await db
+      .update(reports)
+      .set({ statusId: ids.closedStatus })
+      .where(eq(reports.id, ids.report));
+    expect((await service.counters(query)).criticalOpen).toBe(0);
+
+    // Inside the window, open, but soft-deleted.
+    await db
+      .update(reports)
+      .set({ statusId: ids.openStatus, deletedAt: new Date() })
+      .where(eq(reports.id, ids.report));
+    expect((await service.counters(query)).criticalOpen).toBe(0);
+
+    await db
+      .update(reports)
+      .set({ deletedAt: null })
+      .where(eq(reports.id, ids.report));
+    expect((await service.counters(query)).criticalOpen).toBe(1);
+
+    await minutesOut(60);
+  });
+
+  it('counts every completion as a help given, but only visible ones as impact stories', async () => {
+    // One completion exists, filed yesterday by an earlier test.
+    let counters = await service.counters(query);
+    expect(counters.helpsGiven).toBe(1);
+    expect(counters.impactStories).toBe(1);
+    expect(counters.completedToday).toBe(0);
+
+    await db
+      .update(reports)
+      .set({ deletedAt: new Date() })
+      .where(eq(reports.id, ids.report));
+
+    counters = await service.counters(query);
+    // The help still happened, so it still counts. The STORY is unreachable —
+    // the Impact Stories list filters soft-deleted reports — so it does not.
+    expect(counters.helpsGiven).toBe(1);
+    expect(counters.impactStories).toBe(0);
+
+    await db
+      .update(reports)
+      .set({ deletedAt: null })
+      .where(eq(reports.id, ids.report));
+    expect((await service.counters(query)).impactStories).toBe(1);
+  });
+
+  it('counts community updates, and drops removed ones and yesterday from today', async () => {
+    let counters = await service.counters(query);
+    expect(counters.fieldUpdates).toBe(1);
+    expect(counters.commentsToday).toBe(1);
+
+    const yesterday = uuidv7();
+    await db.insert(reportComments).values({
+      id: yesterday,
+      reportId: ids.report,
+      authorId: ids.citizen,
+      body: 'Posted 26 hours ago',
+      createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+    });
+
+    counters = await service.counters(query);
+    expect(counters.fieldUpdates).toBe(2);
+    expect(counters.commentsToday).toBe(1);
+
+    // A moderator removal. The row stays (the flag reads through it) but it is
+    // gone from the public thread, so it must be gone from the count too.
+    await db
+      .update(reportComments)
+      .set({ deletedAt: new Date() })
+      .where(eq(reportComments.id, ids.comment));
+
+    counters = await service.counters(query);
+    expect(counters.fieldUpdates).toBe(1);
+    expect(counters.commentsToday).toBe(0);
+
+    await db
+      .update(reportComments)
+      .set({ deletedAt: null })
+      .where(eq(reportComments.id, ids.comment));
+
+    // Comments on a soft-deleted report are invisible too.
+    await db
+      .update(reports)
+      .set({ deletedAt: new Date() })
+      .where(eq(reports.id, ids.report));
+    counters = await service.counters(query);
+    expect(counters.fieldUpdates).toBe(0);
+    expect(counters.commentsToday).toBe(0);
+
+    await db
+      .update(reports)
+      .set({ deletedAt: null })
+      .where(eq(reports.id, ids.report));
+    await db.delete(reportComments).where(eq(reportComments.id, yesterday));
+
+    counters = await service.counters(query);
+    expect(counters.fieldUpdates).toBe(1);
+    expect(counters.commentsToday).toBe(1);
+  });
+
+  it('declares the basis of every number whose name does not explain it', async () => {
+    const { basis } = await service.counters(query);
+
+    // The two the task brief calls out: a window that must not be hidden, and a
+    // figure that has no column behind it.
+    expect(basis.activeUsers).toMatchObject({
+      basis: 'session_created_within_window',
+      windowDays: 30,
+    });
+    expect(basis.criticalOpen).toMatchObject({
+      basis: 'expiry_within_window',
+      // Same threshold as libs-mobile/lib/urgency.ts's 'critical' tone. If one
+      // moves without the other, the console and the phone disagree about which
+      // requests are on fire.
+      windowMinutes: 15,
+    });
+    expect(basis.flaggedReportsPendingReview.basis).toBe('no_source');
+
+    // Every declaration must actually say something. An empty caveat is the
+    // same failure as no caveat: a number whose meaning the reader has to guess.
+    // Listed by name rather than iterated off Object.entries, so a declaration
+    // added to the payload has to be added here too — and the length check
+    // below proves this list is still the whole set.
+    const declarations = [
+      basis.activeUsers,
+      basis.criticalOpen,
+      basis.helpsGiven,
+      basis.impactStories,
+      basis.fieldUpdates,
+      basis.commentsToday,
+      basis.flaggedReportsPendingReview,
+    ];
+    expect(declarations).toHaveLength(Object.keys(basis).length);
+
+    // Every declaration must actually say something. An empty caveat is the
+    // same failure as no caveat: a number whose meaning the reader has to guess.
+    for (const entry of declarations) {
+      expect(entry.caveat.length).toBeGreaterThan(40);
+    }
+  });
+
+  it('reports the same "today" boundary to every counter that has one', async () => {
+    // todaysReports, completedToday and commentsToday share one isToday()
+    // helper and one timeZone parameter. Asking for UTC must move all of them
+    // or none — a second notion of "today" is exactly the drift this asserts
+    // against.
+    const ist = await service.counters({ timeZone: 'Asia/Kolkata' });
+    const utc = await service.counters({ timeZone: 'UTC' });
+
+    expect(ist.timeZone).toBe('Asia/Kolkata');
+    expect(utc.timeZone).toBe('UTC');
+    expect(utc.basis.commentsToday.caveat).toContain('UTC');
+    expect(ist.basis.commentsToday.caveat).toContain('Asia/Kolkata');
   });
 });

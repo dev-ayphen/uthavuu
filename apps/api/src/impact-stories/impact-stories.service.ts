@@ -18,6 +18,19 @@ export class ImpactStoriesService {
     private readonly missionsService: MissionsService
   ) {}
 
+  // COMPOSING TWO LISTS MEANS INHERITING BOTH THEIR FILTERS — including the
+  // ones they forgot. This method used to be the clearest symptom of the
+  // hidden-report leak rather than a cause of it: listMine() filtered
+  // reports.deletedAt and listMyMissions() did not, so after a moderator hid a
+  // report the *reporter's* Impact Stories dropped it while the *volunteer's*
+  // kept it. Two halves of one list disagreeing about whether a moderation
+  // action had happened.
+  //
+  // Both halves filter now (see reports/report-visibility.ts). Nothing is
+  // re-filtered here on purpose: a second filter at the join would paper over
+  // the next source that forgets one, and this list is not the only consumer of
+  // either method. If a third source is ever added, it must arrive already
+  // filtered.
   async list(userId: string) {
     const [myReports, myMissions] = await Promise.all([
       this.reportsService.listMine(userId),

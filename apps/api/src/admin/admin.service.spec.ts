@@ -112,15 +112,9 @@ describe('AdminService', () => {
     ]);
   });
 
-  it('lists admin accounts with their role', async () => {
-    const admins = await service.listAdmins();
-    const spec = admins.find((a) => a.userId === opsId);
-
-    expect(spec).toBeDefined();
-    expect(spec!.role.key).toBe('ops_admin');
-    expect(spec!.email).toBe(`${opsId}@test.local`);
-    expect(admins.every((a) => !('password' in a))).toBe(true);
-    // Citizens are not in the admin roster.
-    expect(admins.some((a) => a.userId === citizenId)).toBe(false);
-  });
+  // The admin roster listing moved to AdminAccountsService.list(), which serves
+  // it from the same projection as GET /admin/admins/:id — the two used to be
+  // separate queries returning different fields. It is covered by
+  // admin-accounts.service.spec.ts, including the "citizens are not admins" and
+  // "no credential material" properties this test used to hold.
 });

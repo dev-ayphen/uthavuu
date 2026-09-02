@@ -23,7 +23,10 @@ export const CreateReportSchema = z.object({
   expiryMinutes: z.number().int().positive().optional(),
   // accept-and-mission-chat.md BR-1: 1–20, default 1 (solo mission), fixed after publish in v1.
   neededVolunteers: z.number().int().min(1).max(20).optional().default(1),
-  // BR-1: at least one, max 4 — URLs already come from POST /uploads.
+  // BR-1: at least one, max 4. `.url()` is a SYNTAX check only — it accepts
+  // `http://evil.com/x.png`. That each URL is really one POST /uploads served
+  // is enforced in ReportsService.assertPhotosAreOurUploads(), which needs the
+  // filesystem and the declared origins; do not read this line as that check.
   photoUrls: z
     .array(z.string().trim().url())
     .min(1, 'At least one photo is required')

@@ -21,7 +21,10 @@ export const UpdateReportSchema = z.object({
   neededVolunteers: z.number().int().min(1).max(20).optional(),
   anonymous: z.boolean().optional(),
   phoneVisible: z.boolean().optional(),
-  // Full replace when present — matches CreateReportSchema's own bounds.
+  // Full replace when present — matches CreateReportSchema's own bounds, and
+  // like it, `.url()` here is syntax only. The edit path is the second way a
+  // hostile URL reaches report_photos.url, so ReportsService.update() runs the
+  // same assertPhotosAreOurUploads() check create() does.
   photoUrls: z
     .array(z.string().trim().url())
     .min(1, 'At least one photo is required')

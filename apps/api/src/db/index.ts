@@ -11,6 +11,10 @@ import * as ticketsSchema from './schema/tickets-schema';
 import * as adminSchema from './schema/admin-schema';
 import * as auditSchema from './schema/audit-schema';
 import * as userStatusSchema from './schema/user-status-schema';
+import * as updatesSchema from './schema/updates-schema';
+import * as settingsSchema from './schema/settings-schema';
+import * as sponsorsSchema from './schema/sponsors-schema';
+import * as broadcastsSchema from './schema/broadcasts-schema';
 
 const schema = {
   ...authSchema,
@@ -24,6 +28,10 @@ const schema = {
   ...adminSchema,
   ...auditSchema,
   ...userStatusSchema,
+  ...updatesSchema,
+  ...settingsSchema,
+  ...sponsorsSchema,
+  ...broadcastsSchema,
 };
 
 const client = postgres(process.env.DATABASE_URL!);

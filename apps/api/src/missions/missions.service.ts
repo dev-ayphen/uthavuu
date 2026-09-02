@@ -4,9 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
@@ -26,7 +24,8 @@ import {
   progressStatuses,
 } from '../db/schema/missions-schema';
 import { AlertsService } from '../alerts/alerts.service';
-import { UPLOADS_DIR } from '../uploads/multer.config';
+import { notRemoved, requireVisibleReport } from '../reports/report-visibility';
+import { assertStoredUpload } from '../uploads/stored-upload';
 
 type VolunteerStatusKey = 'joined' | 'active' | 'released';
 type ProgressStatusKey = 'on_the_way' | 'reached_location' | 'helping_now';
@@ -152,19 +151,6 @@ export class MissionsService {
     return status.id;
   }
 
-  // BR-3: real verification, not fabricated ML content analysis — confirms
-  // the submitted photo actually came from this app's own upload store
-  // (matches the URL shape POST /uploads returns, and the file genuinely
-  // exists on disk) rather than trusting an arbitrary client-supplied URL.
-  private isGenuineUpload(photoUrl: string): boolean {
-    const prefix = `${process.env.BETTER_AUTH_URL}/uploads/`;
-    if (!photoUrl.startsWith(prefix)) return false;
-    const filename = photoUrl.slice(prefix.length);
-    if (!filename || filename.includes('/') || filename.includes('..'))
-      return false;
-    return existsSync(join(UPLOADS_DIR, filename));
-  }
-
   private async getOrCreateMission(reportId: string): Promise<string> {
     const [existing] = await db
       .select()
@@ -238,11 +224,17 @@ export class MissionsService {
 
   // BR-4: the reporter, or a volunteer currently 'joined'/'active' (not
   // 'released'). Used to gate both Mission Chat and the phone reveal.
+  //
+  // `notRemoved` matters more here than anywhere else in this file: this one
+  // predicate is what stops a hidden report from still handing out the
+  // reporter's phone number (ReportsService.toResponse) and still admitting
+  // reads and writes to its private Mission Chat. Access to a removed report
+  // is nobody's — not even a confirmed volunteer's.
   async hasActiveAccess(reportId: string, userId: string): Promise<boolean> {
     const [report] = await db
       .select()
       .from(reports)
-      .where(eq(reports.id, reportId));
+      .where(and(eq(reports.id, reportId), notRemoved));
     if (!report) return false;
     if (report.reporterId === userId) return true;
 
@@ -302,11 +294,11 @@ export class MissionsService {
   }
 
   async accept(reportId: string, volunteerId: string): Promise<RosterResponse> {
-    const [report] = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.id, reportId));
-    if (!report) throw new NotFoundException('Report not found');
+    // The status check below is not a substitute for this one: a moderator
+    // hides plenty of reports that are still 'open', so without the visibility
+    // check a citizen could accept a report an admin had just removed as
+    // fraudulent — and accepting is what unlocks the reporter's phone number.
+    const report = await requireVisibleReport(reportId);
     if (report.reporterId === volunteerId) {
       throw new BadRequestException('You cannot accept your own report');
     }
@@ -364,6 +356,12 @@ export class MissionsService {
     reportId: string,
     volunteerId: string,
   ): Promise<RosterResponse> {
+    // Every participation write starts here. These four (confirm/leave/
+    // updateProgress/complete) otherwise reach mission_volunteers through
+    // requireMissionId() and never look at the report at all — a volunteer
+    // mid-mission could keep driving the state machine forward on a report
+    // that no longer exists for anyone else.
+    await requireVisibleReport(reportId);
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
     const mine = rows.find(
@@ -387,6 +385,10 @@ export class MissionsService {
   }
 
   async leave(reportId: string, volunteerId: string): Promise<RosterResponse> {
+    // See confirm(). Leaving a removed report is a no-op in substance — the
+    // report is gone from every listing either way — so it is refused with the
+    // same honest code rather than special-cased as a permitted cleanup.
+    await requireVisibleReport(reportId);
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
     const mine = rows.find(
@@ -440,6 +442,7 @@ export class MissionsService {
     volunteerId: string,
     status: ProgressStatusKey,
   ): Promise<RosterResponse> {
+    await requireVisibleReport(reportId); // see confirm()
     const missionId = await this.requireMissionId(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
     // Same filter as confirm()/leave() — a volunteer who left and rejoined
@@ -485,11 +488,10 @@ export class MissionsService {
     photoUrl: string,
     note: string,
   ): Promise<RosterResponse> {
-    const [report] = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.id, reportId));
-    if (!report) throw new NotFoundException('Report not found');
+    // See confirm(). Completing flips the report to 'completed' and publishes
+    // an Impact Story — a public record built out of a report a moderator
+    // removed is the last thing a hide should be able to produce.
+    const report = await requireVisibleReport(reportId);
     if (report.reporterId === volunteerId) {
       throw new BadRequestException('You cannot complete your own report');
     }
@@ -514,11 +516,26 @@ export class MissionsService {
       throw new BadRequestException('This mission has already been completed');
     }
 
-    if (!this.isGenuineUpload(photoUrl)) {
-      throw new BadRequestException(
-        'The completion photo must be one uploaded through this app',
-      );
-    }
+    // BR-3: real verification, not fabricated ML content analysis — the photo
+    // has to be one this app's own POST /uploads produced, and the file has to
+    // genuinely be on disk.
+    //
+    // This used to be a private isGenuineUpload() here that hard-coded
+    // `${BETTER_AUTH_URL}/uploads/` as the only acceptable prefix, which meant
+    // it already refused a completion photo uploaded from a phone over the LAN,
+    // and would have refused EVERY completion the moment anyone set
+    // UPLOADS_PUBLIC_URL. It is now the shared predicate in
+    // ../uploads/stored-upload.ts, which resolves the accepted origins from the
+    // same declaration upload-url.ts builds URLs from — so the check and the
+    // generator cannot drift apart again. `reports` and `users` write the other
+    // two photo columns through the same function.
+    //
+    // The wording is passed in rather than defaulted: mobile pins this exact
+    // string, and sharing a check should not mean sharing a user-facing message.
+    assertStoredUpload(
+      photoUrl,
+      'The completion photo must be one uploaded through this app',
+    );
 
     const verifiedStatusId = await this.getCompletionStatusIdByKey('verified');
     const completedReportStatusId =
@@ -561,11 +578,11 @@ export class MissionsService {
     reportId: string,
     requestingUserId: string,
   ): Promise<RosterResponse> {
-    const [report] = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.id, reportId));
-    if (!report) throw new NotFoundException('Report not found');
+    // GET /reports/:id/volunteers is not participation-gated — any
+    // authenticated caller holding the report id reaches it. On a hidden
+    // report it was returning the full roster: every volunteer's name and
+    // avatar, plus the completion photo and note.
+    const report = await requireVisibleReport(reportId);
 
     const missionId = await this.findMissionId(reportId);
     if (!missionId) {
@@ -643,6 +660,12 @@ export class MissionsService {
 
   // BR-4: gated on hasActiveAccess, checked here — not just hidden client-side.
   async listMessages(reportId: string, requestingUserId: string) {
+    // Ordered before hasActiveAccess deliberately. hasActiveAccess now returns
+    // false for a hidden report, which alone would be safe but would tell a
+    // confirmed volunteer "you need to accept this request" — advice that is
+    // both wrong and impossible to act on. The removal is the real reason, so
+    // it is the one reported.
+    await requireVisibleReport(reportId);
     if (!(await this.hasActiveAccess(reportId, requestingUserId))) {
       throw new ForbiddenException(
         'You need to accept this request to view Mission Chat',
@@ -672,6 +695,7 @@ export class MissionsService {
   }
 
   async sendMessage(reportId: string, senderId: string, body: string) {
+    await requireVisibleReport(reportId); // see listMessages()
     if (!(await this.hasActiveAccess(reportId, senderId))) {
       throw new ForbiddenException(
         'You need to accept this request to post in Mission Chat',
@@ -767,7 +791,19 @@ export class MissionsService {
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
       .leftJoin(user, eq(reports.reporterId, user.id))
-      .where(inArray(reports.id, reportIds));
+      // The sharpest leak this method had. Without `notRemoved`, My Helps kept
+      // serving a hidden report's title, landmark and — worst of all — its
+      // latitude and longitude, plus the reporter's name and photo, to a
+      // volunteer whose tap-through then 404'd. Half-serving a report an admin
+      // removed for endangering someone is worse than not serving it at all.
+      //
+      // Filtering here rather than post-mapping is what makes the null-drop at
+      // the bottom of this method do the work: a removed report simply has no
+      // entry in reportById, so its dedupedRow maps to null and is filtered
+      // out. The volunteer's card disappears — see ReportRemovedException in
+      // reports/report-visibility.ts for why absence, not a tombstone, and for
+      // what they get when they open the report itself.
+      .where(and(inArray(reports.id, reportIds), notRemoved));
     const reportById = new Map(reportRows.map((r) => [r.report.id, r]));
 
     const photoRows = await db

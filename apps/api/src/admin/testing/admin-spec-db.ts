@@ -11,7 +11,12 @@ import {
   progressStatuses,
 } from '../../db/schema/missions-schema';
 import { flagStatuses } from '../../db/schema/comments-schema';
-import { ticketCategories, ticketStatuses } from '../../db/schema/tickets-schema';
+import {
+  ticketCategories,
+  ticketMessageSenderTypes,
+  ticketPriorities,
+  ticketStatuses,
+} from '../../db/schema/tickets-schema';
 import { userStatuses } from '../../db/schema/user-status-schema';
 import { adminPermissions, adminRolePermissions, adminRoles } from '../../db/schema/admin-schema';
 import {
@@ -60,7 +65,13 @@ export async function createSpecDatabase(databaseName: string): Promise<void> {
   await admin.unsafe(`create database ${databaseName}`);
   await admin.end();
 
-  const migrationClient = postgres(specDatabaseUrl(databaseName), { max: 1 });
+  // onnotice silenced for the same reason as above: migration 0023 creates a
+  // foreign key whose derived name exceeds Postgres's 63-character identifier
+  // limit, so every spec run would otherwise print a truncation NOTICE.
+  const migrationClient = postgres(specDatabaseUrl(databaseName), {
+    max: 1,
+    onnotice: () => {},
+  });
   await migrate(drizzle(migrationClient), {
     migrationsFolder: path.join(__dirname, '..', '..', '..', 'drizzle'),
   });
@@ -76,6 +87,8 @@ export interface SeededLookups {
   flagStatusIds: Record<string, string>;
   ticketCategoryIds: Record<string, string>;
   ticketStatusIds: Record<string, string>;
+  ticketPriorityIds: Record<string, string>;
+  ticketSenderTypeIds: Record<string, string>;
   userStatusIds: Record<string, string>;
   adminRoleIds: Record<string, string>;
 }
@@ -134,10 +147,27 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
     { key: 'bug_report', label: 'Bug Report' },
     { key: 'complaint', label: 'Complaint' },
   ] as const;
+  // The five-state lifecycle, mirroring db/seed.ts. `new` and `in_review` are
+  // deliberately absent: migration 0023 renamed those rows in place (new ->
+  // open, in_review -> in_progress), so a database built from 0000 has never
+  // heard of them and a spec that seeded them would be testing against a schema
+  // no deployment has.
   const ticketStatusRows = [
-    { key: 'new', label: 'New' },
-    { key: 'in_review', label: 'In Review' },
-    { key: 'resolved', label: 'Resolved' },
+    { key: 'open', label: 'Open', sortOrder: 10 },
+    { key: 'in_progress', label: 'In Progress', sortOrder: 20 },
+    { key: 'waiting_for_user', label: 'Waiting for User', sortOrder: 30 },
+    { key: 'resolved', label: 'Resolved', sortOrder: 40 },
+    { key: 'closed', label: 'Closed', sortOrder: 50 },
+  ] as const;
+  const ticketPriorityRows = [
+    { key: 'low', label: 'Low', sortOrder: 10 },
+    { key: 'normal', label: 'Normal', sortOrder: 20 },
+    { key: 'high', label: 'High', sortOrder: 30 },
+    { key: 'urgent', label: 'Urgent', sortOrder: 40 },
+  ] as const;
+  const ticketSenderTypeRows = [
+    { key: 'user', label: 'Citizen', sortOrder: 10 },
+    { key: 'admin', label: 'Support', sortOrder: 20 },
   ] as const;
   const userStatusRows = [
     { key: 'active', label: 'Active', sortOrder: 10 },
@@ -152,6 +182,8 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
   const flagStatusIds = idsFor(flagStatusRows);
   const ticketCategoryIds = idsFor(ticketCategoryRows);
   const ticketStatusIds = idsFor(ticketStatusRows);
+  const ticketPriorityIds = idsFor(ticketPriorityRows);
+  const ticketSenderTypeIds = idsFor(ticketSenderTypeRows);
   const userStatusIds = idsFor(userStatusRows);
   const adminRoleIds = idsFor(ADMIN_ROLES);
 
@@ -179,6 +211,12 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
   await db
     .insert(ticketStatuses)
     .values(ticketStatusRows.map((s) => ({ id: ticketStatusIds[s.key], ...s })));
+  await db
+    .insert(ticketPriorities)
+    .values(ticketPriorityRows.map((p) => ({ id: ticketPriorityIds[p.key], ...p })));
+  await db
+    .insert(ticketMessageSenderTypes)
+    .values(ticketSenderTypeRows.map((t) => ({ id: ticketSenderTypeIds[t.key], ...t })));
   await db
     .insert(userStatuses)
     .values(userStatusRows.map((s) => ({ id: userStatusIds[s.key], ...s })));
@@ -219,6 +257,8 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
     flagStatusIds,
     ticketCategoryIds,
     ticketStatusIds,
+    ticketPriorityIds,
+    ticketSenderTypeIds,
     userStatusIds,
     adminRoleIds,
   };

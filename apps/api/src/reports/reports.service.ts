@@ -13,6 +13,9 @@ import type { ReportsSummaryDto } from './dto/reports-summary.dto';
 import type { CommunityStatsDto } from './dto/community-stats.dto';
 import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
+import { requireVisibleReport, throwForMissingReport } from './report-visibility';
+import { getPlatformConfig } from '../config/platform-settings';
+import { assertStoredUploads } from '../uploads/stored-upload';
 
 // Great-circle distance in km via the haversine formula, expressed directly
 // in SQL (no PostGIS extension on this Postgres — see docker-compose.yml).
@@ -63,6 +66,75 @@ export class ReportsService {
     return status.id;
   }
 
+  /**
+   * The three Platform -> App Settings keys that constrain a report.
+   *
+   * One place, called by create(), update() and addPhoto(), so a limit an
+   * operator lowers applies to every path that could otherwise exceed it. A
+   * configured maximum enforced on create but not on edit is not a maximum.
+   *
+   * Every field is optional: each caller passes only what it can change.
+   */
+  private async assertReportLimits(input: {
+    photoCount?: number;
+    neededVolunteers?: number;
+    anonymous?: boolean;
+  }): Promise<void> {
+    const config = await getPlatformConfig();
+
+    if (input.photoCount !== undefined && input.photoCount > config.maxPhotosPerReport) {
+      throw new BadRequestException({
+        code: 'REPORT_PHOTO_LIMIT',
+        message: `Up to ${config.maxPhotosPerReport} ${config.maxPhotosPerReport === 1 ? 'photo' : 'photos'} allowed`,
+        limit: config.maxPhotosPerReport,
+      });
+    }
+
+    if (
+      input.neededVolunteers !== undefined &&
+      input.neededVolunteers > config.maxVolunteersPerReport
+    ) {
+      throw new BadRequestException({
+        code: 'REPORT_VOLUNTEER_LIMIT',
+        message: `Up to ${config.maxVolunteersPerReport} ${config.maxVolunteersPerReport === 1 ? 'volunteer' : 'volunteers'} can be requested`,
+        limit: config.maxVolunteersPerReport,
+      });
+    }
+
+    // Only ever blocks turning anonymity ON. Switching it off is always allowed,
+    // and reports that were already anonymous when the setting was flipped stay
+    // anonymous — retroactively unmasking a reporter who chose anonymity would
+    // be a privacy breach, not a policy change.
+    if (input.anonymous === true && !config.allowAnonymousReports) {
+      throw new ForbiddenException({
+        code: 'ANONYMOUS_REPORTS_DISABLED',
+        message: 'Anonymous requests are currently turned off for this platform.',
+      });
+    }
+  }
+
+  /**
+   * Every photo URL that reaches `report_photos.url` has to be one this API
+   * actually served — checked here, on the same three paths as
+   * assertReportLimits, because those are the three ways a string reaches that
+   * column (create, the full-replace edit, and addPhoto).
+   *
+   * The DTOs only run `z.string().url()`, which is a syntax check:
+   * `http://evil.com/tracker.png` passes it. Mobile renders this column
+   * directly, so a stored off-origin URL makes every citizen who opens the
+   * report fetch from a host we do not control. The predicate lives in
+   * ../uploads/stored-upload.ts, shared with MissionsService.complete() and
+   * UsersService.completeProfile(), which write the other two photo columns.
+   *
+   * Deliberately AFTER the ownership/state guards and assertReportLimits in
+   * each caller: those answer "may you write here at all", and a caller who is
+   * refused for being a non-owner should hear that, not a photo complaint.
+   */
+  private assertPhotosAreOurUploads(urls: string[] | undefined): void {
+    if (urls === undefined) return;
+    assertStoredUploads(urls);
+  }
+
   async create(reporterId: string, input: CreateReportDto) {
     const [category] = await db
       .select()
@@ -72,6 +144,20 @@ export class ReportsService {
     if (!category) throw new BadRequestException('Unknown category');
     // BR-3: Disaster Relief exists in the table but citizens can't post to it.
     if (!category.citizenSelectable) throw new BadRequestException('This category is not citizen-selectable');
+
+    // Platform -> App Settings, enforced at RUNTIME rather than in the DTO.
+    // CreateReportSchema's .max(4)/.max(20) are built once at import time, so
+    // they can only ever express a fixed ceiling; they stay as the hard upper
+    // bound a request may not exceed under any configuration. The operator's
+    // configured limit is necessarily checked here, where the current value can
+    // actually be read. A setting nothing reads is the failure
+    // docs/webadmin/07-platform-settings.md §2A is a post-mortem of.
+    await this.assertReportLimits({
+      photoCount: input.photoUrls.length,
+      neededVolunteers: input.neededVolunteers,
+      anonymous: input.anonymous,
+    });
+    this.assertPhotosAreOurUploads(input.photoUrls);
 
     // BR-2: the reporter may shorten the category's default expiry, never extend it.
     const expiryMinutes = Math.min(input.expiryMinutes ?? category.defaultExpiryMinutes, category.defaultExpiryMinutes);
@@ -114,7 +200,12 @@ export class ReportsService {
       .leftJoin(user, eq(reports.reporterId, user.id))
       .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
 
-    if (!row) throw new NotFoundException('Report not found');
+    // The single most important place for the honest state: this is the
+    // endpoint a volunteer's stale My Helps card, and every alert deep link,
+    // taps into. A bare "Report not found" here reads as a broken link; the
+    // REPORT_REMOVED branch tells them a moderator removed it. See
+    // ReportRemovedException for the disclosure trade-off.
+    if (!row) await throwForMissingReport(reportId);
 
     const photos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
     const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(reportId, requestingUserId);
@@ -149,7 +240,12 @@ export class ReportsService {
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
       .leftJoin(user, eq(reports.reporterId, user.id))
-      .where(eq(reportSaves.userId, requestingUserId))
+      // The one query in this service that was missing the deletedAt filter,
+      // and it serves SavedReportsService (GET /users/me/saved-reports) — a
+      // full toResponse() per row, coordinates included. Same rule as
+      // listMine() directly below: a hidden report leaves the reporter's own
+      // list, so it must leave the saver's too.
+      .where(and(eq(reportSaves.userId, requestingUserId), isNull(reports.deletedAt)))
       .orderBy(desc(reportSaves.createdAt));
 
     if (rows.length === 0) return [];
@@ -370,6 +466,15 @@ export class ReportsService {
       );
     }
 
+    // The same configured limits as create() — an edit is the other way to
+    // exceed them.
+    await this.assertReportLimits({
+      photoCount: input.photoUrls?.length,
+      neededVolunteers: input.neededVolunteers,
+      anonymous: input.anonymous,
+    });
+    this.assertPhotosAreOurUploads(input.photoUrls);
+
     await db
       .update(reports)
       .set({
@@ -398,7 +503,11 @@ export class ReportsService {
     await this.requireOwnedOpenReport(reportId, requestingUserId);
 
     const existingPhotos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
-    if (existingPhotos.length >= 4) throw new BadRequestException('Up to 4 photos allowed');
+    // Was a hardcoded 4. Now the configured maximum — the value an operator
+    // lowers on Platform -> App Settings has to bind here too, or "max photos
+    // per report" would be a setting that only applies to the first save.
+    await this.assertReportLimits({ photoCount: existingPhotos.length + 1 });
+    this.assertPhotosAreOurUploads([url]);
 
     await db.insert(reportPhotos).values({ id: uuidv7(), reportId, url, capturedLive: true });
 
@@ -499,8 +608,11 @@ export class ReportsService {
   // impact-story.md BR-6: saving only makes sense once a report is a
   // finished Impact Story — enforced here, not just hidden client-side.
   private async requireCompletedReport(reportId: string): Promise<ReportRow> {
-    const [existing] = await db.select().from(reports).where(eq(reports.id, reportId));
-    if (!existing) throw new NotFoundException('Report not found');
+    // Unlike requireOwnedOpenReport() above, this guard was not filtering
+    // deletedAt — so save() wrote a report_saves row for a hidden report before
+    // findOne() 404'd on the way out. A write that half-succeeds against a
+    // moderated report is exactly the shape of bug this change exists to close.
+    const existing = await requireVisibleReport(reportId);
 
     const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, existing.statusId));
     if (status?.key !== 'completed') throw new ForbiddenException('This report is not completed yet');

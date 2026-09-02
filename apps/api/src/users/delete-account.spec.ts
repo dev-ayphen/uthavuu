@@ -83,8 +83,13 @@ describe('Account deletion — community mission preservation', () => {
       expect(row.deletedBy).toBeNull();
       expect(row.reporterId).toBeNull();
 
-      // The soft-deleted report no longer surfaces through the normal read path.
-      await expect(reportsService.findOne(created.id, reporterId)).rejects.toThrow('Report not found');
+      // The soft-deleted report no longer surfaces through the normal read
+      // path — and says so honestly rather than as a bare "not found", which
+      // is indistinguishable from a broken link. Same REPORT_REMOVED state an
+      // admin hide produces: deleted_at is deleted_at, whoever set it.
+      await expect(reportsService.findOne(created.id, reporterId)).rejects.toMatchObject({
+        response: { code: 'REPORT_REMOVED' },
+      });
     });
 
     it('leaves a report alone if a volunteer ever joined, even after they released', async () => {

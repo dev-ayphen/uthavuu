@@ -11,9 +11,10 @@
 // explicitly out of scope for both report-a-request and Accept & Mission
 // Chat), so a fully polymorphic flags table would be speculative. Scoped
 // here to just what Decision 2 actually requires: flagging a comment.
-// There's no moderation UI yet (no admin console exists) — this stores the
-// flag for a future admin build, same "capture now, act on later" pattern
-// as the FCM device-registration-without-a-send-path module.
+// It was built before any moderation UI existed, but no longer stops there:
+// the admin console reads these flags and resolves them
+// (AdminCommentsService.resolveFlag, PATCH /admin/flagged-comments/:id,
+// audited as comment_flag.resolve).
 import { relations } from 'drizzle-orm';
 import { index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
@@ -58,13 +59,12 @@ export const reportComments = pgTable(
   (table) => [index('report_comments_report_id_idx').on(table.reportId)]
 );
 
-// Submitted → Under Review → Action Taken → Dismissed. There's no admin
-// console yet to actually move a flag through this lifecycle (moderation UI
-// is a future admin-console build, same "capture now, act on later" pattern
-// this file already documents at the top) — every flag is created and stays
-// at 'submitted' today. That's correct, not a gap: the column exists so the
-// mobile Flagged Comments screen shows a real, honest status rather than
-// nothing, and so a future admin build has somewhere real to write to.
+// Submitted → Under Review → Action Taken → Dismissed. A flag is created at
+// 'submitted' by the mobile client and moved through the rest of the
+// lifecycle by the admin console (AdminCommentsService.resolveFlag, PATCH
+// /admin/flagged-comments/:id, audited as comment_flag.resolve). The mobile
+// Flagged Comments screen reads the status back, so the citizen who raised a
+// flag sees the real outcome rather than a placeholder.
 export const flagStatuses = pgTable('flag_statuses', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
@@ -93,8 +93,8 @@ export const reportCommentFlags = pgTable(
     index('report_comment_flags_comment_id_idx').on(table.commentId),
     // Profile → Flagged Comments needs to list a user's flags idempotently —
     // flagging the same comment twice should be a no-op (ON CONFLICT DO
-    // NOTHING), same idempotency shape as report_likes/report_saves,
-    // not a growing pile of duplicate rows for one user+comment pair.
+    // NOTHING), same idempotency shape as report_saves, not a growing pile
+    // of duplicate rows for one user+comment pair.
     uniqueIndex('report_comment_flags_comment_id_flagged_by_id_key').on(table.commentId, table.flaggedById),
   ]
 );

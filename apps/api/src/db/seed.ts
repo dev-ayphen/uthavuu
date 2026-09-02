@@ -8,8 +8,26 @@ import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
 import { missionCompletionStatuses, missionVolunteerStatuses, progressStatuses } from './schema/missions-schema';
 import { flagStatuses } from './schema/comments-schema';
-import { ticketCategories, ticketStatuses } from './schema/tickets-schema';
+import {
+  ticketCategories,
+  ticketMessageSenderTypes,
+  ticketPriorities,
+  ticketStatuses,
+} from './schema/tickets-schema';
 import { userStatuses } from './schema/user-status-schema';
+import { communityUpdateStatuses } from './schema/updates-schema';
+import {
+  sponsorCreativeTypes,
+  sponsorStatuses,
+} from './schema/sponsors-schema';
+import {
+  broadcastAudiences,
+  broadcastStatuses,
+} from './schema/broadcasts-schema';
+import {
+  PLATFORM_SETTINGS_DEFAULTS,
+  platformSettings,
+} from './schema/settings-schema';
 import { seedAdmins } from './seed-admins';
 import { seedAuditCatalogue } from './seed-audit';
 
@@ -94,10 +112,106 @@ const USER_STATUSES = [
   { key: 'suspended', label: 'Suspended', sortOrder: 20 },
 ] as const;
 
+// Help & Support's five-state lifecycle (db/schema/tickets-schema.ts). The code
+// branches on these keys via support/ticket-status.ts; this is where the rows
+// they resolve to come from.
+//
+// `new` and `in_review` are GONE FROM THIS LIST BUT NOT FROM THE DATABASE:
+// migration 0023 renamed those two rows in place (new -> open, in_review ->
+// in_progress) so the tickets already pointing at them kept a meaningful status.
+// Re-seeding after that migration updates labels and sort orders on the renamed
+// rows and inserts the two genuinely new ones.
 const TICKET_STATUSES = [
-  { key: 'new', label: 'New' },
-  { key: 'in_review', label: 'In Review' },
-  { key: 'resolved', label: 'Resolved' },
+  { key: 'open', label: 'Open', sortOrder: 10 },
+  { key: 'in_progress', label: 'In Progress', sortOrder: 20 },
+  { key: 'waiting_for_user', label: 'Waiting for User', sortOrder: 30 },
+  // resolved: support believes it is fixed and the citizen may still reply —
+  // a reply reopens the ticket. closed: finished, no further messages from
+  // either side. Two states, not one, on purpose.
+  { key: 'resolved', label: 'Resolved', sortOrder: 40 },
+  { key: 'closed', label: 'Closed', sortOrder: 50 },
+] as const;
+
+// Triage order. Staff-set only — a citizen filing a ticket always gets `normal`
+// (DEFAULT_TICKET_PRIORITY_KEY), because a priority anyone can self-declare
+// stops meaning anything by the second week.
+const TICKET_PRIORITIES = [
+  { key: 'low', label: 'Low', sortOrder: 10 },
+  { key: 'normal', label: 'Normal', sortOrder: 20 },
+  { key: 'high', label: 'High', sortOrder: 30 },
+  { key: 'urgent', label: 'Urgent', sortOrder: 40 },
+] as const;
+
+// Which side of a support conversation a message came from. The labels are what
+// a reader sees attached to a message, which is why the staff one is "Support"
+// rather than "Admin" — the citizen-facing projection never names the individual
+// (SupportService.citizenMessages), so this label is the whole attribution.
+const TICKET_MESSAGE_SENDER_TYPES = [
+  { key: 'user', label: 'Citizen', sortOrder: 10 },
+  { key: 'admin', label: 'Support', sortOrder: 20 },
+] as const;
+
+// Community → Updates (db/schema/updates-schema.ts). An announcement starts as
+// `draft` (invisible to citizens), becomes `published` (visible once publish_at
+// arrives), and can be taken out of the feed again with `archived` without
+// being deleted.
+const COMMUNITY_UPDATE_STATUSES = [
+  { key: 'draft', label: 'Draft', sortOrder: 10 },
+  { key: 'published', label: 'Published', sortOrder: 20 },
+  { key: 'archived', label: 'Archived', sortOrder: 30 },
+] as const;
+
+// Monetization -> Sponsors (db/schema/sponsors-schema.ts). The console's five
+// status filter tabs, in the order it renders them
+// (docs/webadmin/08-monetization.md §3.2).
+//
+// ⚠️ ONLY `draft`, `active` and `paused` are ever WRITTEN to a sponsor row.
+// `scheduled` and `expired` are derived from the campaign window at read time
+// (sponsors/sponsor-status.ts) and are seeded so the console's filter has a
+// complete catalogue and the derived values have labels to render — the same
+// reasoning ADR 0012 gives for using lookup tables at all.
+const SPONSOR_STATUSES = [
+  { key: 'active', label: 'Active', sortOrder: 10 },
+  { key: 'scheduled', label: 'Scheduled', sortOrder: 20 },
+  { key: 'paused', label: 'Paused', sortOrder: 30 },
+  { key: 'expired', label: 'Expired', sortOrder: 40 },
+  { key: 'draft', label: 'Draft', sortOrder: 50 },
+] as const;
+
+// What kind of creative the mobile card renders. `logo_text` is the zero-asset
+// fallback — logo and description only, no media URL needed.
+const SPONSOR_CREATIVE_TYPES = [
+  { key: 'video', label: 'Video', sortOrder: 10 },
+  { key: 'banner', label: 'Banner', sortOrder: 20 },
+  { key: 'logo_text', label: 'Logo & text', sortOrder: 30 },
+] as const;
+
+// Community -> Broadcasts (db/schema/broadcasts-schema.ts).
+//
+// `sending` is not decoration: the send path claims a broadcast by moving it
+// into this status conditionally, so two admins pressing Send at once cannot
+// both fan out. It is also the state a broadcast is LEFT in when a fan-out dies
+// halfway — visible in the console rather than silently reverted, because
+// reverting would invite a second send that double-notifies everyone who
+// already received the first.
+const BROADCAST_STATUSES = [
+  { key: 'draft', label: 'Draft', sortOrder: 10 },
+  { key: 'scheduled', label: 'Scheduled', sortOrder: 20 },
+  { key: 'sending', label: 'Sending', sortOrder: 30 },
+  { key: 'sent', label: 'Sent', sortOrder: 40 },
+  { key: 'cancelled', label: 'Cancelled', sortOrder: 50 },
+] as const;
+
+// ⚠️ SEEDING A THIRD ROW HERE WOULD BREAK THINGS, unlike every other lookup in
+// this file. An audience is not a label over existing rows — it names a
+// RECIPIENT QUERY, and only the two below have one
+// (AdminBroadcastsService.recipientPage). A seeded `city` or `radius` audience
+// would appear in the console's dropdown, be selectable, and then fan out to
+// nobody while reporting success. Adding an audience is a code change first and
+// a seed row second; BROADCAST_AUDIENCE_KEYS in the schema file is the authority.
+const BROADCAST_AUDIENCES = [
+  { key: 'all_users', label: 'All users', sortOrder: 10 },
+  { key: 'district', label: 'A single district', sortOrder: 20 },
 ] as const;
 
 async function seed() {
@@ -183,7 +297,27 @@ async function seed() {
       .values({ id: uuidv7(), ...status })
       .onConflictDoUpdate({
         target: ticketStatuses.key,
-        set: { label: status.label, updatedAt: sql`now()` },
+        set: { label: status.label, sortOrder: status.sortOrder, updatedAt: sql`now()` },
+      });
+  }
+
+  for (const priority of TICKET_PRIORITIES) {
+    await db
+      .insert(ticketPriorities)
+      .values({ id: uuidv7(), ...priority })
+      .onConflictDoUpdate({
+        target: ticketPriorities.key,
+        set: { label: priority.label, sortOrder: priority.sortOrder, updatedAt: sql`now()` },
+      });
+  }
+
+  for (const senderType of TICKET_MESSAGE_SENDER_TYPES) {
+    await db
+      .insert(ticketMessageSenderTypes)
+      .values({ id: uuidv7(), ...senderType })
+      .onConflictDoUpdate({
+        target: ticketMessageSenderTypes.key,
+        set: { label: senderType.label, sortOrder: senderType.sortOrder, updatedAt: sql`now()` },
       });
   }
 
@@ -197,6 +331,96 @@ async function seed() {
       });
   }
 
+  for (const status of COMMUNITY_UPDATE_STATUSES) {
+    await db
+      .insert(communityUpdateStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: communityUpdateStatuses.key,
+        set: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          updatedAt: sql`now()`,
+        },
+      });
+  }
+
+  for (const status of SPONSOR_STATUSES) {
+    await db
+      .insert(sponsorStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: sponsorStatuses.key,
+        set: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          updatedAt: sql`now()`,
+        },
+      });
+  }
+
+  for (const creativeType of SPONSOR_CREATIVE_TYPES) {
+    await db
+      .insert(sponsorCreativeTypes)
+      .values({ id: uuidv7(), ...creativeType })
+      .onConflictDoUpdate({
+        target: sponsorCreativeTypes.key,
+        set: {
+          label: creativeType.label,
+          sortOrder: creativeType.sortOrder,
+          updatedAt: sql`now()`,
+        },
+      });
+  }
+
+  for (const status of BROADCAST_STATUSES) {
+    await db
+      .insert(broadcastStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: broadcastStatuses.key,
+        set: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          updatedAt: sql`now()`,
+        },
+      });
+  }
+
+  for (const audience of BROADCAST_AUDIENCES) {
+    await db
+      .insert(broadcastAudiences)
+      .values({ id: uuidv7(), ...audience })
+      .onConflictDoUpdate({
+        target: broadcastAudiences.key,
+        set: {
+          label: audience.label,
+          sortOrder: audience.sortOrder,
+          updatedAt: sql`now()`,
+        },
+      });
+  }
+
+  // Platform -> App Settings: the single configuration row.
+  //
+  // onConflictDoNothing, NOT onConflictDoUpdate — the deliberate exception to
+  // every other block in this file. The lookup tables above are master data
+  // this repo owns, so re-seeding them correctly repairs a drifted label. This
+  // row is the opposite: its values are an OPERATOR's, set from the console,
+  // and re-running the seed after a deploy must never quietly switch
+  // maintenance_mode back off or reset a support phone number somebody
+  // published. Insert-if-absent is the only safe upsert for a row the product
+  // itself writes.
+  //
+  // It is also what keeps `updated_at == created_at` meaningful on an untouched
+  // row, which is how AdminSettingsService tells "never changed" apart from
+  // "changed by an admin whose account was later deleted".
+  const settings = await db
+    .insert(platformSettings)
+    .values({ id: uuidv7(), ...PLATFORM_SETTINGS_DEFAULTS })
+    .onConflictDoNothing({ target: platformSettings.singleton })
+    .returning({ id: platformSettings.id });
+
   // Admin RBAC master data + the two console accounts. Lives in its own file
   // because it is the only part of the seed that needs the Better Auth instance
   // (to hash passwords with the same algorithm sign-in verifies them with).
@@ -208,7 +432,7 @@ async function seed() {
   const audit = await seedAuditCatalogue();
 
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${USER_STATUSES.length} user statuses, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, and ${audit.actions} audit actions.`
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`
   );
   process.exit(0);
 }

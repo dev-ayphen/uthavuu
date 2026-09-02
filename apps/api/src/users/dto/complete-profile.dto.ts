@@ -27,6 +27,8 @@ export const CompleteProfileSchema = z.object({
   profession: optionalTrimmed(z.string().trim().max(80)),
   organization: optionalTrimmed(z.string().trim().max(120)),
   showProfession: z.boolean().optional(),
+  // Syntax only. UsersService.completeProfile() confirms it is a file this API
+  // actually served — see ../../uploads/stored-upload.ts.
   avatarUrl: optionalTrimmed(z.string().trim().url()),
 });
 

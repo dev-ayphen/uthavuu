@@ -9,11 +9,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer, phoneNumber } from 'better-auth/plugins';
 import { db } from '../db';
-import {
-  ACCOUNT_SUSPENDED_CODE,
-  ACCOUNT_SUSPENDED_MESSAGE,
-  isUserSuspended,
-} from '../account-status/account-status';
+import { decideSessionCreate } from '../account-status/login-block';
 import { Msg91OtpProvider } from './otp/msg91-otp.provider';
 import { DevConsoleOtpProvider } from './otp/dev-console-otp.provider';
 import {
@@ -125,15 +121,21 @@ export const auth = betterAuth({
   // receives a token or a cookie. The FORBIDDEN + ACCOUNT_SUSPENDED pair is the
   // same status/code the request guard returns, so a client has one case to
   // handle rather than two.
+  //
+  // The DECISION lives in account-status/login-block.ts, not here. Everything
+  // this module imports is ESM-only, so a spec cannot load this file under the
+  // package's CommonJS Jest transform, and the rule that decides whether a
+  // person may sign in had no test at all while it lived inline. Down there it
+  // is a plain function returning a plain result; up here all that is left is
+  // mapping that result onto the library's error type. See login-block.ts for
+  // the full reasoning.
   databaseHooks: {
     session: {
       create: {
         before: async (session: { userId: string }) => {
-          if (await isUserSuspended(session.userId)) {
-            throw APIError.from('FORBIDDEN', {
-              message: ACCOUNT_SUSPENDED_MESSAGE,
-              code: ACCOUNT_SUSPENDED_CODE,
-            });
+          const decision = await decideSessionCreate(session);
+          if (!decision.allowed) {
+            throw APIError.from(decision.status, decision.error);
           }
         },
       },

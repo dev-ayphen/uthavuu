@@ -1,10 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import {
-  AdminOnly,
-  CurrentAdmin,
-  RequireAdminPermissions,
-} from './admin.decorators';
-import { AdminService } from './admin.service';
+import { AdminOnly, CurrentAdmin } from './admin.decorators';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminDashboardDto } from './dto/admin-dashboard.dto';
 import type { AdminIdentity } from './admin-rbac';
@@ -20,10 +15,12 @@ import type { AdminIdentity } from './admin-rbac';
 @Controller('admin')
 @AdminOnly()
 export class AdminController {
-  constructor(
-    private readonly adminService: AdminService,
-    private readonly dashboardService: AdminDashboardService,
-  ) {}
+  // GET /admin/admins and the rest of the admin roster live on
+  // AdminAccountsController, so this class no longer needs AdminService — the
+  // list and the detail route had drifted into two different projections, and
+  // the fix was to give them one owner. AdminService itself is still very much
+  // alive: AdminGuard resolves every admin identity through it.
+  constructor(private readonly dashboardService: AdminDashboardService) {}
 
   /**
    * GET /admin/me — who the console is signed in as, and what they may do.
@@ -44,19 +41,5 @@ export class AdminController {
   @Get('dashboard')
   dashboard(@Query() query: AdminDashboardDto) {
     return this.dashboardService.counters(query);
-  }
-
-  /**
-   * GET /admin/admins — the console's own admin directory.
-   *
-   * Super admins only. docs/webadmin/09-admins-and-audit.md gap #2: in the
-   * prototype "an Ops Moderator — or an unauthenticated visitor — can create a
-   * Super Admin", because that tab had no role guard at all. This is that guard,
-   * on the server, where it cannot be bypassed by editing the URL.
-   */
-  @Get('admins')
-  @RequireAdminPermissions('platform:manage')
-  listAdmins() {
-    return this.adminService.listAdmins();
   }
 }

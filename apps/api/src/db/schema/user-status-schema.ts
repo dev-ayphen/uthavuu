@@ -10,12 +10,15 @@
 //
 // That rule is why this is a table about a PERSON'S ACCESS and nothing else.
 // There is no cascade to reports, no status rewrite on missions, no filter added
-// to any citizen read path. The enforcement surface is exactly two places
-// (auth/suspension-check.ts: login; account-status/suspended-account.guard.ts:
-// authenticated requests), and both gate on *the caller's* id. A volunteer's
-// request is never evaluated against the reporter's status, which is what makes
-// Priya's mission keep working when Hari is suspended — by construction, not by
-// a special case someone has to remember.
+// to any citizen read path. The enforcement surface is exactly two places —
+// the Better Auth `session.create.before` database hook (login) and the global
+// `SuspendedAccountGuard` (authenticated requests), both reading the same
+// `isUserSuspended()` from the account-status module — and both gate on *the
+// caller's* id. (Named by symbol rather than file: the login hook has already
+// moved between files once.) A volunteer's request is never evaluated against
+// the reporter's status, which is what makes Priya's mission keep working when
+// Hari is suspended — by construction, not by a special case someone has to
+// remember.
 //
 // WHY A SEPARATE TABLE RATHER THAN A COLUMN ON `user`:
 //
