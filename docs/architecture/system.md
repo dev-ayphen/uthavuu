@@ -25,11 +25,11 @@ The admin console is not a mirror of mobile data — it is a second *client* of 
 | Layer | Technology | Evidence |
 |---|---|---|
 | API | NestJS 11 on Express | `apps/api/src/main.ts:8-13` |
-| ORM / DB | Drizzle → PostgreSQL 16 | `apps/api/src/db/index.ts:25-27`, `docker-compose.yml:2-20` |
-| Auth | better-auth via `@thallesp/nestjs-better-auth` | `apps/api/src/auth/auth.ts:49-56`, `apps/api/src/app.module.ts:30-36` |
-| Validation | Zod DTOs through a global `ZodValidationPipe` | `apps/api/src/app.module.ts:52` |
+| ORM / DB | Drizzle → PostgreSQL 16 | `apps/api/src/db/index.ts:29-31`, `docker-compose.yml:2-20` |
+| Auth | better-auth via `@thallesp/nestjs-better-auth` | `apps/api/src/auth/auth.ts:54-61`, `apps/api/src/app.module.ts:32-44` |
+| Validation | Zod DTOs through a global `ZodValidationPipe` | `apps/api/src/app.module.ts:65` |
 | Cache / rate-limit | Redis | `apps/api/src/redis/redis.module.ts`, `apps/api/src/auth/otp/otp-rate-limiter.ts` |
-| Object storage | Local disk (deliberate — [ADR 0008](../decisions/0008-local-disk-photo-storage.md)) | `apps/api/src/main.ts:18` |
+| Object storage | Local disk (deliberate — [ADR 0008](../decisions/0008-local-disk-photo-storage.md)) | `apps/api/src/main.ts:50` |
 | Mobile | Expo / React Native, bearer token | `libs-mobile/lib/api.ts:41-53` |
 | Admin | Next.js 16 App Router, cookie session | `apps/admin/package.json`, `apps/admin/.env.example:3-6` |
 
@@ -107,7 +107,7 @@ sequenceDiagram
     API->>PG: INSERT report_photos
     API-->>U: findOne() projection (privacy-redacted)
     Note over PG: The row is now the single copy.<br/>Nothing is replicated anywhere.
-    AD->>API: GET /admin/reports?… (does not exist yet — see gap analysis)
+    AD->>API: GET /admin/reports?status=&category=&q=&page=
     API->>API: AdminGuard → admin_users → role → permissions
     API->>PG: SELECT the same reports row
     API-->>AD: admin projection (different columns, different redaction)
@@ -115,15 +115,15 @@ sequenceDiagram
 
 1. **Upload.** `POST /uploads` writes the file to `UPLOADS_DIR` and returns a URL
    (`apps/api/src/uploads/uploads.controller.ts:18`, ADR 0008). The URL is served back statically
-   *outside* the auth guard by design — `apps/api/src/main.ts:14-18`.
+   *outside* the auth guard by design — `apps/api/src/main.ts:46-50`.
 2. **Create.** `ReportsService.create()` inserts one `reports` row plus its `report_photos`
    (`apps/api/src/reports/reports.service.ts:66-106`). Primary keys are UUIDv7 generated in
    application code (`uuidv7()`), not by the database.
-3. **Persist.** That is the only copy of the row. `apps/api/src/db/index.ts:25-27` constructs a
+3. **Persist.** That is the only copy of the row. `apps/api/src/db/index.ts:29-31` constructs a
    single `db` client with no tenant wrapper — single-tenant, so no `org_id` and no `forOrg()`
    anywhere.
 4. **Admin read.** An admin route resolves the caller through `AdminGuard`
-   (`apps/api/src/admin/admin.guard.ts:29-77`) and then queries the same table. The projection is
+   (`apps/api/src/admin/admin.guard.ts:29-79`) and then queries the same table. The projection is
    the admin's own — it is **not** `ReportsService.toResponse()`, which is built for citizens and
    redacts (see [`admin-console-integration.md`](./admin-console-integration.md)).
 
@@ -152,7 +152,7 @@ sequenceDiagram
 
 1. Express receives the request. `bodyParser: false` at the Nest level; the better-auth module
    re-adds JSON/urlencoded parsing for non-auth routes (`apps/api/src/main.ts:9-13`,
-   `apps/api/src/app.module.ts:30-36`).
+   `apps/api/src/app.module.ts:40-43`).
 2. If the path is under `/api/auth`, better-auth's own handler serves it and Nest never sees it.
 3. `@thallesp/nestjs-better-auth` registers a **global `AuthGuard`**. Every controller in this app
    is authenticated by default with no decorator — see the note at
@@ -170,7 +170,7 @@ sequenceDiagram
    a uniform `403` with a machine-readable `code` (`ADMIN_NO_SESSION` / `ADMIN_NOT_AN_ADMIN` /
    `ADMIN_MISSING_PERMISSION`).
 5. The global `ZodValidationPipe` validates params/query/body against the route's DTO
-   (`apps/api/src/app.module.ts:52`).
+   (`apps/api/src/app.module.ts:65`).
 6. The service runs the rule and hits Postgres through Drizzle.
 7. The controller returns a plain object. **There is no global response envelope and no global
    exception filter** — errors are whatever Nest's default `HttpException` serialiser emits
@@ -183,13 +183,13 @@ sequenceDiagram
 
 | Concern | Where | Note |
 |---|---|---|
-| Auth / sessions | `apps/api/src/auth/auth.ts:49-56`; global guard via `apps/api/src/app.module.ts:30-36` | Bearer plugin for mobile (`auth.ts:171`), cookies for admin |
+| Auth / sessions | `apps/api/src/auth/auth.ts:54-61`; global guard via `apps/api/src/app.module.ts:32-44` | Bearer plugin for mobile (`auth.ts:256`), cookies for admin |
 | Admin authorization | `apps/api/src/admin/admin.guard.ts:29-79` | Shipped. Session-derived identity, DB-resolved role, ANDed permissions, no super-admin bypass |
-| Validation | `apps/api/src/app.module.ts:52` + `*/dto/*.ts` | `z.coerce.*` on query params |
+| Validation | `apps/api/src/app.module.ts:65` + `*/dto/*.ts` | `z.coerce.*` on query params |
 | Rate limiting | `apps/api/src/auth/otp/otp-rate-limiter.ts` (Redis) | **OTP send only.** No global throttler on any other route. |
 | Error shaping | none | Nest defaults; no interceptor, no filter |
 | Logging / request id | none | No correlation id, no structured logger |
-| Account suspension | `apps/api/src/account-status/suspended-account.guard.ts:39-82`, registered globally at `apps/api/src/account-status/account-status.module.ts:28` | Blocks authenticated requests from a suspended caller; login is blocked separately at `auth.ts:128-141`. [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md) |
+| Account suspension | `apps/api/src/account-status/suspended-account.guard.ts:39-82`, registered globally at `apps/api/src/account-status/account-status.module.ts:28` | Blocks authenticated requests from a suspended caller; login is blocked separately at `apps/api/src/account-status/login-block.ts:73-87` (wired at `apps/api/src/auth/auth.ts:132-140`). [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md) |
 | Admin audit trail | `apps/api/src/admin/admin-audit.service.ts:56-89` | Explicit `record()` calls, transaction-aware. [ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md) |
 | CORS | `apps/api/src/main.ts:41-45` | Exact-origin allowlist from `ADMIN_URL`, `credentials: true`, `PATCH` included |
 
@@ -269,8 +269,11 @@ and the live database on 2026-08-28.
   verified session and resolves the role from the database. Every exit is `true` or a throw; there
   is no fallthrough. Required permissions are ANDed (`:66-68`), with no super-admin bypass —
   `super_admin` passes because the seed grants it all six as real rows (`:60-65`).
-- Registered as a **provider, not an `APP_GUARD`** (`apps/api/src/admin/admin.module.ts:9-13`),
-  deliberately opt-in per controller so it can never run on the citizen API.
+- Registered as a **provider, not an `APP_GUARD`** (`apps/api/src/admin/admin.module.ts:44-61`),
+  deliberately opt-in per controller so it can never run on the citizen API. A sibling test walks
+  `AdminModule`'s `controllers` array and asserts every entry carries a class-level `@AdminOnly()`
+  (`apps/api/src/admin/admin-module-guard.spec.ts`, noted at `admin.module.ts:29-33`), so adding an
+  ungated admin controller fails the suite rather than publishing an open route.
 - Three routes on `apps/api/src/admin/admin.controller.ts`: `GET /admin/me` (`:38-41`),
   `GET /admin/dashboard` (`:44-47`), `GET /admin/admins` gated on `platform:manage` (`:57-61`).
   Verified live 2026-08-28: an unauthenticated `GET /admin/me` returns
@@ -298,28 +301,61 @@ built *before* the first mutating admin endpoint rather than after. See
 [ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md).
 
 **Account suspension — shipped end to end** (migration 0019, applied). Blocks login
-(`apps/api/src/auth/auth.ts:128-141`) and authenticated requests (global guard,
+(`apps/api/src/account-status/login-block.ts:73-87` (wired at `apps/api/src/auth/auth.ts:132-140`)) and authenticated requests (global guard,
 `apps/api/src/account-status/account-status.module.ts:28`); never touches content. Driven by
 `POST /admin/users/:id/suspend` and `POST /admin/users/:id/reactivate`
 (`apps/api/src/admin/admin-users.controller.ts:63-76`). See
 [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md).
 
 **The `/admin` surface has grown well past the three routes described above.** As of 2026-08-28 it
-is **eight controllers**: `admin` (root), `admin/reports`, `admin/users`, `admin/report-categories`,
-`admin/support-tickets`, `admin/audit-logs`, `admin/analytics`, and the comments routes. This
-document does not enumerate them — see
-[`admin-console-integration.md`](./admin-console-integration.md) and the per-module API docs, and
-re-grep `@Controller(` under `apps/api/src/admin/` before relying on any list, including that one.
+is **eight controllers** backed by **eleven services** (three of them controller-less —
+`AdminDashboardService`, `AdminSystemHealthService`, `AdminReportModerationService`), registered at
+`apps/api/src/admin/admin.module.ts:34-61`. Counted 2026-08-28: **29 routes — 16 GET and 13
+mutating**. Every one of the 13 mutating routes writes an `admin_audit_logs` row inside the same
+`db.transaction` as the change it records; verified route by route, with no exceptions
+([ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md)). This document
+does not enumerate them — see [`admin-console-integration.md`](./admin-console-integration.md) and
+the per-module API docs, and re-grep `@Controller(` under `apps/api/src/admin/` before relying on
+any list, including that one.
 
-**`apps/admin` is a real Next.js application, not an empty scaffold.** Next.js 16 App Router on
-port **3002** (`apps/admin/package.json:7`), Tailwind v4 CSS-first (no `tailwind.config.js`),
-TanStack Query, a hand-rolled UI kit (no shadcn registry). Two route groups: `(auth)` for login and
-`(console)` for everything behind the session guard
-(`apps/admin/src/app/(console)/layout.tsx:23-34`). All eight sections exist with
-`page.tsx` + `loading.tsx` + `error.tsx` per segment. Sign-in, sign-out, the session guard, the
-Dashboard counters and the Admins list are **wired to the real API**; the remaining sections render
-an explicit "Not built yet" placeholder rather than fabricated data
-(`apps/admin/src/components/layout/section-placeholder.tsx:37-41`).
+**`apps/admin` is a real Next.js application, not an empty scaffold.** Next.js 16.3.3 App Router on
+port **3002** (`apps/admin/package.json:7`, version at `:19`), Tailwind v4 CSS-first (no
+`tailwind.config.*` anywhere; `globals.css:1` is `@import "tailwindcss";`), TanStack Query, a
+hand-rolled UI kit (no `components.json`, so no shadcn registry). Two route groups: `(auth)` for
+login and `(console)` for everything behind the session guard
+(`apps/admin/src/app/(console)/layout.tsx:23-34`).
+
+> **Correction, 2026-08-28.** The two sentences that followed were written against the scaffold and
+> were **badly stale within hours** — `apps/admin` was committed as `0227403` *after* the commit
+> that carried this document. Both are restated correctly below.
+>
+> - It said "**All eight sections exist with `page.tsx` + `loading.tsx` + `error.tsx` per
+>   segment**". Not true: **6 of 25 segments ship neither `loading.tsx` nor `error.tsx`** —
+>   `community/{broadcasts,impact-stories,updates}`, `monetization/{admob,sponsors}` and
+>   `platform/settings`. Separately, `(console)/community/` has **no `page.tsx` at all**, so
+>   `/community` is a 404; the nav points at `/community/impact-stories` instead
+>   (`apps/admin/src/config/nav.ts:83`).
+> - It said only "**sign-in, sign-out, the session guard, the Dashboard counters and the Admins
+>   list**" are wired to the real API. That undercounts by ten. See the table below.
+
+**What is actually wired to the API** (verified 2026-08-28): login, sign-out, the session guard,
+Dashboard counters, sidebar badges, Admins, Users list + detail, Reports list + detail, Comments,
+Flagged Comments, Analytics, Audit Logs, Report Categories, Support Tickets and System Health — plus
+the moderation write paths (`report-actions.tsx`, `user-status-actions.tsx`, `comment-actions.tsx`,
+`flag-actions.tsx`).
+
+**What is still a placeholder** — exactly seven pages, and it is worth being precise about the
+seventh:
+
+- Six render `SectionPlaceholder`'s explicit "Not built yet" empty state
+  (`apps/admin/src/components/layout/section-placeholder.tsx:37-41`):
+  `community/{impact-stories,updates,broadcasts}` and `monetization/{,admob,sponsors}`.
+- **`platform/settings/page.tsx` does not use `SectionPlaceholder`.** It hand-rolls its own
+  "Not built yet" `EmptyState` at `:13-17` and then renders 24 `Setting row N` divs at `:19-29` as a
+  scroll-behaviour demo. Each row says *"Placeholder — proves the sub-menu holds still while this
+  pane scrolls"* (`:26`), so it is honest on screen — but **a grep for `SectionPlaceholder` misses
+  it**, which is why the count above is seven and not six. Tracked as
+  [`../_audit/issues.md`](../_audit/issues.md) issue 10.
 
 **Resolved since the first pass:** the `ops_admin` / `moderator` role-key mismatch between the two
 lanes. The console now takes both key and label from `GET /admin/me` and keeps no local label map
@@ -346,6 +382,12 @@ lanes. The console now takes both key and label from `GET /admin/me` and keeps n
 
 ---
 
-_Last verified against working tree at commit `d035cfd`, 2026-08-28. The `apps/api/src/admin/`,
-`apps/api/src/account-status/` and `apps/admin/` code described above was uncommitted in the shared
-working copy at verification time; the live `uthavu-api` container was serving it._
+_Last verified against commit `d60e276`, 2026-08-28, and the live `uthavu-api` container._
+
+_History: first written against `84a20d3`; revised against `d035cfd` and committed as `98aae67`.
+**Adversarially re-checked against `d60e276`**, after the admin API (`177100c`) and admin console
+(`0227403`) were committed. That pass corrected seven citations that had drifted —
+`main.ts:18`→`:50`, `main.ts:14-18`→`:46-50`, `db/index.ts:25-27`→`:29-31` (×2),
+`app.module.ts:52`→`:65` (×3), `app.module.ts:30-36`→`:32-44`/`:40-43`, `auth.ts:171`→`:256`,
+`auth.ts:49-56`→`:54-61`, `admin.module.ts:9-13`→`:44-61` — plus the sequence diagram's
+"`GET /admin/reports` does not exist yet" note and the whole `apps/admin` shipped-state paragraph._

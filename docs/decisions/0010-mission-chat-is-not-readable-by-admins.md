@@ -65,12 +65,32 @@ action. It does not arrive as a widened projection on an endpoint built for some
 - No new attack surface. An admin account compromise does not become a mass disclosure of private
   emergency conversations, because the endpoint that would have leaked them does not exist.
 - **The decision is enforced by a test, not just by review.**
-  `apps/api/src/admin/admin-reports.service.spec.ts:259-265` seeds a mission message containing a
-  distinctive string, then serialises the *entire* admin report-detail projection and asserts the
-  string is absent. Its own comment explains the choice: serialising the whole payload is the
-  assertion that survives someone later adding a field, where a key-by-key check would not. That is
-  the right shape for this constraint — the failure mode being guarded against is an accidental
-  inclusion, not a deliberate one.
+  `apps/api/src/admin/admin-reports.service.spec.ts:231-237` seeds a mission message containing a
+  distinctive string (*"PRIVATE CHAT — my exact address is 12 Nungambakkam High Road"*), and
+  `:259-268` serialises the *entire* admin report-detail projection and asserts the string is
+  absent. Its own comment explains the choice: serialising the whole payload is the assertion that
+  survives someone later adding a field, where a key-by-key check would not. That is the right shape
+  for this constraint — the failure mode being guarded against is an accidental inclusion, not a
+  deliberate one.
+
+  > **Correction, 2026-08-28.** This originally cited `:259-265` and never cited the seed at all.
+  > `:259-265` **truncates the test at its first assertion**, cutting off two of the three
+  > (`not.toContain('PRIVATE CHAT')` and `not.toContain('message')`) — and the seed is the half that
+  > makes the test mean anything, since without it the assertions would pass against an empty table.
+
+  **Two limits of that enforcement, stated honestly:**
+
+  - **It covers one method of one service.** The assertion runs only against
+    `AdminReportsService.findOne`. `list()` is not covered — its `describe` block (`:105-198`) runs
+    *before* the mission message is seeded (the insert is in the `findOne` `beforeAll` at `:201`).
+    The other ten admin services have no such test. The property holds by inspection everywhere; it
+    is enforced by test in exactly one place.
+  - **The relational traversal is one line away.** `apps/api/src/db/index.ts:31` builds
+    `drizzle(client, { schema })` with the *full* schema, and `missions-schema.ts:140` defines
+    `messages: many(missionMessages)`. Any future admin code reaching for
+    `db.query.missions.findMany({ with: { messages: true } })` traverses straight to chat bodies.
+    Nothing in the API uses `db.query.*` today — which is why the gate holds — so this is latent,
+    not live. It is the specific regression to watch for in review.
 
 **Negative**
 
@@ -138,20 +158,43 @@ action. It does not arrive as a widened projection on an endpoint built for some
 - `apps/api/src/admin/admin-reports.service.ts:46-53` — the constraint written into the service that
   would most plausibly have violated it: *"MISSION CHAT IS NEVER PROJECTED HERE. `mission_messages`
   is not imported by this file and must not be."*
-- `apps/api/src/admin/admin-reports.service.spec.ts:259-265` — the `NEVER exposes Mission Chat` test.
-- `apps/api/src/admin/` — verified 2026-08-28 across the full admin surface (8 controllers,
-  `/admin/reports`, `/admin/users`, `/admin/analytics`, `/admin/audit-logs`,
-  `/admin/report-categories`, `/admin/support-tickets`, comments and the root controller): the only
-  references to `missionMessages` are the service comment above and the test that asserts its
-  absence. No production admin code imports the table.
-- `apps/api/src/admin/admin-audit-catalogue.ts:15-98` — the eleven audit actions currently defined
-  cover reports, comments, comment flags, categories and support tickets. **None of them is a chat
-  action**, which is the catalogue agreeing with this decision.
+- `apps/api/src/admin/admin-reports.service.spec.ts:231-237` (the seed) and `:259-268` (the
+  `NEVER exposes Mission Chat` test).
+- `apps/api/src/admin/` — **re-verified 2026-08-28 against commit `d60e276`**, after the admin API
+  was committed as `177100c`. The surface is 8 controllers and **eleven services** (three of them
+  controller-less: `AdminDashboardService`, `AdminSystemHealthService`,
+  `AdminReportModerationService` — the original sweep counted controllers and so did not name
+  these). Across all eleven: **no admin file imports `missionMessages`**. The only reference in
+  production admin code is the warning comment at `admin-reports.service.ts:46-53`. Adversarially
+  checked for indirect paths too — no `select()` on a mission table, no raw SQL naming
+  `mission_messages`, no `db.query.*` anywhere in the API (so no `with:` traversal), the two object
+  spreads are over `report_categories` and an explicit 12-column `reports` projection, and no admin
+  call site writes a chat body into `admin_audit_logs.before/after`. **No leak path found, direct or
+  indirect.**
+- `apps/admin` (the console) contains three further references to `mission_messages`, **all of them
+  guardrail comments, none a leak**: `src/features/reports/types.ts:11` ("there is no `messages`
+  field"), `src/features/comments/types.ts:5`, and the block comment at
+  `src/features/reports/report-detail.tsx:340-355` ("MISSION CHAT IS NOT HERE, AND MUST NOT BE
+  ADDED"). The bullet above is scoped to `apps/api/src/admin/`, so it stays true as written — but
+  do not repeat it as "the only references *anywhere*".
+- `apps/api/src/admin/admin-audit-catalogue.ts:15-22` (target types) and `:32-114` (actions) — the
+  **thirteen** audit actions currently defined cover reports, comments, comment flags, categories,
+  support tickets and user accounts. **None of them is a chat action**, and none of the six target
+  types is a message, which is the catalogue agreeing with this decision.
+
+  > **Correction, 2026-08-28.** This said "**eleven** audit actions" and cited `:15-98`. The count
+  > was 13 by the time this ADR was committed ([ADR 0011](./0011-user-suspension-blocks-login-not-content.md)
+  > added `user.suspend` / `user.reactivate` the same afternoon), and `:15-98` truncates the actions
+  > array. The load-bearing claim — no chat action in the catalogue — is unaffected and still holds.
 
 ---
 
-*Decided by the product owner 2026-08-28. Captured against working tree at commit `d035cfd`; the
-`apps/api/src/admin/` code referenced above was uncommitted in the shared working copy when this was
-written, and the admin surface grew from 3 endpoints to 8 controllers during the writing of it — the
-"no `mission_messages`" property was re-verified against the larger surface at the end. Answers open
-question #1 in [`../_audit/open-questions.md`](../_audit/open-questions.md).*
+*Decided by the product owner 2026-08-28. Captured against working tree at commit `d035cfd`, when
+the `apps/api/src/admin/` code was still uncommitted and the admin surface grew from 3 endpoints to
+8 controllers during the writing of it. Answers open question #1 in
+[`../_audit/open-questions.md`](../_audit/open-questions.md).*
+
+_Last verified against commit `d60e276`, 2026-08-28. **The decision holds: no production admin code
+reads Mission Chat, and no indirect leak path exists.** That adversarial re-check corrected the test
+citation (`:259-265`→`:231-237` + `:259-268`), the catalogue count and range, and the
+"8 controllers" framing (eleven services), and added the two honest limits on the test's coverage._

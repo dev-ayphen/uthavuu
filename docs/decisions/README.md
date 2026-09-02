@@ -24,6 +24,7 @@ this way?"
 | [0010](./0010-mission-chat-is-not-readable-by-admins.md) | Mission Chat is not readable by admins in V1 | Accepted |
 | [0011](./0011-user-suspension-blocks-login-not-content.md) | User suspension blocks access, never content | Accepted |
 | [0012](./0012-admin-audit-log-before-the-first-mutating-endpoint.md) | The admin audit log ships before the first mutating admin endpoint | Accepted |
+| [0013](./0013-community-updates-vs-announcements.md) | "Community Updates" is the per-report public feed; "Announcements" is a separate feature | Accepted |
 
 ## Conventions
 

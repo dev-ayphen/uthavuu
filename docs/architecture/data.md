@@ -1,19 +1,29 @@
 # Data Architecture
 
-Read from `apps/api/src/db/schema/` and cross-checked against the live `uthavu_dev` database on
-2026-08-27. Every citation below was opened.
+Read from `apps/api/src/db/schema/` and cross-checked against the live `uthavu_dev` database.
+Table inventory and invariants 1–6 first written 2026-08-27; **re-verified against the code and the
+database 2026-08-28** (see the correction notices below — several 2026-08-27 numbers had gone stale).
 
 ---
 
 ## Overview
 
-One PostgreSQL 16 database (`uthavu_dev`), one Drizzle client, **28 tables live**. Schema lives in
-nine files under `apps/api/src/db/schema/`, composed into a single `db` export at
-`apps/api/src/db/index.ts:13-27`. Migrations: 18 committed under `apps/api/drizzle/`.
+One PostgreSQL 16 database (`uthavu_dev`), one Drizzle client, **33 tables live** (counted from
+`information_schema`, 2026-08-28). Schema lives in **eleven** files under
+`apps/api/src/db/schema/`, composed into a single `db` export at `apps/api/src/db/index.ts:29-31`
+(the schema object it is built from is `:15-27`). Migrations: **20** committed under
+`apps/api/drizzle/`, head `0019_motionless_invaders`.
 
-The four `admin_*` tables landed mid-pass (migration `0017_gigantic_marvel_zombies.sql`) and are
-seeded — 2 roles, 6 permissions, 2 admin users as of 2026-08-27. The other 24 tables are the
-citizen product.
+> **Correction, 2026-08-28.** This paragraph previously said **28 tables, nine schema files and 18
+> migrations**, and cited `db/index.ts:13-27` for the `db` export. All four were wrong. The counts
+> were taken on 2026-08-27, before migration 0018 (three `admin_audit_*` tables) and 0019
+> (`user_statuses`, `user_account_status`) landed — but the sections describing those very tables
+> were added to this document on 2026-08-28 without the overview being recounted. And
+> `db/index.ts:13-27` is the *schema object*; the `db` export is at `:31`.
+
+Tables by origin: 4 better-auth (`user`, `session`, `account`, `verification`), 4 admin RBAC
+(migration `0017_gigantic_marvel_zombies.sql`, 2026-08-25), 3 admin audit (`0018`, 2026-08-27), 2
+account status (`0019`, 2026-08-28). The remaining 20 are the citizen product.
 
 ## Schema conventions (as actually followed)
 
@@ -25,20 +35,36 @@ citizen product.
   (`reports-schema.ts:84-85`). Better-auth's tables use timestamps **without** timezone
   (`auth-schema.ts:26-30`) — a real inconsistency, inherited from `auth generate`. Don't "fix" it
   by hand; better-auth owns those tables.
-- **Statuses / enums:** lookup tables joined by FK, seeded by `apps/api/src/db/seed.ts`. Seven of
-  them: `report_categories`, `report_statuses`, `mission_volunteer_statuses`, `progress_statuses`,
-  `mission_completion_statuses`, `flag_statuses`, `ticket_categories`, `ticket_statuses`.
+- **Statuses / enums:** lookup tables joined by FK. **Eight** on the citizen side, seeded by
+  `apps/api/src/db/seed.ts`: `report_categories`, `report_statuses`,
+  `mission_volunteer_statuses`, `progress_statuses`, `mission_completion_statuses`, `flag_statuses`,
+  `ticket_categories`, `ticket_statuses`. **Five more on the staff side**: `admin_roles`,
+  `admin_permissions` (`0017`), `admin_audit_actions`, `admin_audit_target_types` (`0018`, seeded by
+  `apps/api/src/db/seed-audit.ts`) and `user_statuses` (`0019`).
   Two deliberate exceptions, each documented at its column: `alerts.type`
   (`alerts-schema.ts:1-6`) and `mission_volunteers.release_reason`
   (`missions-schema.ts:65-71`).
-- **Soft delete:** exactly one table has it — `reports.deleted_at` / `deleted_by`
-  (`reports-schema.ts:67-83`). Nothing else does, on purpose.
-- **Migrations only:** 18 committed migrations in `apps/api/drizzle/`. `db:push` is banned.
+
+  > **Correction, 2026-08-28.** This bullet said "**Seven** of them" and then listed **eight** — an
+  > arithmetic error present since 2026-08-27 — and it omitted the five staff-side lookups entirely.
+
+- **Soft delete:** **two** tables have it — `reports.deleted_at` / `deleted_by`
+  (`reports-schema.ts:67-83`) and `report_comments.deleted_at` / `deleted_by`
+  (`comments-schema.ts:50, 55`, added by migration 0018 for `comment.remove`). Nothing else does,
+  on purpose.
+
+  > **Correction, 2026-08-28.** This previously said "exactly one table has it". Migration 0018 added
+  > the second. Verified against `information_schema.columns`: `deleted_at` / `deleted_by` exist on
+  > `reports` and `report_comments`, and on nothing else.
+
+- **Migrations only:** **20** committed migrations in `apps/api/drizzle/` (was stated as 18 —
+  0018 and 0019 have since landed). `db:push` is banned.
 
 ## Tenancy
 
 **`single-tenant`.** There is no `org` table, no `org_id` column anywhere, and no `forOrg()` helper.
-`apps/api/src/db/index.ts:25-27` exports a bare `db` that every service imports directly.
+`apps/api/src/db/index.ts:29-31` exports a bare `db` that every service imports directly.
+(Corrected 2026-08-28 — this cited `:25-27`, which is part of the schema object, not the export.)
 
 Scoping is therefore **per-user, per-query, written by hand in each service** — e.g.
 `eq(reports.reporterId, requestingUserId)` at `reports.service.ts:194`,
@@ -81,9 +107,9 @@ warning at `auth-schema.ts:1-7`. Regenerating without redoing it truncates GPS t
 
 | Table | Holds | Source |
 |---|---|---|
-| `report_comments` | **Public** Community Comments — any authenticated user, no `hasActiveAccess` gate. This is the deliberate counterpart to Mission Chat. | `comments-schema.ts:22-37` |
-| `flag_statuses` | `submitted` → `under_review` → `action_taken` → `dismissed`. **Every row in the DB is `submitted`; nothing moves it.** The lifecycle exists so an admin console has somewhere real to write (`comments-schema.ts:39-45`). |
-| `report_comment_flags` | A user flagging **a comment**. Unique on `(comment_id, flagged_by_id)` — re-flagging is a no-op. | `comments-schema.ts:54-78` |
+| `report_comments` | **Public** Community Comments — any authenticated user, no `hasActiveAccess` gate. This is the deliberate counterpart to Mission Chat. Soft-deletable since 0018 (`deleted_at` / `deleted_by`) for `comment.remove`. | `comments-schema.ts:22-59` |
+| `flag_statuses` | `submitted` → `under_review` → `action_taken` → `dismissed`. The admin console is now writing to it — see the correction below. | `comments-schema.ts:61-74` |
+| `report_comment_flags` | A user flagging **a comment**. Unique on `(comment_id, flagged_by_id)` — re-flagging is a no-op. | `comments-schema.ts:76-100` |
 | `report_saves` | Save an Impact Story. Unique on `(report_id, user_id)`. | `saves-schema.ts:9-26` |
 | `alerts` | Append-only per-user notification log. `params` (jsonb) + `type` let the client re-render in the user's current language; `title`/`body` hold the English rendering as a fallback. | `alerts-schema.ts:12-38` |
 | `devices` | FCM push tokens, upserted on `push_token`. **Registration only — there is no send path in this repo.** | `devices-schema.ts:9-21` |
@@ -112,8 +138,8 @@ Live values, verified 2026-08-28: `admin_roles` → `super_admin`, `ops_admin`; 
 
 | Table | Holds | Source |
 |---|---|---|
-| `admin_audit_actions` | Lookup — eleven `target.verb` keys (`report.hide`, `comment.remove`, …), each carrying `target_type_key` + `sort_order` | `audit-schema.ts:37-58` |
-| `admin_audit_target_types` | Lookup — `report`, `comment`, `comment_flag`, `report_category`, `support_ticket` | `audit-schema.ts:60-71` |
+| `admin_audit_actions` | Lookup — **thirteen** `target.verb` keys (`report.hide`, `comment.remove`, …), each carrying `target_type_key` + `sort_order`. Defined at `admin-audit-catalogue.ts:32-114` | `audit-schema.ts:37-58` |
+| `admin_audit_target_types` | Lookup — **six**: `report`, `comment`, `comment_flag`, `report_category`, `support_ticket`, **`user`**. Defined at `admin-audit-catalogue.ts:15-22` | `audit-schema.ts:60-71` |
 | `admin_audit_logs` | The append-only trail: actor (id **+ email/name/role snapshot**), action, target, `before`/`after` jsonb, `reason`, `ip_address`, `user_agent` | `audit-schema.ts:79-150` |
 
 Three schema facts that are decisions, not details:
@@ -129,7 +155,84 @@ Three schema facts that are decisions, not details:
   reference, both of which destroy the record of what was acted on. `target_label` is the snapshot
   that keeps the row meaningful when the target is gone.
 
+> **Correction, 2026-08-28 (second pass).** These two rows said **eleven** actions across **five**
+> target types. Both were already stale when written: ADR 0011's suspension work added the `user`
+> target type and the `user.suspend` / `user.reactivate` actions in the same afternoon. Counted from
+> `admin-audit-catalogue.ts` and confirmed against the live database (`select count(*)` → 13 and 6).
+> This list grows with the endpoint surface — **re-read the catalogue rather than quoting this
+> table.**
+
 Full reasoning in [ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md).
+
+### Platform settings — landed 2026-08-29 (migration 0021)
+
+`platform_settings` is a **singleton row** holding the configuration the admin console edits and the
+mobile app reads at launch via `GET /config`.
+
+Three properties that are decisions, not details:
+
+- **The singleton is enforced by the database, not by convention.** A
+  `singleton boolean NOT NULL DEFAULT true UNIQUE` plus `CHECK (singleton)`: the check forbids
+  `false`, the unique index permits exactly one `true`. A second insert fails with `23505`. This is
+  stronger than a fixed UUID, which any writer could ignore.
+- **Bounds are DB `CHECK` constraints built from the same constant the Zod DTO reads**
+  (`PLATFORM_SETTINGS_BOUNDS`), so the API and the database cannot disagree about what is valid.
+  Verified: `default_radius_km = 7` → `23514`, `max_photos_per_report = 99` → `23514`.
+- **The seed uses `onConflictDoNothing`, uniquely in `db/seed.ts`.** Every other block upserts. Here
+  an upsert would switch `maintenance_mode` back **off** on every deploy — re-seeding must never
+  silently un-pause a platform an operator deliberately froze.
+
+**Not cached, deliberately.** `getPlatformConfig()` reads the row per call, for the same reason
+`isUserSuspended()` does: an in-process cache cannot be invalidated across processes, which is
+exactly the stale kill-switch failure `docs/webadmin/07-platform-settings.md` §5A.3 describes — *"a
+switch that looks like a stop button and isn't one is worse than no switch."* The upgrade path, if
+it is ever needed, is Redis pub/sub invalidation, **not** a TTL.
+
+**The lockout exemption is the highest-risk part of the schema's consumers.** `maintenance_mode` and
+`read_only_mode` block citizen writes through a global guard, and `/admin/*` and `/api/auth` are
+exempted **twice, independently** (controller path metadata *and* a segment-boundary prefix check) so
+an operator cannot freeze themselves out of the console they need to unfreeze it. Admin routes do not
+even read the settings row, so a database problem cannot lock the console during the incident it
+exists for.
+
+**Known derivation, not a stored fact:** `updatedByDeleted` is computed as
+`updated_by IS NULL AND updated_at > created_at`, because `updated_by` is `SET NULL` and cannot
+distinguish "never changed" from "changed by a since-deleted admin". It is sound only because the
+seed never updates the row. `admin_audit_logs` is the authoritative answer to who changed what.
+
+### Announcements — landed 2026-08-29 (migration 0020)
+
+> **Naming warning.** The tables are called `community_updates` / `community_update_statuses` and the
+> endpoints `/admin/community-updates`, but this is the **Announcements** feature — admin-authored
+> broadcasts. It is **not** "Community Updates", which is the per-report public feed backed by
+> `report_comments`. The names were fixed before the distinction was understood; renaming them would
+> cost a migration plus a rewrite of seeded `community_update.*` audit rows, so it is deliberate,
+> recorded debt. See [ADR 0013](../decisions/0013-community-updates-vs-announcements.md).
+
+| Table | Holds | Source |
+|---|---|---|
+| `community_update_statuses` | Lookup — `draft`, `published`, `archived` | `updates-schema.ts` |
+| `community_updates` | Staff-authored bilingual announcements: `title_en`/`body_en` (NOT NULL), `title_ta`/`body_ta` (nullable), `status_id` FK, `publish_at`/`expires_at`, `author_admin_user_id`, `deleted_at` | `updates-schema.ts` |
+
+Three properties worth knowing:
+
+- **Bilingual with per-field fallback.** English is required, Tamil optional — so an announcement is
+  publishable before it has been translated, and the citizen read resolves each field independently
+  from the caller's `user.locale`. This is the same locale pattern as `alerts/alert-templates.ts`.
+- **`author_admin_user_id` is `ON DELETE SET NULL`** — an announcement outlives the admin who wrote
+  it, the same reasoning as `admin_audit_logs.actor_user_id`.
+- **Scheduling is by timestamp, not status.** `publish` sets the status; it deliberately does **not**
+  stamp `publish_at = now()`, because overwriting a future schedule would ship a notice early. The
+  citizen query decides visibility from `publish_at`/`expires_at`.
+
+Indexes: `(status_id, publish_at)` for the citizen feed, `(created_at)` for the console list.
+
+**Invariant, and where it is enforced:** `expires_at` must be after `publish_at`. There is **no DB
+CHECK constraint** (this schema has none anywhere) — it is guarded in exactly two places: the DTO
+`.refine()`, and again in the service against the **merged** values, because a `PATCH` sending only
+`expires_at` sails past any DTO-level check. Both are tested. Soft-delete filtering
+(`deleted_at IS NULL`) is applied in every read path on both surfaces, and **there is no restore
+endpoint**.
 
 ### Account status — landed 2026-08-28 (migration 0019)
 
@@ -146,9 +249,17 @@ be right. Same honest default as `admin_users`.
 `suspended_by` is `SET NULL` (`:83-85`): deleting an admin's account must not silently un-suspend
 everyone they actioned.
 
-**This table never affects a read path.** Nothing filters reports, missions, comments or impact
-stories on it. See [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md) and
-invariant 7 below.
+**This table never affects a *citizen* read path.** Nothing filters reports, missions, comments or
+impact stories on it — verified 2026-08-28 by grepping every citizen module for
+`userAccountStatus` / `userStatuses` / `isUserSuspended` (zero hits) and confirming the API never
+uses Drizzle's relational `db.query.*` API, so no `with:` traversal can reach it implicitly.
+
+**One admin query does filter on it, legitimately:** `AdminUsersService.list()` supports a
+`?status=` filter over the admin user directory (`apps/api/src/admin/admin-users.service.ts:89-91`),
+defaulting to `all` (`apps/api/src/admin/dto/list-admin-users.dto.ts:27`) so suspended users appear
+in the default staff view. That is a staff directory filter, not a content filter — no citizen's
+view of anyone's reports, missions or comments changes. See
+[ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md) and invariant 7 below.
 
 ---
 
@@ -217,13 +328,18 @@ erDiagram
    `AND confirm_deadline > now()` itself.
 6. **A mission is created lazily.** A report with no volunteers has no `missions` row at all — join
    with `LEFT JOIN`, never `INNER JOIN`, or open reports vanish from the result.
-7. **Suspension gates access, never content.** `user_account_status` must not appear in any read
-   path — no listing, projection or counter may filter or hide rows because their author is
-   suspended. It is consulted in exactly two places, both gating on the *caller's* id: the login
-   hook (`apps/api/src/auth/auth.ts:128-141`) and the global request guard
-   (`apps/api/src/account-status/suspended-account.guard.ts:39-82`). A volunteer must be able to
-   finish a mission for a reporter who has since been suspended
+7. **Suspension gates access, never content.** No listing, projection or counter may hide or filter
+   *content* rows because their author is suspended. Enforcement is exactly two places, both gating
+   on the *caller's* id: the login hook (`apps/api/src/account-status/login-block.ts:73-87` (wired at `apps/api/src/auth/auth.ts:132-140`)) and the global request
+   guard (`apps/api/src/account-status/suspended-account.guard.ts:39-82`). A volunteer must be able
+   to finish a mission for a reporter who has since been suspended
    ([ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md)).
+
+   > **Correction, 2026-08-28.** This invariant originally read "`user_account_status` must not
+   > appear in **any** read path". That absolute is now false and was too strong to begin with: the
+   > admin Users directory both projects the status (`admin-users.service.ts:186-189`) and offers an
+   > opt-in `?status=` filter over it (`:89-91`). The invariant that actually matters is the one
+   > above — **no *content* read path filters on it**, which still holds with no exceptions.
 8. **`mission_messages` is invisible to admins.** No admin endpoint, projection or join may include
    it. `hasActiveAccess()` (`missions.service.ts:241-256`) is the sole authority on who reads
    Mission Chat, and it must stay free of an admin branch
@@ -243,62 +359,103 @@ erDiagram
 assigns it**. Expiry is derived from `reports.expiry_at` at read time; `ReportsService.list()`
 filters on `status = 'open'` only (`reports.service.ts:306, 324`).
 
-Verified against `uthavu_dev` on 2026-08-27:
+Re-verified against `uthavu_dev` on 2026-08-28 — **`expired` is still 0, and so is `closed`**:
 
 | `report_statuses.key` | rows |
 |---|---|
-| `open` | 20 |
-| `completed` | 11 |
-| `closed` | 0 |
+| `open` | 78 |
+| `completed` | 40 |
+| `closed` | **0** |
 | `expired` | **0** |
 
-…and **18 of those 20 `open` reports are already past `expiry_at`.**
+…and **33 of the 38 live (non-soft-deleted) `open` reports are already past `expiry_at`.**
+
+> **Numbers, not the finding, went stale.** The 2026-08-27 table above read `open` 20 / `completed`
+> 11 / "18 of 20 past expiry". The dev database is now churned continuously by the backend lane's
+> integration suite, so **treat any absolute row count in this document as indicative only** — it
+> moved by three reports during the ten minutes this correction took to write. The durable facts
+> are the two zeroes: nothing writes `expired`, and nothing had written `closed` either at the time
+> of checking, even though `POST /admin/reports/:id/close` exists and had been exercised (three
+> `report.close` rows in `admin_audit_logs`, each followed by a `report.reopen`).
 
 Consequence for the admin console: a "Status = Expired" filter would always return zero rows and
-the Reports list would show 20 items as active when only 2 really are. The correct predicate is
+the Reports list would count reports as active long past their expiry. The correct predicate is
 `status = 'open' AND expiry_at > now()` for active, `status = 'open' AND expiry_at <= now()` for
 expired. Tracked as gap **R-3** in the integration map.
 
 ### `report_likes` does not exist
 
-Several code comments reference `report_likes` as if it were a peer of `report_saves`
-(`comments-schema.ts:74`, `users.service.ts:90`). **There is no such table** — not in
+Three code comments reference `report_likes` as if it were a peer of `report_saves`
+(`comments-schema.ts:96`, `users.service.ts:90`, `comments.service.ts:71`). **There is no such
+table** — not in
 `apps/api/src/db/schema/` and not in the database (`\dt` verified). Only `report_saves` exists
 (`saves-schema.ts:9-26`). Don't build an admin "likes" metric on it.
 
 ### Flagging is comment-only
 
 There is no report-level flag table. `report_comment_flags` flags a **comment**
-(`comments-schema.ts:54-78`). The admin nav has a "Flagged Reports" tab
-(`apps/admin/src/config/nav.ts:71`) with nothing behind it. See gap **R-2**.
+(`comments-schema.ts:76-100`).
+
+> **Correction, 2026-08-28.** This previously said the admin nav has a **"Flagged Reports"** tab
+> "with nothing behind it", citing `apps/admin/src/config/nav.ts:71`. Both halves are now wrong.
+> The console renamed the entry to **"Flagged Comments"** (`apps/admin/src/config/nav.ts:75`,
+> with the rename explained in the comment at `:71-74`), and it is wired to a real endpoint,
+> `GET /admin/flagged-comments`. There is no "Flagged Reports" label anywhere in `apps/admin/src`.
+> The underlying data point still stands: report-level flagging has no table and does not exist.
 
 ---
 
-## Live dataset (dev, 2026-08-27)
+## Live dataset (dev, 2026-08-28)
 
-`user` 4 · `reports` 31 · `missions` 20 · `mission_volunteers` 21 · `report_comments` 2 ·
-`report_comment_flags` 0 · `alerts` 8 · `devices` 0 · `support_tickets` 0 · `report_saves` 1.
+`user` 8 · `reports` 118 (78 not soft-deleted) · `missions` 78 · `mission_volunteers` 79 ·
+`report_comments` 14 · `report_comment_flags` 7 · `alerts` 8 · `devices` 0 · `support_tickets` 0 ·
+`report_saves` 1 · `admin_audit_logs` 26 · `mission_messages` 0.
 
-Useful context for the admin build: **the moderation tables are empty**, so a moderation queue
-built against them will look broken until someone flags something. Seed or exercise the mobile
-flows before judging a screen "not working".
+> **Correction, 2026-08-28.** The 2026-08-27 snapshot (`user` 4 · `reports` 31 · `missions` 20 ·
+> `mission_volunteers` 21 · `report_comments` 2 · `report_comment_flags` **0**) is superseded, and
+> so is the advice under it. **"The moderation tables are empty" is no longer true** — there are 14
+> comments and 7 flags, and all 7 flags are `dismissed`, not `submitted`. **These counts move
+> constantly**: the backend lane's integration suite writes into this same database, and the report
+> count rose by three while this section was being corrected. Re-query before relying on any number
+> here; the shapes are what this document is for, not the totals.
 
----
-
-### Master data can be applied-but-unseeded
-
-Verified against `uthavu_dev` on 2026-08-28: migrations 0018 and 0019 are applied (20 rows in
-`drizzle.__drizzle_migrations`, head `0019_motionless_invaders`) but their lookup rows are **not**
-present — `admin_audit_actions` 0, `admin_audit_target_types` 0, `user_statuses` 0. `pnpm db:seed`
-has not run since they landed.
-
-Nothing can be suspended until it does (there is no `suspended` row to reference), and the first
-mutating admin endpoint will throw `admin_audit_actions row missing for key "…" — did db:seed run?`
-(`apps/api/src/admin/admin-audit.service.ts:104-108`) rather than write the change unlogged. Both are
-the designed behaviour. Tracked as [`../_audit/issues.md`](../_audit/issues.md) issue 9.
+Still worth knowing for the admin build: `devices` and `support_tickets` are genuinely empty, so the
+Support queue and anything push-related will look broken until someone exercises those flows.
 
 ---
 
-_Table inventory and invariants 1–6 verified against commit `84a20d3`. The Admin RBAC, audit-trail
-and account-status sections, invariants 7–9 and the seeding note verified against the working tree at
-commit `d035cfd` and the live `uthavu_dev` database, 2026-08-28._
+### Master data can be applied-but-unseeded — but right now it is seeded
+
+**Correction, 2026-08-28 (second pass): this section previously reported the lookup tables as
+holding 0 rows. That is no longer true.** `pnpm db:seed` has since run. Re-verified against
+`uthavu_dev`:
+
+| Table | Rows | Expected |
+|---|---|---|
+| `admin_audit_actions` | **13** | 13 (`admin-audit-catalogue.ts:32-114`) |
+| `admin_audit_target_types` | **6** | 6 (`admin-audit-catalogue.ts:15-22`) |
+| `user_statuses` | **2** | 2 (`seed.ts:92-95`) |
+
+Migrations 0018 and 0019 remain applied (20 rows in `drizzle.__drizzle_migrations`, head
+`0019_motionless_invaders`). `admin_audit_logs` holds 26 real rows across nine distinct actions, so
+the audit trail is demonstrably being written, not just wired.
+
+The *failure mode* the original note described is still real and still worth knowing, because it
+recurs on every fresh database and after every new audit action is added to the catalogue: until
+`pnpm db:seed` runs, nothing can be suspended (no `suspended` row to reference) and the first
+mutating admin endpoint throws `admin_audit_actions row missing for key "…" — did db:seed run?`
+(`apps/api/src/admin/admin-audit.service.ts:104-108`) rather than write the change unlogged. Both
+are the designed behaviour. Tracked as [`../_audit/issues.md`](../_audit/issues.md) issue 9.
+
+---
+
+_Last verified against commit `d60e276`, 2026-08-28, and the live `uthavu_dev` database._
+
+_History: table inventory and invariants 1–6 first written against `84a20d3` (2026-08-27); the Admin
+RBAC, audit-trail and account-status sections and invariants 7–9 added against `d035cfd` and
+committed in `98aae67`. **Adversarially re-checked against `d60e276` on 2026-08-28**, after the admin
+API (`177100c`) and admin console (`0227403`) were committed. That pass found and corrected: the
+table/schema-file/migration counts, the lookup-table arithmetic, the soft-delete count, the audit
+action and target-type counts, invariant 7's over-broad wording, the `report_likes` and
+comments-schema citations, the "Flagged Reports" nav claim, the live dataset, and the
+"applied-but-unseeded" state. Each correction is marked inline rather than silently applied._

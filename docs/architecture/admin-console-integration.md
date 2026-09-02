@@ -10,12 +10,36 @@
 `path:line` here was opened and confirmed.
 
 **Revised 2026-08-28.** Admin RBAC, the audit trail, account suspension and the `apps/admin`
-application have all landed since the first pass. §3's blocking list is updated: **A-0 (CORS) and
-P-5 (audit log) are resolved, U-2 (suspension) is decided and half-built**, and the `ops_admin` /
-`moderator` role-key seam defect is fixed. Two of §6's blocking questions are now answered by
+application have all landed since the first pass. §3's blocking list is updated, and the `ops_admin`
+/ `moderator` role-key seam defect is fixed. Two of §6's blocking questions are now answered by
 [ADR 0010](../decisions/0010-mission-chat-is-not-readable-by-admins.md) and
-[ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md). Several lanes are still
-writing into this tree concurrently, so re-verify a citation before you rely on it.
+[ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md).
+
+> ## ⚠️ Re-audited 2026-08-28 — most of this document's gap analysis is now WRONG
+>
+> **Read this before trusting any "Build" / "not built" / "no table" verdict below.** The 2026-08-28
+> revision updated §3's *ranked* list but left §2's entity matrix, §3's *per-section* tables and §5's
+> write-path table describing a backend that no longer exists. The admin API was committed as
+> `177100c` and the console as `0227403` — **both after the commit carrying this document**.
+>
+> What actually shipped: **8 admin controllers, 29 routes (16 GET, 13 mutating)**, and every one of
+> the 13 mutating routes writes an `admin_audit_logs` row in the same transaction as its change.
+> Concretely, these verdicts below are **false as written** and are corrected inline:
+>
+> | Said | Actually |
+> |---|---|
+> | **R-1** no cross-user report listing | `GET /admin/reports` + `/:id` shipped |
+> | **U-1 / U-2** Users has no endpoints, no suspend column | `GET /admin/users`, `/:id`, `POST /:id/suspend`, `/:id/reactivate` shipped |
+> | **P-5** audit logs: "no table" | three tables, seeded, 26 rows written |
+> | Close / hide a report: citizen-only, 403s for staff | four dedicated admin routes: close / reopen / hide / reinstate |
+> | Categories: "no mutation endpoint" | full CRUD shipped |
+> | Support: "no status-transition endpoint" | `PATCH /admin/support-tickets/:id/status` shipped |
+> | Analytics / system health: "no endpoint" | `GET /admin/analytics`, `GET /admin/system-health` shipped |
+> | Comments moderation: "❌ write side" | remove / restore / resolve-flag shipped |
+>
+> **Still genuinely absent:** report-level flagging (no table), Community Updates, Broadcasts (no
+> table *and* no FCM send path), App Settings, Monetization, and admin-user provisioning (**AD-1** —
+> `AdminService` still has no write methods). Those six are the honest remainder.
 
 ---
 
@@ -75,8 +99,8 @@ out until their app next polls.**
 |---|---|---|
 | Sign-in | Phone + OTP (msg91, dev fallback) | Email + password |
 | Credential | `Authorization: Bearer <token>` | Session cookie |
-| Mechanism | better-auth `bearer()` plugin, `apps/api/src/auth/auth.ts:171` | better-auth `emailAndPassword`, `apps/api/src/auth/auth.ts:80-84` |
-| Self-registration | Yes — verified phone creates a user | **No** — `disableSignUp: true` (`auth.ts:82`) |
+| Mechanism | better-auth `bearer()` plugin, `apps/api/src/auth/auth.ts:256` | better-auth `emailAndPassword`, `apps/api/src/auth/auth.ts:85-89` |
+| Self-registration | Yes — verified phone creates a user | **No** — `disableSignUp: true` (`auth.ts:87`) |
 | Storage | `expo-secure-store` (`libs-mobile/lib/api.ts:50-53`) | Browser cookie, `credentials: 'include'` |
 
 Both produce an ordinary better-auth session row, so **one guard resolves either**. An admin is not
@@ -88,7 +112,7 @@ so no default value can ever mean "admin" (`admin-schema.ts:11-17`).
 
 ## 2. Entity → admin section matrix
 
-The eight sections are `apps/admin/src/config/nav.ts:49-127`. For each: the real tables behind it,
+The eight sections are `apps/admin/src/config/nav.ts:49-131`. For each: the real tables behind it,
 and the operations it needs.
 
 ### 2.1 Dashboard — `/dashboard`
@@ -103,7 +127,7 @@ and the operations it needs.
 | "Fake reports" tile | **no source** — returns `null`, deliberately not `0` | `admin-dashboard.service.ts:22-35` |
 
 **Read-only.** `GET /admin/dashboard?timeZone=Asia/Kolkata` exists
-(`apps/api/src/admin/admin.controller.ts:40-43`).
+(`apps/api/src/admin/admin.controller.ts:44-47`).
 
 > The `null`-not-`0` choice at `admin-dashboard.service.ts:29-33` is the right pattern for this
 > whole console and worth copying: where the design asks for a number the schema can't produce,
@@ -117,10 +141,13 @@ and the operations it needs.
 | Volunteer history for a user | `mission_volunteers` (`volunteer_id`, `status_id`, `joined_at`, progress timestamps) | `missions-schema.ts:44-87` |
 | Reports posted by a user | `reports.reporter_id` | `reports-schema.ts:44` |
 | Completion count ("trust = verification + history") | `mission_completions.completed_by_id` | `missions-schema.ts:127` |
-| Suspend / block | **no column exists** — see gap **U-2** | — |
+| ~~Suspend / block~~ **SHIPPED** | `user_statuses` + `user_account_status` (migration 0019) | `user-status-schema.ts:42-53, 65-94`; routes `admin-users.controller.ts:63-64, 75-76` |
 | Contact | `user.phone_number`, `user.contact_email` | `auth-schema.ts:31, 39` — privacy-sensitive, §4 |
 
-**Reads + one write (suspend) that has nowhere to go.**
+~~**Reads + one write (suspend) that has nowhere to go.**~~ **Corrected 2026-08-28:** all of it
+shipped. `GET /admin/users`, `GET /admin/users/:id`, `POST /admin/users/:id/suspend` and
+`POST /admin/users/:id/reactivate`, all gated on `users:manage`, both writes audit-logged. See
+[ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md).
 
 ### 2.3 Reports — `/reports`, `/reports/flagged`, `/reports/comments`
 
@@ -166,7 +193,7 @@ district, not the report's) or reverse-geocoding. That is a product question, no
 | App settings | **no table** | — |
 | Support queue | `support_tickets` ⋈ `ticket_categories` ⋈ `ticket_statuses` | `tickets-schema.ts:11-42` |
 | System health | **no table** — would be process/infra metrics | — |
-| Audit logs | **no table** — see gap **P-5**, the most important one on this list | — |
+| ~~Audit logs~~ **SHIPPED** | `admin_audit_actions` + `admin_audit_target_types` + `admin_audit_logs` (migration 0018) | `audit-schema.ts:37-58, 60-71, 79-150`; `GET /admin/audit-logs` + `/catalogue` |
 
 Categories is a genuinely nice case: because `default_expiry_minutes` and `citizen_selectable` are
 DB columns (`reports-schema.ts:17, 20`) rather than constants, an admin editing them changes real
@@ -200,10 +227,10 @@ endpoint's projection/filter is wrong for admin · **Build** = nothing exists.
 | # | Gap | Why it blocks | What to build |
 |---|---|---|---|
 | 1 | ~~**A-0 — CORS is not configured**~~ **RESOLVED 2026-08-28 — and the original diagnosis was wrong** | CORS was working via better-auth's `trustedOrigins`; the real fault was `ADMIN_URL` pointing at port 3000 (a stale prototype) while the console runs on 3002. **Trap:** an untrusted origin still gets a 204 preflight with `Allow-Credentials`/`Allow-Methods`/`Allow-Headers` — only `Access-Control-Allow-Origin` is withheld, so "preflight returned 204" is not evidence CORS works. | Done. `apps/api/src/main.ts:41-45` owns CORS explicitly (exact-origin allowlist from `ADMIN_URL`, `credentials: true`, **`PATCH` included**), with `disableTrustedOriginsCors: true` at `apps/api/src/app.module.ts:39` so two middlewares don't emit the header twice. See [`system.md`](./system.md#cors--configured-and-a-correction-to-an-earlier-claim-in-this-document). |
-| 2 | **R-1 — no cross-user report listing** | Reports is the console's biggest section and there is *no* endpoint that can back it. `ListReportsDto` **requires** `categoryKey` + `lat` + `lng` + `radiusKm` and hard-filters to `status='open'` (`list-reports.dto.ts:6-11`, `reports.service.ts:306-329`). No pagination exists anywhere in the API. | `GET /admin/reports` with `status`/`category`/`date`/`q` filters, keyset or offset pagination, and an admin projection. |
-| 3 | ~~**P-5 — no audit log table**~~ **RESOLVED 2026-08-28** | The sequencing requirement held: it shipped *before* the first mutating endpoint. | Done, and as **three** tables rather than one — `admin_audit_actions` + `admin_audit_target_types` lookups plus the append-only `admin_audit_logs` (`apps/api/drizzle/0018_famous_multiple_man.sql`, applied). `AdminAuditService.record()` takes the caller's transaction so log and change are atomic (`apps/api/src/admin/admin-audit.service.ts:17-27`). See [ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md). **Caveat:** the lookup tables are seeded-but-empty locally — `pnpm db:seed` has not run since 0018 ([`../_audit/issues.md`](../_audit/issues.md) issue 9). |
-| 4 | ~~**U-1 / U-2 — Users section has no endpoints and no suspend concept**~~ **RESOLVED 2026-08-28** | Both halves landed. Suspension semantics are decided — block access, never content — and the endpoints exist. | Done. `GET /admin/users`, `GET /admin/users/:id`, `POST /admin/users/:id/suspend` and `POST /admin/users/:id/reactivate`, all gated on `users:manage` (`apps/api/src/admin/admin-users.controller.ts:35-76`). Backed by `user_statuses` + `user_account_status` (migration 0019, applied), the login block (`apps/api/src/auth/auth.ts:128-141`) and the global request guard (`apps/api/src/account-status/suspended-account.guard.ts:39-82`). Audit actions `user.suspend` / `user.reactivate` are in the catalogue (`apps/api/src/admin/admin-audit-catalogue.ts:103, 109`). See [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md). |
-| 5 | **R-2 / CM-3 — flagged reports and broadcasts have no backing tables** | Two nav entries (`nav.ts:71` Flagged Reports, `nav.ts:87` Broadcasts) point at nothing. Broadcast is worse than empty: even with a table, there is **no FCM send path** in the repo, so a "broadcast" would silently reach nobody. | Either build `report_flags` + a broadcast table + the FCM sender, or remove the nav entries until they're real. Do not ship a button that appears to work. |
+| 2 | ~~**R-1 — no cross-user report listing**~~ **RESOLVED 2026-08-28** | The citizen `ListReportsDto` still requires `categoryKey` + `lat` + `lng` + `radiusKm` and hard-filters to `status='open'` (`list-reports.dto.ts:6-11`, `reports.service.ts:306-329`) — correctly, it is a nearby-discovery endpoint. The admin console got its own instead, exactly as prescribed. | Done. `GET /admin/reports` and `GET /admin/reports/:id`, gated on `reports:manage` (`admin-reports.controller.ts:38-42, 49-53`), with an admin projection that deliberately excludes Mission Chat ([ADR 0010](../decisions/0010-mission-chat-is-not-readable-by-admins.md)) and offset pagination (`admin-pagination.ts`). Effective status is derived from `expiry_at`, not read from `status` — `report-effective-status.ts` — which closes **R-3** too. |
+| 3 | ~~**P-5 — no audit log table**~~ **RESOLVED 2026-08-28** | The sequencing requirement held: it shipped *before* the first mutating endpoint. | Done, and as **three** tables rather than one — `admin_audit_actions` + `admin_audit_target_types` lookups plus the append-only `admin_audit_logs` (`apps/api/drizzle/0018_famous_multiple_man.sql`, applied). `AdminAuditService.record()` takes the caller's transaction so log and change are atomic (`apps/api/src/admin/admin-audit.service.ts:17-27`). See [ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md). *(Caveat withdrawn 2026-08-28: `pnpm db:seed` has since run — 13 actions, 6 target types, and 26 real log rows across nine actions. The unseeded hazard still applies to a fresh database; see [`../_audit/issues.md`](../_audit/issues.md) issue 9.)* |
+| 4 | ~~**U-1 / U-2 — Users section has no endpoints and no suspend concept**~~ **RESOLVED 2026-08-28** | Both halves landed. Suspension semantics are decided — block access, never content — and the endpoints exist. | Done. `GET /admin/users`, `GET /admin/users/:id`, `POST /admin/users/:id/suspend` and `POST /admin/users/:id/reactivate`, all gated on `users:manage` (`apps/api/src/admin/admin-users.controller.ts:35-76`). Backed by `user_statuses` + `user_account_status` (migration 0019, applied), the login block (`apps/api/src/account-status/login-block.ts:73-87` (wired at `apps/api/src/auth/auth.ts:132-140`)) and the global request guard (`apps/api/src/account-status/suspended-account.guard.ts:39-82`). Audit actions `user.suspend` / `user.reactivate` are in the catalogue (`apps/api/src/admin/admin-audit-catalogue.ts:103, 109`). See [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md). |
+| 5 | **R-2 / CM-3 — report-level flagging and broadcasts have no backing tables** | **Still open, and half of it was mis-stated.** *Corrected 2026-08-28:* there is no "Flagged Reports" nav entry any more — the console renamed it to **"Flagged Comments"** (`nav.ts:75`, rename explained at `:71-74`) and wired it to the real `GET /admin/flagged-comments`. So the console no longer ships a button that leads nowhere for flags. **Broadcasts is untouched and still the real problem** (`nav.ts:91` → a placeholder page): no table, and **no FCM send path anywhere in the repo**, so a "broadcast" would silently reach nobody. | Report-level flagging: decide whether it is wanted at all before building `report_flags`. Broadcasts: needs a product decision, a table *and* the FCM sender — all three, in that order. |
 
 ### Per-section detail
 
@@ -217,20 +244,20 @@ endpoint's projection/filter is wrong for admin · **Build** = nothing exists.
 #### Users
 | Item | Status | Note |
 |---|---|---|
-| List / search users | **Build** (U-1) | Nothing exists. |
-| User detail + activity | **Build** | Compose from `reports`, `mission_volunteers`, `mission_completions`. |
-| Suspend / reactivate | **Build + schema change** (U-2) | No column, no defined semantics. |
+| List / search users | ✅ **Shipped** | `GET /admin/users` (`admin-users.controller.ts:35-39`), with an opt-in `?status=` filter defaulting to `all`. |
+| User detail + activity | ✅ **Shipped** | `GET /admin/users/:id` (`:49-53`) — composed from `reports`, `mission_volunteers`, `mission_completions`, `report_comments`, flags and tickets, exactly as this row prescribed. |
+| Suspend / reactivate | ✅ **Shipped** | `POST /admin/users/:id/suspend` / `:id/reactivate` (`:63-64, 75-76`), both audit-logged. Semantics decided: [ADR 0011](../decisions/0011-user-suspension-blocks-login-not-content.md). |
 | Delete a user | **Variant** | `UsersService.deleteAccount()` (`users.service.ts:96-153`) implements the whole SET-NULL/CASCADE policy correctly but is hard-wired to `session.user.id`. An admin variant must reuse *that transaction*, never re-implement it — the policy is subtle (`users.service.ts:65-95`). |
 
 #### Reports
 | Item | Status | Note |
 |---|---|---|
-| Cross-user list | **Build** (R-1) | See above. |
-| Report detail | **Variant** (R-4) | `GET /reports/:id` exists but returns `ReportsService.toResponse()` (`reports.service.ts:511-568`), which is a *citizen* projection: it redacts the reporter when `anonymous`, redacts `reporterPhone` unless the caller is the owner or an accepted volunteer, and computes `isOwner`/`savedByMe`/`editable` relative to the caller. Those fields are meaningless for staff. An admin needs different columns *and* a deliberate answer to §4. |
-| Active vs expired | **Variant** (R-3) | `status='expired'` is never written (see [`data.md`](./data.md#expired-is-a-status-nothing-ever-writes)). Verified live: 18 of 20 `open` reports are already past `expiry_at`. Admin filters must derive from `expiry_at`. |
+| Cross-user list | ✅ **Shipped** (R-1) | `GET /admin/reports`. See above. |
+| Report detail | ✅ **Shipped** (R-4) | `GET /admin/reports/:id` was built as a separate admin projection rather than a variant, which is what this row recommended. The citizen `GET /reports/:id` still returns `ReportsService.toResponse()` (`reports.service.ts:511-568`), which is a *citizen* projection: it redacts the reporter when `anonymous`, redacts `reporterPhone` unless the caller is the owner or an accepted volunteer, and computes `isOwner`/`savedByMe`/`editable` relative to the caller. Those fields are meaningless for staff. An admin needs different columns *and* a deliberate answer to §4. |
+| Active vs expired | ✅ **Shipped** (R-3) | `status='expired'` is still never written (see [`data.md`](./data.md#expired-is-a-status-nothing-ever-writes)) — re-verified 2026-08-28, still 0 rows, with 33 of 38 live `open` reports past `expiry_at` (the "18 of 20" figure was 2026-08-27). The admin side solved it correctly: `report-effective-status.ts` derives status from `expiry_at` instead of trusting the column. |
 | Flagged reports | **Build** (R-2) | No table. |
-| Close a report | **Variant** | `POST /reports/:id/close` requires ownership (`reports.service.ts:414-415` → `requireOwnedOpenReport`, `:491`). An admin is never the owner, so this 403s for staff by construction. |
-| Soft-delete a report | **Variant** | Same ownership gate (`reports.service.ts:447`), *plus* it refuses once any volunteer has joined (`:448-452`). Admin removal of harmful content must not be blocked by that rule — but `deleted_by` then records an admin, which changes what that column means. Decide deliberately. |
+| Close a report | ✅ **Shipped** | The citizen `POST /reports/:id/close` still requires ownership (`reports.service.ts:414-415` → `requireOwnedOpenReport`, `:491`) and still 403s for staff — correctly. Admins got their own: `POST /admin/reports/:id/close` and `/reopen` (`admin-report-moderation.service.ts:88, 163`), both audit-logged. A close reuses the existing `report_cancelled` alert to confirmed volunteers. |
+| Soft-delete a report | ✅ **Shipped** | `POST /admin/reports/:id/hide` and `/reinstate` (`admin-report-moderation.service.ts:210, 260`), not blocked by the citizen rule. `deleted_by` does now record an admin — the two cases stay distinguishable because an admin hide always writes a `report.hide` audit row and a self-delete never does. |
 
 #### Community
 | Item | Status | Note |
@@ -243,17 +270,17 @@ endpoint's projection/filter is wrong for admin · **Build** = nothing exists.
 #### Analytics
 | Item | Status | Note |
 |---|---|---|
-| Everything | **Build** (AN-1) | Columns exist; no aggregate endpoint does. `ReportsService.summary()` and `communityStats()` (`reports.service.ts:235-295`) are radius-scoped around a citizen's location and are not reusable for platform-wide analytics. |
+| Everything | ✅ **Shipped** (AN-1) | `GET /admin/analytics`, gated on `analytics:view` (`admin-analytics.controller.ts:25-29`). The citizen `ReportsService.summary()` / `communityStats()` (`reports.service.ts:235-295`) stay radius-scoped and were correctly not reused. Geography is grouped by the **reporter's** `user.district` and the payload carries `geography.basis` + a `caveat` string so the console must label the chart honestly — see open question 6. |
 
 #### Platform
 | Item | Status | Note |
 |---|---|---|
-| Categories: read | **Variant** (P-1) | `GET /reports/categories` exists but filters to `citizenSelectable = true` (`reports.service.ts:47-50`), so Disaster Relief is invisible — precisely the row an admin most needs to manage. |
-| Categories: write | **Build** | No mutation endpoint. Note the `db:seed` overwrite interaction above. |
-| App settings | **Build** (P-2) | No table. |
-| Support queue | **Variant** (P-3) | `GET /users/me/tickets` is caller-scoped (`support.controller.ts:16`); `SupportService.listMine()` filters on `userId` (`support.service.ts:47`). No status-transition endpoint exists, so `ticket_statuses` beyond `new` is unreachable (`tickets-schema.ts:1-6`). |
-| System health | **Build** (P-4) | No source. `GET /` (`app.controller.ts`) is the only liveness signal. |
-| Audit logs | **Build** (P-5) | See ranked list. |
+| Categories: read | ✅ **Shipped** (P-1) | `GET /admin/report-categories` shows every row including `citizen_selectable = false`. The citizen `GET /reports/categories` still filters to `citizenSelectable = true` (`reports.service.ts:47-50`), correctly. |
+| Categories: write | ✅ **Shipped** | Full CRUD — `POST`, `PATCH /:id`, `DELETE /:id`, all `platform:manage`, all audit-logged (`admin-categories.service.ts:131, 179, 227`). The `db:seed` overwrite interaction above is **still unresolved** — open question 7. |
+| App settings | **Build** (P-2) | No table. Still true. The console ships a placeholder page that also renders 24 fake "Setting row N" divs — see [`../_audit/issues.md`](../_audit/issues.md) issue 10. |
+| Support queue | ✅ **Shipped** (P-3) | `GET /admin/support-tickets`, `/:id`, and `PATCH /:id/status` (`admin-support.service.ts:171`, audit-logged). ⚠️ **`ticket_statuses` beyond `new` is still unreachable in practice** — not because the endpoint is missing any more, but because `support_tickets` has **0 rows**, so nothing has exercised it. The citizen `GET /users/me/tickets` stays caller-scoped (`support.controller.ts:16`, `support.service.ts:47`). |
+| System health | ✅ **Shipped** (P-4) | `GET /admin/system-health`, `platform:manage` (`admin-analytics.controller.ts:31-35`, `admin-system-health.service.ts`). |
+| Audit logs | ✅ **Shipped** (P-5) | `GET /admin/audit-logs` + `/catalogue`, `platform:manage` (`admin-audit.controller.ts:26-30, 41-45`). |
 
 #### Monetization
 | Item | Status | Note |
@@ -263,9 +290,9 @@ endpoint's projection/filter is wrong for admin · **Build** = nothing exists.
 #### Admin
 | Item | Status | Note |
 |---|---|---|
-| `GET /admin/me` | **Reuse** | `admin.controller.ts:34-37`. The console renders its sidebar from this. |
-| List admins | **Reuse** | `admin.controller.ts:53-57`, gated on `platform:manage`. |
-| Create / change role / revoke | **Build** (AD-1) | `AdminService` has no write methods (`admin.service.ts:1-88`). Provisioning is currently `apps/api/src/db/seed-admins.ts`. |
+| `GET /admin/me` | **Reuse** | `admin.controller.ts:38-41`. The console renders its sidebar from this. |
+| List admins | **Reuse** | `admin.controller.ts:57-61`, gated on `platform:manage`. |
+| Create / change role / revoke | **Build** (AD-1) | **Still true.** `AdminService` has no write methods. Provisioning is `apps/api/src/db/seed-admins.ts`. This is the last unbuilt item that has a table behind it. |
 
 ### Why the mobile endpoints mostly can't be reused
 
@@ -362,8 +389,13 @@ disclosure — is in the ADR, along with the position (b) that was rejected and 
 which it should be reopened. If chat moderation is ever needed it becomes a **separate feature with
 its own explicit privacy rule**, not a widened projection.
 
-Verified 2026-08-28: no file under `apps/api/src/admin/` references `missionMessages` or
-`mission_messages`. That is the state to preserve, and it is checkable with a grep in review.
+Re-verified 2026-08-28 against commit `d60e276`, across all 8 admin controllers and all **11** admin
+services (three are controller-less): **no admin file imports `missionMessages`**. The single
+reference in production admin code is the warning comment at `admin-reports.service.ts:46-53`; the
+only other is the test that asserts absence. Checked for indirect paths as well — no `db.query.*`
+anywhere in the API (so no Drizzle `with:` traversal), no raw SQL naming the table, no chat body
+reaching `admin_audit_logs.before/after`. That is the state to preserve, and it is checkable with a
+grep in review.
 
 Related, smaller version of the same question — an admin report view that shows the reporter's real
 name on an `anonymous` report (`reports.service.ts:551-554`) — is **still open**. Same shape of
@@ -385,7 +417,7 @@ authority is the database**, because `AdminService.findAdminIdentity()` reads
 | `platform:manage` | ✅ | ❌ |
 | `data:delete_all` | ✅ | ❌ |
 
-Three properties of `AdminGuard` (`admin.guard.ts:29-77`) worth relying on:
+Three properties of `AdminGuard` (`admin.guard.ts:29-79`) worth relying on:
 
 - **No super-admin bypass.** `super_admin` passes because the seed grants it all six as real rows,
   not because the guard special-cases the name (`admin.guard.ts:61-65`). Revoking a permission row
@@ -424,20 +456,32 @@ find out** — which, with `realtime: none` and no push sender, is always "next 
 
 | Admin action | Writes | Mobile observes | How the citizen learns | Exists? |
 |---|---|---|---|---|
-| Close a report | `reports.status_id → closed`, `closed_at` | Disappears from Discover (`list()` filters `status='open'`, `reports.service.ts:324`); stays in My Reports (`listMine()` shows all statuses, `:194`) | **Nothing tells them.** The citizen path writes an `alert` to each active volunteer (`reports.service.ts:424-433`) but **not to the reporter**. An admin close must write alerts explicitly. | ❌ |
-| Soft-delete a report | `reports.deleted_at`, `deleted_by` | Vanishes from every listing, including the reporter's own — deliberately, with no "Deleted" tab (`reports.service.ts:182-186`) | **Nothing at all.** Silent disappearance. Needs a new alert type. | ❌ |
-| Hide / delete a comment | `report_comments` row | Comment gone from the public thread (`comments.service.ts:20-47`) | Silent | ❌ |
-| Resolve a comment flag | `report_comment_flags.status_id` | The flagger's Flagged screen shows the new status (`comments.service.ts:101-112` returns `flagStatus.key`) | **This one already works**, because the mobile screen renders the status from the DB. It is the only moderation action with a citizen-visible result today. | ❌ (write side) |
-| Suspend a user | *no column exists* | Undefined | Undefined | ❌ |
-| Delete a user | `user` row + the SET NULL / CASCADE policy | Their reports anonymize to `reporterDeleted: true`; their volunteer slots release and reopen (`users.service.ts:65-95`) | n/a | ⚠️ citizen-only |
-| Edit a category | `report_categories` | Immediate — labels, emoji, `defaultExpiryMinutes`, and `citizenSelectable` all read from the DB per request (`reports.service.ts:46-58, 66-78`) | Next app fetch | ❌ |
-| Broadcast | *no table* | Nothing | Nothing — no FCM sender | ❌ |
-| Change a support ticket's status | `support_tickets.status_id` | Visible in the user's ticket list (`support.service.ts:32-51`) | Next poll | ❌ |
+> **The "Exists?" column was almost entirely wrong — corrected 2026-08-28.** Eight of the nine rows
+> read ❌ when they had shipped. What has *not* changed is the second-to-last column: **the
+> notification story is still unbuilt for every one of them.** That is the real finding this table
+> carries now, and it is open question 4.
+
+| Admin action | Writes | Mobile observes | How the citizen learns | Exists? |
+|---|---|---|---|---|
+| Close a report | `reports.status_id → closed`, `closed_at` | Disappears from Discover (`list()` filters `status='open'`, `reports.service.ts:324`); stays in My Reports (`listMine()` shows all statuses, `:194`) | The confirmed volunteers get the existing `report_cancelled` alert; **the reporter is told nothing.** | ✅ `POST /admin/reports/:id/close` |
+| Reopen a report | `reports.status_id → open` | Reappears in Discover | Nothing | ✅ `POST /admin/reports/:id/reopen` |
+| Soft-delete (hide) a report | `reports.deleted_at`, `deleted_by` | Vanishes from every listing, including the reporter's own — deliberately, with no "Deleted" tab (`reports.service.ts:182-186`) | **Nothing at all.** Silent disappearance. Needs a new alert type. | ✅ `POST /admin/reports/:id/hide` |
+| Reinstate a hidden report | clears `deleted_at` | Reappears | Nothing | ✅ `POST /admin/reports/:id/reinstate` |
+| Remove / restore a comment | `report_comments.deleted_at` / `deleted_by` (0018) | Comment gone from the public thread (`comments.service.ts:20-47`) | Silent | ✅ `POST /admin/comments/:id/remove` · `/restore` |
+| Resolve a comment flag | `report_comment_flags.status_id` | The flagger's Flagged screen shows the new status (`comments.service.ts:101-112` returns `flagStatus.key`) | **This one already works**, because the mobile screen renders the status from the DB. It is still the only moderation action with a citizen-visible result. Exercised: 7 flags are now `dismissed`. | ✅ `PATCH /admin/flagged-comments/:id` |
+| Suspend / reactivate a user | `user_account_status` | Login refused; every authenticated request 403s with `ACCOUNT_SUSPENDED` | ⚠️ **Nothing on mobile handles that code yet** — the user gets the generic error path. [`../_audit/issues.md`](../_audit/issues.md) issue 11. | ✅ `POST /admin/users/:id/suspend` · `/reactivate` |
+| Delete a user | `user` row + the SET NULL / CASCADE policy | Their reports anonymize to `reporterDeleted: true`; their volunteer slots release and reopen (`users.service.ts:65-95`) | n/a | ⚠️ still citizen-only (AD-1 territory) |
+| Edit a category | `report_categories` | Immediate — labels, emoji, `defaultExpiryMinutes`, and `citizenSelectable` all read from the DB per request (`reports.service.ts:46-58, 66-78`) | Next app fetch | ✅ `POST` / `PATCH` / `DELETE /admin/report-categories` |
+| Broadcast | *no table* | Nothing | Nothing — no FCM sender | ❌ **genuinely absent** |
+| Change a support ticket's status | `support_tickets.status_id` | Visible in the user's ticket list (`support.service.ts:32-51`) | Next poll | ✅ `PATCH /admin/support-tickets/:id/status` |
 
 ### Three rules that fall out of this
 
 1. **Every admin mutation that a citizen would notice must write an `alerts` row.** That is the only
-   notification channel that exists. It means adding new `AlertType` values in
+   notification channel that exists. **This rule is currently obeyed by exactly one action** (an
+   admin close reuses `report_cancelled` for the confirmed volunteers) and ignored by the other
+   twelve — the whole write surface shipped silent. Open question 4 is the blocker: the wording, in
+   two locales, is product copy nobody has written. It means adding new `AlertType` values in
    `apps/api/src/alerts/alert-templates.ts:24` — and, because alerts are localized from `type` +
    `params` (`alerts-schema.ts:27-30`), each new type needs an **English and Tamil** template
    (`alert-templates.ts:47-97`). An admin action that only writes English breaks the i18n contract.
@@ -495,8 +539,9 @@ Carried into [`../_audit/open-questions.md`](../_audit/open-questions.md).
     settings, and no decision on whether platform config is DB-backed at all or stays in env vars.
 
 > ⚠️ `apps/admin` is under active development by another lane; its line numbers move between reads.
-> The three entries above were verified 2026-08-28. If a citation misses, re-grep for the label
-> rather than assuming the entry is gone.
+> The three entries above were **re-verified 2026-08-28** against commit `d60e276` and all three
+> resolve correctly (`nav.ts:90` Community Updates, `:91` Broadcasts, `:107` App Settings). If a
+> citation misses, re-grep for the label rather than assuming the entry is gone.
 
 The three above are the honest "we have not decided" list. They are deliberately not modelled: a
 guessed schema is harder to remove than an empty page, and the placeholder pages already tell an
@@ -513,9 +558,17 @@ operator "Not built yet" rather than showing an empty table they might mistake f
 
 ---
 
-_First written against commit `84a20d3` on 2026-08-27. Revised against the working tree at commit
-`d035cfd` on 2026-08-28: §3 gaps A-0 / P-5 / U-2, §4's Mission Chat decision and role-key seam, and
-§6's question list. The admin, audit and suspension code was uncommitted in the shared working copy
-at verification time, and the `uthavu-api` container **is** now serving it — an unauthenticated
-`GET /admin/me` returns `403 {"code":"ADMIN_NO_SESSION"}`, not the `404` this document previously
-reported. Sections not named here still carry their 2026-08-27 verification._
+_Last verified against commit `d60e276`, 2026-08-28._
+
+_History: first written against `84a20d3` (2026-08-27); revised against `d035cfd` and committed as
+`98aae67`. **Adversarially re-audited against `d60e276`**, after the admin API (`177100c`) and the
+admin console (`0227403`) were committed — see the banner at the top of this document. That pass
+found the §2 entity matrix, the §3 per-section tables and the §5 write-path table all describing a
+backend that had been superseded within hours, and corrected them: R-1, R-3, R-4, U-1/U-2, P-1, P-3,
+P-4, P-5, category CRUD, comment moderation and analytics are all shipped; eight of nine rows in the
+§5 "Exists?" column flipped from ❌ to ✅. It also corrected `auth.ts:171`→`:256`,
+`auth.ts:80-84`→`:85-89`, `auth.ts:82`→`:87`, `admin.controller.ts:40-43`→`:44-47`,
+`:34-37`→`:38-41`, `:53-57`→`:57-61`, `admin.guard.ts:29-77`→`:29-79`, `nav.ts:49-127`→`:49-131`,
+and the "Flagged Reports" nav claim (the entry is now "Flagged Comments" and is wired). The genuine
+remainder is six items: report-level flagging, Community Updates, Broadcasts, App Settings,
+Monetization, and admin-user provisioning (AD-1)._

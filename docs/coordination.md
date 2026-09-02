@@ -24,7 +24,8 @@ there the moment a second session starts. The full rules are in [`COORDINATION.m
 | unidentified 4th party | actively rewriting `apps/mobile/src/screens/tabs/{Alerts,Profile,Dashboard,MyHelps}Screen.tsx`, `libs-mobile/components/ScreenHeader.tsx` — large uncommitted diffs, not visible via `ListAgents`, identity unknown | — | main clone | seen active 2026-08-24 |
 | uthavuu-db (per `ListAgents`) | none reported | was helping coordinate the #9 handoff below; hasn't stated current task | main clone | 2026-08-20 |
 | uthavuu-44 (per `ListAgents`) | unknown | just started, idle, hasn't stated a task yet | main clone | 2026-08-21 |
-| architecture/docs session | **`docs/` only — writes no application code.** Wrote ADRs 0010–0012, reconciled `architecture/system.md`, `architecture/data.md`, `architecture/admin-console-integration.md`, `_audit/issues.md`, `_audit/open-questions.md`, and added the migration ledger below | none filed yet | main clone | 2026-08-28 |
+| architecture/docs session | **`docs/` only — writes no application code.** Wrote ADRs 0010–0012, reconciled `architecture/system.md`, `architecture/data.md`, `architecture/admin-console-integration.md`, `_audit/issues.md`, `_audit/open-questions.md`, and added the migration ledger below. Committed as `98aae67` | none filed yet | main clone | 2026-08-28 |
+| architecture/docs — **adversarial re-audit** | **`docs/` only.** Fact-checked `98aae67` against `d60e276` after the admin API (`177100c`) and console (`0227403`) landed. Corrected ~20 drifted `path:line` citations and several false claims across the three ADRs, the three architecture docs and `_audit/*`; added issues 10–12 | none filed yet | main clone | 2026-08-28 |
 
 **Note from the docs session (2026-08-28):** `docs/_audit/open-questions.md` was being edited by
 another lane at the same time as this pass — we did not collide, but `docs/` is evidently not a
@@ -53,7 +54,7 @@ above so the next doc pass knows to expect it.
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — (see ledger below) | Head is **0019**, applied. 0017–0019 were generated **without a lock claim** — see the note under the ledger. |
+| migration series | **TWO HOLDERS, QUEUED.** (1) support lane holds **0023** (`support_ticket_messages`). (2) broadcasts lane holds **0024** — must verify the journal head immediately before `db:generate` and must not run it until 0023 has landed. No third `db:generate` until both release. | Head **0022** (`charming_wonder_man`), 23 applied. |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 
@@ -61,7 +62,7 @@ above so the next doc pass knows to expect it.
 
 > Added 2026-08-28 by the architecture (docs) session. Every row below was verified against the
 > `apps/api/drizzle/` file tree **and** `drizzle.__drizzle_migrations` in the live `uthavu_dev`
-> database — not inferred from commit messages. **20 migrations applied, head `0019`.**
+> database — not inferred from commit messages. **22 migrations applied (0000–0021), head `0021`.**
 
 | # | Tag | What it did | Applied | Lock claimed? |
 |---|---|---|---|---|
@@ -69,26 +70,34 @@ above so the next doc pass knows to expect it.
 | 0017 | `gigantic_marvel_zombies` | Admin RBAC — `admin_roles`, `admin_permissions`, `admin_role_permissions`, `admin_users` | ✅ 2026-08-25 | ❌ no claim/release commit |
 | 0018 | `famous_multiple_man` | Admin audit trail — `admin_audit_actions`, `admin_audit_target_types`, `admin_audit_logs`; plus `report_comments.deleted_at` / `deleted_by` | ✅ 2026-08-27 | ❌ no claim/release commit |
 | 0019 | `motionless_invaders` | Account suspension — `user_statuses`, `user_account_status` | ✅ 2026-08-28 | ❌ no claim/release commit |
+| 0020 | `wild_landau` | Community Updates — `community_updates`, `community_update_statuses` | ✅ 2026-08-29 | ✅ claimed and released in this file |
+| 0021 | `curvy_marten_broadcloak` | Platform settings — `platform_settings` (singleton row, DB CHECK bounds) | ✅ 2026-08-29 | ✅ claimed and released in this file |
+
+**Ledger re-verified 2026-08-28 (second pass): still accurate.** `apps/api/drizzle/` holds 20 `.sql`
+files (`0000`–`0019`) and `drizzle.__drizzle_migrations` holds exactly 20 rows, the last two stamped
+2026-08-27 and 2026-08-28. **Head is `0019_motionless_invaders`; no lane has added a migration
+since.** All three of 0017–0019 are now committed (`177100c`).
 
 **⚠️ The migration-series lock protocol is being bypassed in practice.** `git log` shows a clean
 claim/release pair for every migration up to 0016 (`chore: claim migration-series lock …` /
 `chore: release migration-series lock …`, e.g. `6f3a186`, `81f3630`, `d1c3b43`, `6ccbf50`,
-`b2fbb01`, `4dccdaf`, `1b59c24`). There is **no such pair for 0017, 0018 or 0019** — and all three,
-plus their snapshots and `meta/_journal.json`, are still **uncommitted** in the shared working copy
-at the time of writing.
+`b2fbb01`, `4dccdaf`, `1b59c24`). There is **no such pair for 0017, 0018 or 0019.**
+
+> **Update, 2026-08-28:** the "still **uncommitted** in the shared working copy" half of this warning
+> is **no longer true** — 0017–0019, their snapshots and `meta/_journal.json` were committed with the
+> admin API as `177100c`. The lock-protocol point stands: they were generated without a claim.
 
 This has not caused a collision yet because one lane happens to own all three. It is still the
 condition the lock exists to prevent: with several sessions in a single checkout, two concurrent
 `db:generate` runs produce the same next index, and the loser's `_journal.json` entry is silently
-overwritten on merge. **If you are about to run `db:generate`, claim the lock first** — and if you
-generated 0017–0019, please commit them and release.
+overwritten on merge. **If you are about to run `db:generate`, claim the lock first.**
 
-> **Seeding is behind the schema.** Migrations 0018 and 0019 are applied, but their master-data rows
-> are missing — `admin_audit_actions` 0, `admin_audit_target_types` 0, `user_statuses` 0 (verified
-> against `uthavu_dev`, 2026-08-28). Run `pnpm db:seed` (it upserts by `key`, so it is safe to
-> re-run). Until then nothing can be suspended and the first mutating admin endpoint throws
-> `admin_audit_actions row missing for key "…" — did db:seed run?`. Tracked as
-> [`_audit/issues.md`](./_audit/issues.md) issue 9.
+> ~~**Seeding is behind the schema.**~~ **Resolved 2026-08-28** — `pnpm db:seed` has since run.
+> Re-verified against `uthavu_dev`: `admin_audit_actions` **13**, `admin_audit_target_types` **6**,
+> `user_statuses` **2**, and `admin_audit_logs` holds 26 real rows. *(The original note also
+> understated the expected counts as 11 and 5.)* The hazard still applies to a fresh database and
+> after any new catalogue action — `pnpm db:seed` upserts by `key`, so re-running it is always safe.
+> Tracked as [`_audit/issues.md`](./_audit/issues.md) issue 9.
 
 ## Handoffs — clear when consumed
 
