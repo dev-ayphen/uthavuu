@@ -28,7 +28,9 @@
     "descriptionPlaceholder": "என்ன நடக்கிறது, என்ன வகையான உதவி தேவை?",
     "descriptionLabel": "விவரம்",
     "needsTeamLabel": "இதற்கு ஒன்றுக்கு மேற்பட்ட தன்னார்வலர்கள் தேவை",
-    "volunteersNeededLabel": "தேவையான தன்னார்வலர்கள்"
+    "volunteersNeededLabel": "தேவையான தன்னார்வலர்கள்",
+    "photoSlot": "படம் {{n}}",
+    "photoSlotTapToAdd": "சேர்க்க தட்டவும்"
   },
   "location": {
     "title": "உங்கள் இருப்பிடத்தை உறுதிப்படுத்தவும்",

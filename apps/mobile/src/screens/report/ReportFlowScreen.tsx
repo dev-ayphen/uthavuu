@@ -29,6 +29,7 @@ import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Button from '@uthavu/libs-mobile/components/Button';
+import { useConfig } from '../../hooks/useConfig';
 import { DESCRIPTION_MIN_LENGTH, EMPTY_DRAFT, type ReportDraft } from './reportDraft';
 import ReportDetailsPage from './steps/ReportDetailsPage';
 import ReportLocationPage from './steps/ReportLocationPage';
@@ -65,6 +66,10 @@ const CAT_TAGLINE: Record<CategoryId, string> = {
 export default function ReportFlowScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation('report');
+  // Platform settings (photo cap, volunteer cap, whether anonymous posting is
+  // allowed at all). Always resolves — falls back to the values this flow used
+  // to hardcode if /config is unreachable, so the report flow never waits on it.
+  const config = useConfig();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const queryClient = useQueryClient();
@@ -99,6 +104,14 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
     privacyDefaultsSeeded.current = true;
     setDraft((d) => ({ ...d, anonymous: me.defaultAnonymous, phoneVisible: me.defaultPhoneVisible }));
   }, [me]);
+
+  // Derived rather than folded into the draft on purpose. This seeding effect
+  // runs once, and `config` may still be in flight when it does — so a saved
+  // defaultAnonymous of true can land in the draft before the platform switch
+  // is known to be off. Reading it as a derivation means the answer is correct
+  // whenever config arrives, and the toggle being hidden (below) can never
+  // leave a report silently publishing anonymously with the setting disabled.
+  const anonymous = config.allowAnonymousReports && draft.anonymous;
   const category = categories?.find((c) => c.key === selectedCategory);
 
   // Fetch GPS on mount
@@ -133,6 +146,11 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
 
   // Camera-only photo capture
   const onTakePhoto = async () => {
+    // The cap the server enforces (create-report.dto.ts photoUrls.max), now
+    // read from /config instead of being implied by the number of slots the
+    // details page happened to draw. Guarding here as well as there covers the
+    // double-tap on the last empty slot.
+    if (draft.photos.length >= config.maxPhotosPerReport) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (perm.status !== 'granted') {
       Alert.alert(t('flow.cameraNeededTitle'), t('flow.cameraNeededMessage'));
@@ -195,9 +213,9 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         lat: draft.lat,
         lng: draft.lng,
         landmark: draft.landmark.trim() || undefined,
-        anonymous: draft.anonymous,
+        anonymous,
         phoneVisible: draft.phoneVisible,
-        neededVolunteers: draft.neededVolunteers,
+        neededVolunteers: Math.min(draft.neededVolunteers, config.maxVolunteersPerReport),
         photoUrls: draft.photos
           .map((p) => p.uploadedUrl)
           .filter((url): url is string => Boolean(url)),
@@ -252,6 +270,8 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             onChangeNeededVolunteers={(neededVolunteers) =>
               setDraft((d) => ({ ...d, neededVolunteers }))
             }
+            maxPhotos={config.maxPhotosPerReport}
+            maxVolunteers={config.maxVolunteersPerReport}
             onTakePhoto={onTakePhoto}
             onRemovePhoto={onRemovePhoto}
           />
@@ -263,7 +283,8 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             locating={locating}
             locationLabel={draft.locationLabel}
             landmark={draft.landmark}
-            anonymous={draft.anonymous}
+            anonymous={anonymous}
+            allowAnonymous={config.allowAnonymousReports}
             phoneVisible={draft.phoneVisible}
             shareWithNGOs={false}
             confirmed={confirmed}

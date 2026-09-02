@@ -17,6 +17,7 @@ import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
 import EmptyState from '@uthavu/libs-mobile/components/EmptyState';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import SponsorAd from '../components/SponsorAd';
 
 type Navigation = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>,
@@ -73,6 +74,11 @@ export default function MyImpactStoriesScreen() {
             subtitle={t('emptySubtitle')}
           />
         }
+        /* Sponsor slot — FOOTER, below the user's own stories. Never a header:
+           these are the citizen's completed missions, and an ad is not what
+           they came here for. Renders nothing unless a campaign exists; the
+           contentContainer's gap means a null render leaves no space. */
+        ListFooterComponent={<SponsorAd placement="IMPACT_STORIES" />}
         renderItem={({ item }: { item: ImpactStory }) => (
           <TouchableOpacity
             style={styles.card}

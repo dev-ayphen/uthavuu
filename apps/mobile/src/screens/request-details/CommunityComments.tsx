@@ -18,6 +18,7 @@ import { getMe } from '@uthavu/libs-mobile/api/users';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
+import { useConfig } from '../../hooks/useConfig';
 
 type Props = { reportId: string };
 
@@ -26,6 +27,10 @@ export default function CommunityComments({ reportId }: Props) {
   const { t } = useTranslation(['requestDetails', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
+  // commentFlaggingEnabled — flagging can be switched off independently of
+  // comments themselves, so the Flag affordance disappears while the thread
+  // stays readable and postable.
+  const config = useConfig();
   const [draft, setDraft] = useState('');
 
   const flagReasonLabels: Record<FlagReason, string> = useMemo(
@@ -122,7 +127,7 @@ export default function CommunityComments({ reportId }: Props) {
                 <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
               </View>
               <Text style={styles.body}>{item.body}</Text>
-              {me && item.authorId !== me.id && (
+              {config.commentFlaggingEnabled && me && item.authorId !== me.id && (
                 <TouchableOpacity
                   style={styles.flagButton}
                   onPress={() => onFlag(item.id)}

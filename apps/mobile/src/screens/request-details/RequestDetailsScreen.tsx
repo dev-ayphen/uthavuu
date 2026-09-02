@@ -20,6 +20,7 @@ import MissionChat from './MissionChat';
 import CommunityComments from './CommunityComments';
 import RequestDetailsSkeleton from './RequestDetailsSkeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import { useConfig } from '../../hooks/useConfig';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ export default function RequestDetailsScreen({ route }: Props) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { reportId } = route.params;
+  const config = useConfig();
   const queryClient = useQueryClient();
   const navigation = useNavigation<any>();
 
@@ -280,7 +282,10 @@ export default function RequestDetailsScreen({ route }: Props) {
           </View>
         )}
 
-        <CommunityComments reportId={reportId} />
+        {/* Community Comments are a platform-level switch (GET /config).
+            Off means the section isn't rendered at all — Mission Chat above is
+            a separate, privately-gated channel and is unaffected. */}
+        {config.commentsEnabled && <CommunityComments reportId={reportId} />}
       </View>
 
       {/* Owner Options Modal Sheet */}

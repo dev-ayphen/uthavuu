@@ -32,6 +32,8 @@ import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Card from '@uthavu/libs-mobile/components/Card';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import { useConfig } from '../../hooks/useConfig';
+import SponsorAd from '../../components/SponsorAd';
 
 const RADIUS_OPTIONS = [1, 3, 5, 10] as const;
 
@@ -60,6 +62,8 @@ export default function DashboardScreen() {
     >
   >();
   const queryClient = useQueryClient();
+  // defaultRadiusKm — the fallback for someone who has never picked a radius.
+  const config = useConfig();
 
   const {
     data: me,
@@ -81,7 +85,7 @@ export default function DashboardScreen() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
-  const radius = me?.preferredRadius ?? 5;
+  const radius = me?.preferredRadius ?? config.defaultRadiusKm;
   const displayCity = exploring ? exploring.city : me?.city ?? 'your area';
   const displayDistrict = exploring ? exploring.district : me?.district ?? '';
   const effectiveLat = exploring ? exploring.lat : me?.lastLat;
@@ -378,6 +382,12 @@ export default function DashboardScreen() {
             );
           })}
         </View>
+
+        {/* Sponsor slot — LAST child of the feed, deliberately. It sits below the
+            active-mission banner and below every category tile, so a paid card
+            can never push a real help request further from the user's thumb.
+            Renders nothing at all unless the backend returns a live campaign. */}
+        <SponsorAd placement="HOME_FEED" style={styles.sponsorAd} />
       </ScrollView>
 
       {/* ── Radius bottom sheet — only radius, auto-close on select ── */}
@@ -677,6 +687,7 @@ const createStyles = (colors: ColorScheme) =>
       marginBottom: SPACING.sm,
     },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+    sponsorAd: { marginTop: SPACING.lg },
     card: { width: '47%', padding: SPACING.md, borderRadius: RADIUS.xxl },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     cardIconBox: {

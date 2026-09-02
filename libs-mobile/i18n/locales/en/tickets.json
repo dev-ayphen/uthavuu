@@ -1,14 +1,111 @@
 {
-  "title": "My Tickets",
-  "emptyTitle": "No support tickets yet",
-  "emptySubtitle": "Tickets you submit will show up here.",
-  "rowLabel": "{{subject}}, {{category}}, status {{status}}",
-  "submittedTitle": "Ticket submitted",
-  "submittedMessage": "We'll get back to you here once someone reviews it.",
-  "submitFailed": "Could not submit your ticket. Try again.",
-  "status": {
-    "new": "New",
-    "in_review": "In Review",
+  "title": "Help & Support",
+  "ticketRef": "#{{number}}",
+
+  "searchPlaceholder": "Search answers and tickets",
+  "searchClear": "Clear search",
+
+  "submitCtaTitle": "Submit a Ticket",
+  "submitCtaSubtitle": "Tell us what happened, then follow the reply here.",
+
+  "faqTitle": "Common questions",
+  "faqNoMatches": "No answer matches \"{{query}}\". Submit a ticket and support will answer it.",
+  "faq": {
+    "createRequest": {
+      "question": "How do I create a help request?",
+      "answer": "Tap the green + button in the middle of the bottom bar. Pick a category, take a live photo, add the details, and confirm the location to publish it."
+    },
+    "acceptMission": {
+      "question": "How do I accept a mission?",
+      "answer": "Open a nearby request from Home or a category list and tap \"I'll Help\". You then have 15 minutes to confirm you are on your way."
+    },
+    "missionExpired": {
+      "question": "Why did my mission expire?",
+      "answer": "Tapping \"I'll Help\" holds your slot for 15 minutes. If you do not tap \"Start Helping\" in that time, the slot is released so another volunteer can take it."
+    },
+    "editProfile": {
+      "question": "How do I edit my profile?",
+      "answer": "Open the Profile tab and tap \"Edit Profile\". You can change your name, city, district, bio, and the categories you volunteer for."
+    },
+    "reportContent": {
+      "question": "How do I report a comment or a request?",
+      "answer": "Tap the options menu on the comment or request, then tap Report. Pick a reason, such as spam or harassment, and it goes to a moderator."
+    }
+  },
+
+  "myTicketsTitle": "My tickets",
+  "filter": {
+    "all": "All",
+    "open": "Open",
     "resolved": "Resolved"
-  }
+  },
+
+  "emptyTitle": "No tickets yet",
+  "emptySubtitle": "Submit a ticket and the whole conversation stays here.",
+  "emptyFilteredTitle": "Nothing under this filter",
+  "emptyFilteredSubtitle": "Switch to All to see every ticket you have submitted.",
+  "emptySearchTitle": "No ticket matches \"{{query}}\"",
+  "emptySearchSubtitle": "Try another word, or clear the search.",
+
+  "updatedAgo": "Updated {{time}}",
+  "messageCount_one": "{{count}} message",
+  "messageCount_other": "{{count}} messages",
+  "openedAgo": "Opened {{time}}",
+  "rowLabel": "Ticket {{number}}, {{subject}}, status {{status}}",
+
+  "status": {
+    "open": "Open",
+    "in_progress": "In progress",
+    "waiting_for_user": "Needs your reply",
+    "resolved": "Resolved",
+    "closed": "Closed"
+  },
+
+  "submitTitle": "Submit a Ticket",
+  "categoryLabel": "Category",
+  "categoryRequired": "Pick the category this is about.",
+  "categoryLoadFailed": "Could not load the categories. Check your connection and try again.",
+  "categoryNone": "No categories are set up yet, so a ticket cannot be filed. Try again later.",
+  "subjectLabel": "Subject",
+  "subjectPlaceholder": "e.g. Photo will not upload on a request",
+  "subjectRequired": "Add a subject so support knows what this is about.",
+  "subjectTooLong": "Keep the subject under {{max}} characters.",
+  "descriptionLabel": "Description",
+  "descriptionPlaceholder": "What happened, and what were you doing just before?",
+  "descriptionRequired": "Describe what happened so support can act on it.",
+  "descriptionTooLong": "Keep the description under {{max}} characters.",
+  "charCount": "{{current}}/{{max}}",
+  "submitAction": "Submit ticket",
+  "submitFailed": "Could not submit your ticket. Try again.",
+
+  "attachmentLabel": "Attachment (optional)",
+  "attachmentAdd": "Add a photo or screenshot",
+  "attachmentNote": "The link to this photo is added to the end of your description.",
+  "attachmentUploading": "Uploading the photo…",
+  "attachmentRemove": "Remove attachment",
+  "attachmentFailed": "Could not upload that photo. Submit without it, or try again.",
+  "attachmentLine": "Attachment: {{url}}",
+  "photosPermissionNeeded": "Allow photo access to attach a screenshot.",
+
+  "conversationTitle": "Conversation",
+  "openingTag": "Opening message",
+  "authorYou": "You",
+  "authorSupport": "Uthavu Support",
+  "emptyThread": "No replies yet.",
+  "loadFailed": "Could not load this ticket. Check your connection and try again.",
+
+  "statusNote": {
+    "open": "Submitted. Support will pick this up and reply here.",
+    "in_progress": "Support is working on this. Their reply lands here.",
+    "waiting_for_user": "Support cannot go further until you answer their last message. Reply below.",
+    "resolved": "Support marked this resolved. If it is not fixed, reply below and the ticket reopens.",
+    "closed": "This ticket is closed, so replies are turned off. Submit a new ticket if you still need help."
+  },
+
+  "replyPlaceholder": "Write a reply…",
+  "replyDisabledPlaceholder": "Replies are turned off",
+  "replySend": "Send reply",
+  "replyReopensNote": "Your reply reopens this ticket.",
+  "replyClosedNote": "This ticket is closed, so replies are turned off.",
+  "replyFailed": "Could not send that reply. Try again."
 }

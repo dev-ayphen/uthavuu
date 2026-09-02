@@ -1,7 +1,15 @@
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { setUnauthorizedHandler } from '@uthavu/libs-mobile/lib/api';
+import {
+  MAINTENANCE_MODE,
+  setPlatformBlockedHandler,
+  setSuspendedHandler,
+  setUnauthorizedHandler,
+} from '@uthavu/libs-mobile/lib/api';
+import { clearToken } from '@uthavu/libs-mobile/lib/session';
+import i18n from '@uthavu/libs-mobile/i18n';
 import type { RootStackParamList } from './types';
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -23,9 +31,9 @@ import EditReportScreen from '../screens/report/EditReportScreen';
 import MissionJournalScreen from '../screens/MissionJournalScreen';
 import FlaggedCommentsScreen from '../screens/FlaggedCommentsScreen';
 import MyImpactStoriesScreen from '../screens/MyImpactStoriesScreen';
-import SupportHomeScreen from '../screens/SupportHomeScreen';
-import SubmitTicketScreen from '../screens/SubmitTicketScreen';
-import MyTicketsScreen from '../screens/MyTicketsScreen';
+import SupportHomeScreen from '../screens/support/SupportHomeScreen';
+import SubmitTicketScreen from '../screens/support/SubmitTicketScreen';
+import TicketDetailScreen from '../screens/support/TicketDetailScreen';
 import LegalScreen from '../screens/LegalScreen';
 import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 
@@ -48,7 +56,7 @@ const linking = {
       MyImpactStories: 'impact-stories',
       SupportHome: 'support',
       SubmitTicket: 'support/submit',
-      MyTickets: 'tickets',
+      TicketDetail: 'support/tickets/:ticketId',
     },
   },
 };
@@ -66,6 +74,71 @@ export default function RootNavigator() {
       if (navigationRef.isReady()) {
         navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
       }
+    });
+
+    // A suspended account is told why, once, and then sent to Login — rather
+    // than left tapping a screen that fails silently. Deliberately NOT the same
+    // path as an expired session: the API leaves the session valid so this
+    // message can be shown, so the token is cleared here instead, after the
+    // user has actually read it. `suspendedShown` keeps a burst of parallel
+    // failed requests from stacking identical alerts.
+    let suspendedShown = false;
+    // i18n.t at alert time, not a captured `t` — same reason as the platform
+    // handler below: this effect's dep array is empty, so a captured
+    // translator would be stuck in the mount-time language.
+    //
+    // The server's `message` is deliberately IGNORED. It is a plain English
+    // constant (apps/api account-status.ts ACCOUNT_SUSPENDED_MESSAGE), not one
+    // of the locale-rendered alert templates, so the catalogue is strictly
+    // more correct for a Tamil user. The API stays the authority on WHETHER
+    // the account is suspended; the client owns how that is said.
+    setSuspendedHandler(() => {
+      if (suspendedShown) return;
+      suspendedShown = true;
+      Alert.alert(i18n.t('auth:accountSuspendedTitle'), i18n.t('auth:accountSuspendedError'), [
+        {
+          text: 'OK',
+          onPress: () => {
+            suspendedShown = false;
+            void clearToken().then(() => {
+              if (navigationRef.isReady()) {
+                navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+              }
+            });
+          },
+        },
+      ]);
+    });
+
+    // An admin has frozen writes platform-wide (console → Platform tab,
+    // surfaced to this client as maintenanceMode/readOnlyMode on GET /config).
+    // Unlike the two handlers above this one does NOT navigate and does NOT
+    // touch the token — the session is fine and the user can still read
+    // everything. It only replaces the generic failure the screen would
+    // otherwise show with the actual reason. `blockShown` keeps a burst of
+    // parallel rejected writes from stacking identical alerts, the same guard
+    // `suspendedShown` provides above.
+    //
+    // i18n.t is called at alert time rather than a `t` captured by this
+    // effect's empty dep array — otherwise the message would be stuck in
+    // whatever language was active at mount, ignoring a later Settings switch.
+    let blockShown = false;
+    setPlatformBlockedHandler((code) => {
+      if (blockShown) return;
+      blockShown = true;
+      const maintenance = code === MAINTENANCE_MODE;
+      Alert.alert(
+        i18n.t(maintenance ? 'common:maintenanceTitle' : 'common:readOnlyTitle'),
+        i18n.t(maintenance ? 'common:maintenanceMessage' : 'common:readOnlyMessage'),
+        [
+          {
+            text: i18n.t('common:ok'),
+            onPress: () => {
+              blockShown = false;
+            },
+          },
+        ]
+      );
     });
   }, []);
 
@@ -155,8 +228,8 @@ export default function RootNavigator() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
-          name="MyTickets"
-          component={MyTicketsScreen}
+          name="TicketDetail"
+          component={TicketDetailScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

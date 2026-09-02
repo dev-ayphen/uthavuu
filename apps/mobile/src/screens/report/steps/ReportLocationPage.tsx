@@ -20,6 +20,11 @@ type Props = {
   locationLabel: string;
   landmark: string;
   anonymous: boolean;
+  // GET /config's allowAnonymousReports. When the platform has anonymous
+  // posting switched off, the toggle isn't shown at all rather than shown
+  // disabled — a switch that can't do anything is the exact problem
+  // docs/webadmin/07-platform-settings.md §5A.3 is about.
+  allowAnonymous: boolean;
   phoneVisible: boolean;
   shareWithNGOs: boolean;
   confirmed?: boolean;
@@ -37,6 +42,7 @@ export default function ReportLocationPage({
   locationLabel,
   landmark,
   anonymous,
+  allowAnonymous,
   phoneVisible,
   shareWithNGOs,
   confirmed = false,
@@ -136,20 +142,24 @@ export default function ReportLocationPage({
       <Text style={styles.sectionTitle}>Privacy & Notifications</Text>
 
       <View style={styles.toggleCard}>
-        {/* Post Anonymously */}
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleBody}>
-            <Text style={styles.toggleLabel}>Post Anonymously</Text>
-          </View>
-          <Switch
-            value={anonymous}
-            onValueChange={onToggleAnonymous}
-            trackColor={{ false: colors.border, true: colors.primaryGreen }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
+        {/* Post Anonymously — only when the platform allows it */}
+        {allowAnonymous && (
+          <>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleBody}>
+                <Text style={styles.toggleLabel}>Post Anonymously</Text>
+              </View>
+              <Switch
+                value={anonymous}
+                onValueChange={onToggleAnonymous}
+                trackColor={{ false: colors.border, true: colors.primaryGreen }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
 
-        <View style={styles.divider} />
+            <View style={styles.divider} />
+          </>
+        )}
 
         {/* Share phone number */}
         <View style={styles.toggleRow}>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Award,
@@ -16,7 +16,6 @@ import {
   Settings as SettingsIcon,
   Sparkles,
   Users,
-  X,
 } from 'lucide-react-native';
 import { useNavigation, CommonActions, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -30,34 +29,11 @@ import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMe, getMyStats } from '@uthavu/libs-mobile/api/users';
 import { listMyImpactStories } from '@uthavu/libs-mobile/api/impactStories';
-import { createTicket } from '@uthavu/libs-mobile/api/tickets';
 import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
 import { clearToken } from '@uthavu/libs-mobile/lib/session';
-import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
-
-type TicketCategory = 'Technical Problem' | 'Bug Report' | 'Account Problem' | 'Feature Request' | 'Complaint' | 'Other';
-
-const TICKET_CATEGORIES: TicketCategory[] = [
-  'Technical Problem',
-  'Bug Report',
-  'Account Problem',
-  'Feature Request',
-  'Complaint',
-  'Other',
-];
-
-// Matches apps/api/src/db/seed.ts's ticket_categories keys exactly.
-const TICKET_CATEGORY_KEYS: Record<TicketCategory, string> = {
-  'Technical Problem': 'technical_problem',
-  'Bug Report': 'bug_report',
-  'Account Problem': 'account_problem',
-  'Feature Request': 'feature_request',
-  Complaint: 'complaint',
-  Other: 'other',
-};
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -72,34 +48,6 @@ export default function ProfileScreen() {
   >();
   const queryClient = useQueryClient();
 
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
-  const [ticketCategory, setTicketCategory] = useState<TicketCategory>('Technical Problem');
-  const [ticketSubject, setTicketSubject] = useState('');
-  const [ticketDescription, setTicketDescription] = useState('');
-  const [ticketError, setTicketError] = useState('');
-
-  const submitTicketMutation = useMutation({
-    mutationFn: () =>
-      createTicket({
-        categoryKey: TICKET_CATEGORY_KEYS[ticketCategory],
-        subject: ticketSubject.trim(),
-        description: ticketDescription.trim(),
-      }),
-    onSuccess: (ticket) => {
-      setSupportModalOpen(false);
-      setTicketSubject('');
-      setTicketDescription('');
-      setTicketCategory('Technical Problem');
-      setTicketError('');
-      Alert.alert(
-        'Request submitted',
-        `Your support request has been received. We'll get back to you soon. (Ref: ${ticket.id.slice(0, 8)})`
-      );
-    },
-    onError: (e) => {
-      setTicketError(e instanceof ApiError ? e.message : 'Could not submit your request. Try again.');
-    },
-  });
 
   const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
@@ -337,7 +285,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('SupportHome')}>
           <HelpCircle size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Help & Support / Submit Ticket</Text>
+          <Text style={styles.menuText}>Help & Support</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
         </TouchableOpacity>
 
@@ -371,80 +319,6 @@ export default function ProfileScreen() {
       {/* Version footer */}
       <Text style={styles.footerVersion}>Version 1.0.4</Text>
       <Text style={styles.footerSub}>Made with ❤️ for the community.</Text>
-
-      {/* Support Ticket Modal Sheet */}
-      <Modal visible={supportModalOpen} transparent animationType="slide" onRequestClose={() => setSupportModalOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.ticketModalContainer}>
-            <View style={styles.modalHeaderRow}>
-              <View style={styles.modalTitleLeft}>
-                <Text style={{ fontSize: 18 }}>💬</Text>
-                <Text style={styles.modalTitle}>Submit Support Request</Text>
-              </View>
-              <TouchableOpacity onPress={() => setSupportModalOpen(false)}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.fieldLabel}>What do you need help with?</Text>
-            <View style={styles.categoriesWrap}>
-              {TICKET_CATEGORIES.map((cat) => {
-                const selected = ticketCategory === cat;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.categoryChip, selected && styles.categoryChipActive]}
-                    onPress={() => setTicketCategory(cat)}
-                  >
-                    <Text style={[styles.categoryChipText, selected && styles.categoryChipTextActive]}>{cat}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={styles.fieldTitle}>Subject</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Image upload failed on slow 3G"
-              placeholderTextColor={colors.textSecondary}
-              value={ticketSubject}
-              onChangeText={setTicketSubject}
-            />
-
-            <Text style={styles.fieldTitle}>Description</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              placeholder="Tell us what happened..."
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              numberOfLines={4}
-              value={ticketDescription}
-              onChangeText={setTicketDescription}
-            />
-
-            {ticketError ? <Text style={styles.ticketErrorText}>{ticketError}</Text> : null}
-
-            <View style={styles.modalButtonRow}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSupportModalOpen(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.submitBtn,
-                  (!ticketSubject.trim() || !ticketDescription.trim() || submitTicketMutation.isPending) &&
-                    styles.submitBtnDisabled,
-                ]}
-                disabled={!ticketSubject.trim() || !ticketDescription.trim() || submitTicketMutation.isPending}
-                onPress={() => submitTicketMutation.mutate()}
-              >
-                <Text style={styles.submitBtnText}>
-                  {submitTicketMutation.isPending ? 'Submitting…' : 'Submit Request'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
@@ -642,85 +516,5 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
 
     footerVersion: { textAlign: 'center', ...TYPE.caption, color: colors.textSecondary },
     footerSub: { textAlign: 'center', ...TYPE.caption, color: colors.textSecondary, marginTop: 2 },
-
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(15,23,42,0.65)',
-      justifyContent: 'center',
-      padding: SPACING.lg,
-    },
-    ticketModalContainer: {
-      backgroundColor: colors.bg,
-      borderRadius: RADIUS.xxl,
-      padding: SPACING.lg,
-    },
-    modalHeaderRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: SPACING.sm,
-    },
-    modalTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-    modalTitle: { ...TYPE.title, color: colors.textPrimary, fontWeight: '800' },
-    fieldLabel: { ...TYPE.footnoteRegular, color: colors.textSecondary, marginBottom: SPACING.xs },
-    categoriesWrap: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: SPACING.xs,
-      marginBottom: SPACING.md,
-    },
-    categoryChip: {
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs - 2,
-      borderRadius: RADIUS.pill,
-      backgroundColor: colors.bgElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    categoryChipActive: {
-      backgroundColor: colors.primaryGreen,
-      borderColor: colors.primaryGreen,
-    },
-    categoryChipText: { ...TYPE.footnote, color: colors.textSecondary, fontWeight: '600' },
-    categoryChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
-    fieldTitle: { ...TYPE.footnote, color: colors.textPrimary, fontWeight: '700', marginBottom: SPACING.xxs },
-    textInput: {
-      backgroundColor: colors.bgElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.lg,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      ...TYPE.subhead,
-      color: colors.textPrimary,
-      marginBottom: SPACING.md,
-    },
-    textArea: {
-      height: 90,
-      textAlignVertical: 'top',
-    },
-    modalButtonRow: {
-      flexDirection: 'row',
-      gap: SPACING.sm,
-      marginTop: SPACING.xs,
-    },
-    cancelBtn: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: SPACING.sm + 2,
-      borderRadius: RADIUS.pill,
-      backgroundColor: colors.bgElevated,
-    },
-    cancelBtnText: { ...TYPE.subheadStrong, color: colors.textSecondary },
-    submitBtn: {
-      flex: 1.5,
-      alignItems: 'center',
-      paddingVertical: SPACING.sm + 2,
-      borderRadius: RADIUS.pill,
-      backgroundColor: colors.primaryGreen,
-    },
-    submitBtnText: { ...TYPE.subheadStrong, color: '#FFFFFF', fontWeight: '700' },
-    submitBtnDisabled: { backgroundColor: colors.disabled },
-    ticketErrorText: { ...TYPE.body, color: colors.danger, marginTop: SPACING.xs },
   });
 

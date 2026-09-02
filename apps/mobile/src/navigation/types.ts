@@ -28,8 +28,14 @@ export type RootStackParamList = {
   FlaggedComments: undefined;
   MyImpactStories: undefined;
   SupportHome: undefined;
-  SubmitTicket: undefined;
-  MyTickets: undefined;
+  // Optional param so a future "report a problem with this request" entry point
+  // can file a ticket against a report; the API takes relatedReportId as a
+  // reference only (it grants no access to that report).
+  SubmitTicket: { relatedReportId?: string } | undefined;
+  // ticketNumber is passed so the header reads "Ticket #UT-1042" from the first
+  // frame instead of flashing a placeholder while the thread loads. The screen
+  // still prefers the number the API returns once it has it.
+  TicketDetail: { ticketId: string; ticketNumber: string };
   Legal: { topic: 'terms' | 'privacy' | 'guidelines' };
   DeleteAccount: undefined;
 };

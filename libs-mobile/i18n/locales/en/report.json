@@ -28,7 +28,9 @@
     "descriptionPlaceholder": "What's happening, and what kind of help is needed?",
     "descriptionLabel": "Description",
     "needsTeamLabel": "This needs more than one volunteer",
-    "volunteersNeededLabel": "Volunteers needed"
+    "volunteersNeededLabel": "Volunteers needed",
+    "photoSlot": "Photo {{n}}",
+    "photoSlotTapToAdd": "Tap to add"
   },
   "location": {
     "title": "Confirm your location",

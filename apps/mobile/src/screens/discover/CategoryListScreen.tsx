@@ -18,6 +18,8 @@ import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import { useConfig } from '../../hooks/useConfig';
+import SponsorAd from '../../components/SponsorAd';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CategoryList'>;
 
@@ -26,13 +28,14 @@ export default function CategoryListScreen({ navigation, route }: Props) {
   const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const config = useConfig();
   const { categoryKey, lat, lng, radiusKm, locationLabel } = route.params;
   const categoryMeta = CATEGORIES.find((c) => c.id === categoryKey);
 
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [selectedDistance, setSelectedDistance] = useState<number>(radiusKm ?? 5);
+  const [selectedDistance, setSelectedDistance] = useState<number>(radiusKm ?? config.defaultRadiusKm);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Open Only' | 'Urgent'>('All');
   const [sortBy, setSortBy] = useState<'Nearby' | 'Newest' | 'Most Urgent'>('Nearby');
 
@@ -112,6 +115,11 @@ export default function CategoryListScreen({ navigation, route }: Props) {
               </Text>
             </View>
           }
+          /* Sponsor slot — FOOTER, never a header. An ad above this list would
+             push real, possibly urgent help requests below the fold, which the
+             help-flow rule forbids. Renders nothing unless a campaign exists;
+             the contentContainer's own gap means a null render leaves no space. */
+          ListFooterComponent={<SponsorAd placement="CATEGORY_LIST" category={categoryKey} />}
           renderItem={({ item }) => (
             <ReportRow
               report={item}
@@ -206,7 +214,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
                         categoryKey: cat.id,
                         lat,
                         lng,
-                        radiusKm: (selectedDistance as 1 | 3 | 5 | 10) ?? 5,
+                        radiusKm: (selectedDistance ?? config.defaultRadiusKm) as 1 | 3 | 5 | 10,
                         locationLabel,
                       });
                     }}

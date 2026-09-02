@@ -24,6 +24,7 @@ import enMissionJournal from './locales/en/missionJournal.json';
 import enTickets from './locales/en/tickets.json';
 import enLegal from './locales/en/legal.json';
 import enDeleteAccount from './locales/en/deleteAccount.json';
+import enSponsor from './locales/en/sponsor.json';
 import taCommon from './locales/ta/common.json';
 import taAuth from './locales/ta/auth.json';
 import taTabs from './locales/ta/tabs.json';
@@ -36,6 +37,7 @@ import taMissionJournal from './locales/ta/missionJournal.json';
 import taTickets from './locales/ta/tickets.json';
 import taLegal from './locales/ta/legal.json';
 import taDeleteAccount from './locales/ta/deleteAccount.json';
+import taSponsor from './locales/ta/sponsor.json';
 
 export type AppLocale = 'en' | 'ta';
 export const NAMESPACES = [
@@ -51,6 +53,7 @@ export const NAMESPACES = [
   'tickets',
   'legal',
   'deleteAccount',
+  'sponsor',
 ] as const;
 
 const LOCALE_STORAGE_KEY = 'uthavu_locale';
@@ -90,6 +93,7 @@ i18next.use(initReactI18next).init({
       tickets: enTickets,
       legal: enLegal,
       deleteAccount: enDeleteAccount,
+      sponsor: enSponsor,
     },
     ta: {
       common: taCommon,
@@ -104,6 +108,7 @@ i18next.use(initReactI18next).init({
       tickets: taTickets,
       legal: taLegal,
       deleteAccount: taDeleteAccount,
+      sponsor: taSponsor,
     },
   },
   lng: detectDeviceLocale(),

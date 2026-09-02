@@ -38,6 +38,45 @@ export function setUnauthorizedHandler(fn: () => void): void {
   unauthorizedHandler = fn;
 }
 
+/** The API's code for a suspended account (apps/api account-status guard). */
+export const ACCOUNT_SUSPENDED = 'ACCOUNT_SUSPENDED';
+
+// Registered the same way as the handler above, for the same reason. Kept
+// SEPARATE from it on purpose: a suspended account is not an expired session.
+// Routing it through the 401 path would clear the token and drop the user on
+// Login, where they would sign in successfully — the API deliberately does not
+// revoke the session — and then be blocked again on the next screen with no
+// explanation. See docs/decisions/0011.
+let suspendedHandler: ((message: string) => void) | null = null;
+
+export function setSuspendedHandler(fn: (message: string) => void): void {
+  suspendedHandler = fn;
+}
+
+/**
+ * The API's codes for a platform-wide write freeze, set by an admin on the
+ * console's Platform tab and read by mobile via GET /config (see
+ * libs-mobile/api/config.ts). Citizen writes come back 403 with one of these
+ * while the freeze is on.
+ */
+export const MAINTENANCE_MODE = 'MAINTENANCE_MODE';
+export const READ_ONLY_MODE = 'READ_ONLY_MODE';
+
+export type PlatformBlockCode = typeof MAINTENANCE_MODE | typeof READ_ONLY_MODE;
+
+// Third handler, registered the same way, kept separate from BOTH of the
+// others on purpose. Not the 401 path: the session is perfectly valid, so
+// clearing the token and bouncing to Login would be a lie that also costs the
+// user their place in whatever they were doing. Not the suspension path
+// either: nothing is wrong with this account, the platform is simply frozen,
+// so the user stays exactly where they are and can keep reading. All this does
+// is replace a generic "something went wrong" with the honest reason.
+let platformBlockedHandler: ((code: PlatformBlockCode) => void) | null = null;
+
+export function setPlatformBlockedHandler(fn: (code: PlatformBlockCode) => void): void {
+  platformBlockedHandler = fn;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   if (!BASE_URL) {
     throw new ApiError(0, 'EXPO_PUBLIC_API_URL is not set — see apps/mobile/.env.example');
@@ -100,6 +139,24 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (res.status === 401 && options.auth) {
       await clearToken();
       unauthorizedHandler?.();
+    }
+
+    // A suspended account fails EVERY authenticated call, so without this the
+    // user meets a generic "something went wrong" on whatever screen they
+    // happened to open, and no amount of retrying or re-logging-in changes it.
+    // The API returns 403 + this code precisely so the client can say what is
+    // actually happening.
+    if (res.status === 403 && data?.code === ACCOUNT_SUSPENDED && options.auth) {
+      suspendedHandler?.(data?.message ?? 'This account has been suspended.');
+    }
+
+    // Deliberately not gated on options.auth, unlike the two above: a bare 401
+    // is ambiguous (wrong OTP vs. dead session) and a suspension only makes
+    // sense for a signed-in account, but these codes mean exactly one thing
+    // wherever they appear. The throw below still happens, so the calling
+    // screen keeps its own inline error state — this only adds the explanation.
+    if (res.status === 403 && (data?.code === MAINTENANCE_MODE || data?.code === READ_ONLY_MODE)) {
+      platformBlockedHandler?.(data.code as PlatformBlockCode);
     }
     throw new ApiError(res.status, data?.message ?? `Request failed (${res.status})`, data?.code);
   }

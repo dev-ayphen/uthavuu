@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Camera, ChevronDown, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import Spinner from '@uthavu/libs-mobile/components/Spinner';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
@@ -23,11 +24,15 @@ type Props = {
   onChangeTitle: (v: string) => void;
   onChangeDescription: (v: string) => void;
   onChangeNeededVolunteers: (v: number) => void;
+  // GET /config's maxPhotosPerReport / maxVolunteersPerReport. Both used to be
+  // implicit here — two hand-written photo slots (plus a `MAX_PHOTOS = 2` that
+  // nothing read) and a stepper clamped to 99, which the server has never
+  // accepted. The API is the authority on both now.
+  maxPhotos: number;
+  maxVolunteers: number;
   onTakePhoto: () => void;
   onRemovePhoto: (index: number) => void;
 };
-
-const MAX_PHOTOS = 2;
 
 const CAT_ACCENT: Record<string, { iconBg: string }> = {
   animalRescue:   { iconBg: '#FEF3C7' },
@@ -47,10 +52,13 @@ export default function ReportDetailsPage({
   onChangeTitle,
   onChangeDescription,
   onChangeNeededVolunteers,
+  maxPhotos,
+  maxVolunteers,
   onTakePhoto,
   onRemovePhoto,
 }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const [modalOpen, setModalOpen] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const cat = CATEGORIES.find((c) => c.id === categoryKey);
@@ -102,63 +110,45 @@ export default function ReportDetailsPage({
         </TouchableOpacity>
       </Modal>
 
-      {/* ── 2 Explicit Media Slots: Photo 1, Photo 2 ── */}
+      {/* ── Media slots, one per photo the platform allows ── */}
       <Text style={styles.sectionLabel}>
         Photos <Text style={styles.required}>*</Text>
       </Text>
 
       <View style={styles.mediaBox3}>
-        {/* Photo Slot 1 */}
-        {draft.photos[0] ? (
-          <View style={styles.photoSlotFilled}>
-            <Image source={{ uri: draft.photos[0].localUri }} style={styles.thumbImg} />
-            {draft.photos[0].uploading && (
-              <View style={styles.thumbOverlay}>
-                <Spinner variant="onTint" size="small" />
+        {Array.from({ length: maxPhotos }, (_, i) => {
+          const photo = draft.photos[i];
+          const slotLabel = t('details.photoSlot', { n: i + 1 });
+          return photo ? (
+            <View key={i} style={styles.photoSlotFilled}>
+              <Image source={{ uri: photo.localUri }} style={styles.thumbImg} />
+              {photo.uploading && (
+                <View style={styles.thumbOverlay}>
+                  <Spinner variant="onTint" size="small" />
+                </View>
+              )}
+              <View style={styles.slotBadge}>
+                <Text style={styles.slotBadgeText}>{slotLabel}</Text>
               </View>
-            )}
-            <View style={styles.slotBadge}>
-              <Text style={styles.slotBadgeText}>Photo 1</Text>
+              <TouchableOpacity style={styles.thumbRemove} onPress={() => onRemovePhoto(i)}>
+                <X size={10} color="#FFFFFF" strokeWidth={3} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.thumbRemove} onPress={() => onRemovePhoto(0)}>
-              <X size={10} color="#FFFFFF" strokeWidth={3} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.photoSlotEmpty} onPress={onTakePhoto} activeOpacity={0.8}>
-            <View style={[styles.slotIconBadge, { backgroundColor: colors.primaryGreenLight }]}>
-              <Camera size={18} color={colors.primaryGreen} />
-            </View>
-            <Text style={styles.slotTitle}>Photo 1</Text>
-            <Text style={styles.slotSub}>Tap to add</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Photo Slot 2 */}
-        {draft.photos[1] ? (
-          <View style={styles.photoSlotFilled}>
-            <Image source={{ uri: draft.photos[1].localUri }} style={styles.thumbImg} />
-            {draft.photos[1].uploading && (
-              <View style={styles.thumbOverlay}>
-                <Spinner variant="onTint" size="small" />
+          ) : (
+            <TouchableOpacity
+              key={i}
+              style={styles.photoSlotEmpty}
+              onPress={onTakePhoto}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.slotIconBadge, { backgroundColor: colors.primaryGreenLight }]}>
+                <Camera size={18} color={colors.primaryGreen} />
               </View>
-            )}
-            <View style={styles.slotBadge}>
-              <Text style={styles.slotBadgeText}>Photo 2</Text>
-            </View>
-            <TouchableOpacity style={styles.thumbRemove} onPress={() => onRemovePhoto(1)}>
-              <X size={10} color="#FFFFFF" strokeWidth={3} />
+              <Text style={styles.slotTitle}>{slotLabel}</Text>
+              <Text style={styles.slotSub}>{t('details.photoSlotTapToAdd')}</Text>
             </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.photoSlotEmpty} onPress={onTakePhoto} activeOpacity={0.8}>
-            <View style={[styles.slotIconBadge, { backgroundColor: colors.primaryGreenLight }]}>
-              <Camera size={18} color={colors.primaryGreen} />
-            </View>
-            <Text style={styles.slotTitle}>Photo 2</Text>
-            <Text style={styles.slotSub}>Tap to add</Text>
-          </TouchableOpacity>
-        )}
+          );
+        })}
       </View>
       {draft.photos[0]?.error ? (
         <Text style={styles.photoError}>{draft.photos[0].error}</Text>
@@ -202,20 +192,22 @@ export default function ReportDetailsPage({
       <View style={styles.stepperContainer}>
         {/* Quick presets 1..5 */}
         <View style={styles.volunteerRow}>
-          {[1, 2, 3, 4, 5].map((n) => {
-            const active = draft.neededVolunteers === n;
-            return (
-              <TouchableOpacity
-                key={n}
-                style={[styles.volChip, active && styles.volChipActive]}
-                onPress={() => onChangeNeededVolunteers(n)}
-              >
-                <Text style={[styles.volChipText, active && styles.volChipTextActive]}>
-                  {n}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {[1, 2, 3, 4, 5]
+            .filter((n) => n <= maxVolunteers)
+            .map((n) => {
+              const active = draft.neededVolunteers === n;
+              return (
+                <TouchableOpacity
+                  key={n}
+                  style={[styles.volChip, active && styles.volChipActive]}
+                  onPress={() => onChangeNeededVolunteers(n)}
+                >
+                  <Text style={[styles.volChipText, active && styles.volChipTextActive]}>
+                    {n}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
         </View>
 
         {/* Stepper Control */}
@@ -233,17 +225,27 @@ export default function ReportDetailsPage({
             value={String(draft.neededVolunteers)}
             onChangeText={(v) => {
               const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
-              onChangeNeededVolunteers(isNaN(num) ? 1 : Math.max(1, Math.min(99, num)));
+              onChangeNeededVolunteers(isNaN(num) ? 1 : Math.max(1, Math.min(maxVolunteers, num)));
             }}
             keyboardType="number-pad"
-            maxLength={2}
+            maxLength={String(maxVolunteers).length}
           />
 
           <TouchableOpacity
             style={styles.stepperBtn}
-            onPress={() => onChangeNeededVolunteers(Math.min(99, draft.neededVolunteers + 1))}
+            onPress={() =>
+              onChangeNeededVolunteers(Math.min(maxVolunteers, draft.neededVolunteers + 1))
+            }
+            disabled={draft.neededVolunteers >= maxVolunteers}
           >
-            <Text style={styles.stepperBtnText}>+</Text>
+            <Text
+              style={[
+                styles.stepperBtnText,
+                draft.neededVolunteers >= maxVolunteers && styles.stepperBtnDisabled,
+              ]}
+            >
+              +
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -312,17 +314,23 @@ const createStyles = (colors: ColorScheme) =>
     required: { color: colors.danger },
     mediaBox3: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: SPACING.xs,
     },
+    // flexBasis + flexGrow rather than flex:1 — the slot count is driven by
+    // maxPhotosPerReport now, so two slots share one row and four wrap onto
+    // two, without the row squeezing them to unusable slivers.
     photoSlotFilled: {
-      flex: 1,
+      flexBasis: '48%',
+      flexGrow: 1,
       height: 90,
       borderRadius: RADIUS.lg,
       overflow: 'hidden',
       position: 'relative',
     },
     photoSlotEmpty: {
-      flex: 1,
+      flexBasis: '48%',
+      flexGrow: 1,
       height: 90,
       borderRadius: RADIUS.lg,
       borderWidth: 1.5,

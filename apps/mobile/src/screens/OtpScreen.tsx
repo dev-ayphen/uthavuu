@@ -11,7 +11,7 @@ import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Button from '@uthavu/libs-mobile/components/Button';
 import { requestOtp, verifyOtp, isProfileIncomplete } from '@uthavu/libs-mobile/api/auth';
 import { setToken } from '@uthavu/libs-mobile/lib/session';
-import { ApiError } from '@uthavu/libs-mobile/lib/api';
+import { ACCOUNT_SUSPENDED, ApiError } from '@uthavu/libs-mobile/lib/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Otp'>;
 
@@ -56,6 +56,22 @@ export default function OtpScreen({ navigation, route }: Props) {
         navigation.replace('MainTabs');
       }
     } catch (e) {
+      // A suspended account is checked FIRST, and is not an OTP problem at all:
+      // the OTP was correct, and the server refused to mint a session for it
+      // (apps/api auth.ts session.create.before — docs/decisions/0011). It has
+      // to be handled here rather than by the global suspended handler in
+      // RootNavigator, because that handler only fires on `auth: true` requests
+      // and `verifyOtp` is deliberately unauthenticated. Without this branch a
+      // suspended user meets "something went wrong" on login and can retry the
+      // correct code forever.
+      if (e instanceof ApiError && e.code === ACCOUNT_SUSPENDED) {
+        setError(t('accountSuspendedError'));
+        // Deliberately no setCode('')/refocus below: re-entering the code
+        // cannot succeed, so inviting another attempt would be a lie.
+        // `finally` still clears `verifying`.
+        return;
+      }
+
       // Codes are Better Auth's own (PHONE_NUMBER_ERROR_CODES) — verified against
       // source, not guessed. All but TOO_MANY_ATTEMPTS come back as HTTP 400, so
       // branch on `code`, not status.

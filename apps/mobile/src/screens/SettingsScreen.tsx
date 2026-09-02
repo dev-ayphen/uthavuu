@@ -20,6 +20,7 @@ import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/toke
 import Button from '@uthavu/libs-mobile/components/Button';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
+import { useConfig } from '../hooks/useConfig';
 
 const LEGAL_TOPICS: { topic: 'terms' | 'privacy' | 'guidelines'; labelKey: string }[] = [
   { topic: 'terms', labelKey: 'settings.legalTerms' },
@@ -47,6 +48,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const queryClient = useQueryClient();
+  const config = useConfig();
 
   // Best-effort — the in-app switch (setLocale) already succeeded
   // synchronously regardless of this outcome, see updateLocale()'s comment.
@@ -154,14 +156,22 @@ export default function SettingsScreen({ navigation }: Props) {
 
       <Text style={styles.sectionLabel}>{t('settings.privacy')}</Text>
       <View style={styles.card}>
-        <ToggleRow
-          label={t('settings.privacyHideName')}
-          subtitle={t('settings.privacyHideNameSubtitle')}
-          value={me?.defaultAnonymous ?? false}
-          onValueChange={(value) => privacyMutation.mutate({ defaultAnonymous: value })}
-          style={styles.toggleRow}
-        />
-        <View style={styles.rowDivider} />
+        {/* Writes the same defaultAnonymous the report flow seeds its
+            anonymity toggle from — so it follows the same platform switch.
+            Showing it while GET /config forbids anonymous reports would be a
+            preference that silently does nothing. */}
+        {config.allowAnonymousReports && (
+          <>
+            <ToggleRow
+              label={t('settings.privacyHideName')}
+              subtitle={t('settings.privacyHideNameSubtitle')}
+              value={me?.defaultAnonymous ?? false}
+              onValueChange={(value) => privacyMutation.mutate({ defaultAnonymous: value })}
+              style={styles.toggleRow}
+            />
+            <View style={styles.rowDivider} />
+          </>
+        )}
         <ToggleRow
           label={t('settings.privacyHidePhone')}
           subtitle={t('settings.privacyHidePhoneSubtitle')}
