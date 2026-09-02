@@ -19,6 +19,12 @@ import { getAdminSessionResult } from "@/lib/session";
  *   unreachable -> an outage, not an auth failure. Telling someone to sign in
  *                  when the API is down blames them for it, and they would
  *                  sign in successfully and land right back here.
+ *
+ * The session's `permissions` go to the shell so the sidebar can hide sections
+ * this operator cannot use. That is UX only and adds NO enforcement here: every
+ * page below is still reachable by URL and every API route still carries its
+ * own `@RequireAdminPermissions`. This layout's only security job is the one it
+ * already did — proving there is an admin session at all.
  */
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const { session, denial } = await getAdminSessionResult();
@@ -30,6 +36,11 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   }
 
   return (
-    <AppLayout session={{ name: session.name, role: session.role }}>{children}</AppLayout>
+    <AppLayout
+      session={{ name: session.name, role: session.role }}
+      permissions={session.permissions}
+    >
+      {children}
+    </AppLayout>
   );
 }

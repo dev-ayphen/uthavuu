@@ -39,17 +39,6 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-/**
- * PLACEHOLDER — these are the values from the approved design mock, not
- * measured figures. Bind them to a public stats endpoint (or delete the row)
- * before this console is exposed to anyone outside the team.
- */
-const HERO_STATS = [
-  { value: "2,340+", label: "Helps resolved", accent: "text-primary" },
-  { value: "35 min", label: "Avg response", accent: "text-accent-amber-fg" },
-  { value: "100%", label: "Verified helpers", accent: "text-accent-blue-fg" },
-] as const;
-
 export default function LoginPage() {
   // Computed with useMemo, never assigned from a useEffect + reset. An effect
   // that resets the form on some upstream change wipes whatever the operator
@@ -163,21 +152,6 @@ export default function LoginPage() {
               verified volunteers, review impact stories, and keep response times short.
             </p>
 
-            <dl className="grid max-w-lg grid-cols-3 gap-6 border-t border-border pt-6">
-              {HERO_STATS.map((stat) => (
-                <div key={stat.label}>
-                  <dt className="sr-only">{stat.label}</dt>
-                  <dd>
-                    <span
-                      className={`tabular block text-2xl font-extrabold sm:text-3xl ${stat.accent}`}
-                    >
-                      {stat.value}
-                    </span>
-                    <span className="mt-0.5 block text-[11px] text-fg-subtle">{stat.label}</span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </section>
 
           <section className="lg:col-span-5">

@@ -24,12 +24,28 @@ import { SidebarProvider, useSidebar } from "./sidebar-state";
  *
  * Desktop-first, per the App Profile: the sidebar is persistent from `lg` up
  * and becomes an off-canvas drawer below it.
+ *
+ * `permissions` is passed alongside `session` rather than folded into it. The
+ * header renders identity (name, role label) and the sidebar renders
+ * capability, and they are not the same question: the role LABEL is display
+ * text the API authors, while the permission LIST is what the database granted.
+ * Deriving one from the other is exactly the role -> section map
+ * `apps/api/src/admin/admin-rbac.ts:5-8` warns against.
  */
-export function AppLayout({ session, children }: { session: HeaderSession; children: ReactNode }) {
+export function AppLayout({
+  session,
+  permissions,
+  children,
+}: {
+  session: HeaderSession;
+  /** From `GET /admin/me`. Drives which nav entries render — UX only, the API enforces. */
+  permissions: readonly string[];
+  children: ReactNode;
+}) {
   return (
     <SidebarProvider>
       <AppHeader session={session} />
-      <AppSidebar />
+      <AppSidebar permissions={permissions} />
       <ContentArea>{children}</ContentArea>
     </SidebarProvider>
   );

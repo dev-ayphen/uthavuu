@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { CountBadge } from "@/components/ui";
 import {
-  NAV_SECTIONS,
   findActiveChildHref,
   findActiveSection,
   isRouteActive,
-  type NavSection,
+  visibleNavSections,
+  type VisibleNavSection,
 } from "@/config/nav";
 import { useNavBadges, type NavBadges } from "@/config/nav-badges";
 import { cn } from "@/lib/cn";
@@ -25,13 +25,27 @@ import { useSidebar } from "./sidebar-state";
  * when it outgrows the viewport — which needs `min-h-0` on the scrolling flex
  * child, or the overflow escapes to the document and takes the whole sidebar
  * with it.
+ *
+ * PERMISSIONS: `permissions` is the list `GET /admin/me` granted, resolved
+ * server-side in `(console)/layout.tsx` and passed down as plain strings. This
+ * component renders whatever `visibleNavSections` hands back and makes no
+ * permission decision of its own — one gate, in one place, in `config/nav.ts`.
+ *
+ * It is UX ONLY. The API enforces every one of these permissions on the routes
+ * behind them and must keep doing so; hiding a link is not a check. See the
+ * header of `config/nav.ts` before touching a server guard.
  */
-export function AppSidebar() {
+export function AppSidebar({ permissions }: { permissions: readonly string[] }) {
   const pathname = usePathname();
-  const badges = useNavBadges();
   const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen, hydrated } = useSidebar();
 
-  const activeSection = findActiveSection(pathname);
+  // Recomputed only when the grant actually changes — not on every pathname or
+  // expand/collapse render. `permissions` arrives from a Server Component, so
+  // its identity is stable between client re-renders.
+  const sections = useMemo(() => visibleNavSections(permissions), [permissions]);
+  const badges = useNavBadges(sections);
+
+  const activeSection = findActiveSection(sections, pathname);
 
   // Which group is expanded. The operator can toggle it, but moving to a new
   // section re-seeds it so the section you are in is always open.
@@ -104,7 +118,7 @@ export function AppSidebar() {
           className="min-h-0 flex-1 overflow-y-auto scrollbar-slim px-2 pb-3"
         >
           <ul className="space-y-0.5">
-            {NAV_SECTIONS.map((section) => (
+            {sections.map((section) => (
               <li key={section.key}>
                 <SectionItem
                   section={section}
@@ -148,7 +162,7 @@ function SectionItem({
   isExpanded,
   onToggle,
 }: {
-  section: NavSection;
+  section: VisibleNavSection;
   pathname: string;
   badges: NavBadges;
   collapsed: boolean;

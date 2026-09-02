@@ -7,11 +7,36 @@ import { useState } from "react";
 import { Button } from "@/components/ui";
 import { invalidateAll, runModerationAction } from "@/features/moderation/actions";
 import { ConfirmActionDialog } from "@/features/moderation/confirm-action-dialog";
-import type { AdminReportDetail } from "./types";
+import type { ReportStatus } from "./types";
 
 const REPORT_KEYS = [["admin", "reports"]];
 
 type Action = "close" | "reopen" | "hide" | "reinstate" | null;
+
+/**
+ * The narrowest report this component can act on.
+ *
+ * Deliberately NOT `AdminReportDetail`. The same four actions have to be
+ * reachable from the moderation queue, where a row carries a fraction of the
+ * detail projection — and the alternative, a second suspend/hide implementation
+ * for the table, is how two surfaces end up disagreeing about which transitions
+ * are legal. `AdminReportRow` and `AdminReportDetail` both satisfy this shape,
+ * so the precondition table below is written once and obeyed everywhere.
+ *
+ * `storedStatusLabel` is optional because only the detail projection carries it
+ * — see the reinstate dialog for how its absence is handled without inventing a
+ * second key→label map the API would then be free to contradict.
+ */
+export type ModeratableReport = {
+  id: string;
+  title: string;
+  /** DERIVED by the API. Never recomputed here — see ReportStatusBadge. */
+  status: ReportStatus;
+  storedStatus: string;
+  /** The API's own label for the stored status. Absent on list rows. */
+  storedStatusLabel?: string | null;
+  counts: { activeVolunteers: number };
+};
 
 /**
  * Close, reopen, hide and reinstate.
@@ -33,8 +58,29 @@ type Action = "close" | "reopen" | "hide" | "reinstate" | null;
  * Note it is `storedStatus` that decides, not the effective one: an EXPIRED
  * report is stored 'open', and closing it is both legal and useful — that is
  * how a moderator retires a request nobody answered.
+ *
+ * This is what makes the Actions column in the queue honest rather than
+ * decorative: each row offers the transitions THAT row can actually make. A
+ * fixed pair of buttons that the server rejects half the time trains operators
+ * to expect failure and to stop reading the refusal.
+ *
+ * EVERY DIALOG QUOTES THE REPORT
+ * ───────────────────────────────────────────────────────────────────────────
+ * On the detail page "this report" is unambiguous. In a table of twenty-five
+ * rows it is not, and the confirmation is the last point at which a
+ * mis-clicked row can be caught — so the title is restated inside the dialog,
+ * the same way `CommentActions` quotes the comment body it is about to remove.
  */
-export function ReportActions({ report }: { report: AdminReportDetail }) {
+export function ReportActions({
+  report,
+  size = "sm",
+  compact = false,
+}: {
+  report: ModeratableReport;
+  size?: "sm" | "md";
+  /** Short labels, for the Actions column where the row already gives context. */
+  compact?: boolean;
+}) {
   const queryClient = useQueryClient();
   const [action, setAction] = useState<Action>(null);
 
@@ -53,31 +99,33 @@ export function ReportActions({ report }: { report: AdminReportDetail }) {
 
   const onStale = () => void invalidateAll(queryClient, REPORT_KEYS);
 
+  const quote = <ReportQuote title={report.title} hidden={hidden} />;
+
   return (
     <>
       {canClose ? (
-        <Button variant="secondary" size="sm" onClick={() => setAction("close")}>
+        <Button variant="secondary" size={size} onClick={() => setAction("close")}>
           <XCircle />
-          Close request
+          {compact ? "Close" : "Close request"}
         </Button>
       ) : null}
 
       {canReopen ? (
-        <Button variant="secondary" size="sm" onClick={() => setAction("reopen")}>
+        <Button variant="secondary" size={size} onClick={() => setAction("reopen")}>
           <RotateCcw />
-          Reopen request
+          {compact ? "Reopen" : "Reopen request"}
         </Button>
       ) : null}
 
       {hidden ? (
-        <Button variant="secondary" size="sm" onClick={() => setAction("reinstate")}>
+        <Button variant="secondary" size={size} onClick={() => setAction("reinstate")}>
           <Undo2 />
           Reinstate
         </Button>
       ) : (
-        <Button variant="danger" size="sm" onClick={() => setAction("hide")}>
+        <Button variant="danger" size={size} onClick={() => setAction("hide")}>
           <EyeOff />
-          Hide from everyone
+          {compact ? "Hide" : "Hide from everyone"}
         </Button>
       )}
 
@@ -99,7 +147,9 @@ export function ReportActions({ report }: { report: AdminReportDetail }) {
         reasonHint="Goes in the audit log. It is not sent to the reporter."
         onStale={onStale}
         onConfirm={run("close", "Request closed.")}
-      />
+      >
+        {quote}
+      </ConfirmActionDialog>
 
       <ConfirmActionDialog
         open={action === "reopen"}
@@ -113,7 +163,9 @@ export function ReportActions({ report }: { report: AdminReportDetail }) {
         reasonHint="“Why did we put this back” is exactly what an appeal produces. Write the answer now."
         onStale={onStale}
         onConfirm={run("reopen", "Request reopened.")}
-      />
+      >
+        {quote}
+      </ConfirmActionDialog>
 
       <ConfirmActionDialog
         open={action === "hide"}
@@ -128,20 +180,47 @@ export function ReportActions({ report }: { report: AdminReportDetail }) {
         reasonHint="The title and description are snapshotted into the audit log — hiding is the action most likely to be appealed."
         onStale={onStale}
         onConfirm={run("hide", "Report hidden.")}
-      />
+      >
+        {quote}
+      </ConfirmActionDialog>
 
       <ConfirmActionDialog
         open={action === "reinstate"}
         onOpenChange={(open) => setAction(open ? "reinstate" : null)}
         title="Put this report back?"
-        description={`It returns to its previous status (${report.storedStatusLabel}) and becomes visible to the reporter again.`}
+        // The stored status is named only when the API supplied its label. The
+        // list projection does not, and deriving one from `storedStatus` would
+        // mean this console keeping a second key→label map for a lookup table
+        // the API owns — wrong the first time a status is renamed, and wrong
+        // silently. The shorter sentence is still true.
+        description={
+          report.storedStatusLabel
+            ? `It returns to its previous status (${report.storedStatusLabel}) and becomes visible to the reporter again.`
+            : "It returns to the status it had before it was hidden, and becomes visible to the reporter again."
+        }
         confirmLabel="Reinstate report"
         pendingLabel="Reinstating…"
         reason="required"
         reasonLabel="Why is this being reinstated?"
         onStale={onStale}
         onConfirm={run("reinstate", "Report reinstated.")}
-      />
+      >
+        {quote}
+      </ConfirmActionDialog>
     </>
+  );
+}
+
+/** The request being acted on, so nobody moderates a row they mis-clicked. */
+function ReportQuote({ title, hidden }: { title: string; hidden: boolean }) {
+  return (
+    <blockquote className="rounded-control border border-border bg-surface-inset px-3 py-2 text-xs text-fg">
+      {hidden ? (
+        <span className="mb-1 block text-[10px] font-bold text-danger-fg uppercase">
+          Currently hidden
+        </span>
+      ) : null}
+      {title}
+    </blockquote>
   );
 }

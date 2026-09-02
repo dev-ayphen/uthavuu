@@ -213,7 +213,7 @@ export function DataTable<TRow>({
         )}
       >
         <table
-          className="w-full border-collapse text-left"
+          className="w-full table-fixed border-collapse text-left"
           style={minWidth ? { minWidth } : undefined}
           aria-busy={isLoading || isPlaceholder ? true : undefined}
         >
@@ -428,7 +428,7 @@ function BodyRow<TRow>({
           <td
             key={column.id}
             className={cn(
-              "px-4 py-3 align-middle",
+              "overflow-hidden px-4 py-3 align-middle",
               ALIGN_CLASS[column.align ?? "start"],
               column.className,
             )}
