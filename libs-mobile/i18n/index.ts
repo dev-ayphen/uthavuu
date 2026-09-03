@@ -7,6 +7,23 @@
 // human-translated. This is a public safety app for real Tamil Nadu
 // users — these need a native-speaker review pass before they're
 // trusted in production. Don't remove this note when adding new keys.
+//
+// THREE ta STRINGS ARE DELIBERATELY LEFT IN ENGLISH. Do not "fix" them:
+//
+//     legal:termsBody · legal:privacyBody · legal:guidelinesBody
+//
+// They carry legal meaning and need a professional translator, not a
+// machine and not a best-effort match against the app's vocabulary. An
+// approximate translation of terms of service or a privacy policy is worse
+// than an untranslated one, because it reads as authoritative while
+// possibly saying something the operator never agreed to.
+//
+// A parity checker counts these as "untranslated" and it is right to. Five
+// OTHER ta values are also byte-identical to their English source and are
+// correct that way — `common:charCount`, `tickets:charCount`,
+// `tickets:ticketRef` and two `rowLabel` accessibility strings are pure
+// interpolation with no words in them. So the honest expected count for a
+// ta==en audit is 8: five that need nothing, three that need a lawyer.
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
