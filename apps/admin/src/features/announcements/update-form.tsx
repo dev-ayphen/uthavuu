@@ -212,15 +212,11 @@ export function UpdateForm({
   };
 
   return (
-    <form
-      id={formId}
-      onSubmit={handleSubmit(onSubmit)}
-      noValidate
-      // A form may set its own measure — a readable line length is a property of
-      // the form, not of the page. It must never set `mx-auto` or page padding:
-      // the form owns WIDTH, the layout owns POSITION (see PageLayout).
-      className="max-w-(--container-wide) space-y-5"
-    >
+    // A form may set its own measure — a readable line length is a property of
+    // the form, not of the page. It must never set `mx-auto` or page padding:
+    // the form owns WIDTH, the layout owns POSITION (see PageLayout).
+    <div className="max-w-(--container-wide) space-y-5">
+      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
       {errors.root?.message ? <Alert size="md">{errors.root.message}</Alert> : null}
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -323,11 +319,28 @@ export function UpdateForm({
           />
         </CardBody>
       </Card>
+      </form>
 
       {/* Sticky so the save button is reachable from anywhere in a long body,
           without duplicating it into the page header (two buttons that do the
           same thing is one button too many). Degrades to a plain row when the
-          form is shorter than the viewport. */}
+          form is shorter than the viewport.
+
+          It is a SIBLING of the form rather than its last child, and that is
+          load-bearing. `secondaryActions` is `UpdateActions`, which renders
+          `<dialog>`s that each contain their own `<form>`. A form nested inside
+          a form is invalid HTML, and in this React/Next build the consequence
+          is not cosmetic: the inner form's `onSubmit` never fires, so the
+          confirm button falls through to a native GET submission, the page
+          reloads, and the action silently does not happen. That is exactly what
+          Publish / Archive / Delete did on this detail page — they worked from
+          the LIST page, where no surrounding form exists, which is why it went
+          unnoticed.
+
+          The submit button still works from out here via `form={formId}` — the
+          same association the dialogs' own buttons use — and implicit
+          submission (Enter in a text field) still works, because a submit
+          button associated by `form=` is still the form's default button. */}
       <div className="sticky bottom-0 -mb-2 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/90 py-3 backdrop-blur-md">
         {isDirty ? (
           <span className="mr-auto text-xs font-medium text-warning-fg">Unsaved changes</span>
@@ -338,7 +351,7 @@ export function UpdateForm({
         <BackButton href={ANNOUNCEMENTS_INDEX} label="Back to announcements" variant="outline" size="sm" />
 
         {/* Rule 4. */}
-        <Button type="submit" size="sm" disabled={isSubmitting}>
+        <Button type="submit" form={formId} size="sm" disabled={isSubmitting}>
           <Save />
           {isSubmitting
             ? record
@@ -349,7 +362,7 @@ export function UpdateForm({
               : "Create announcement"}
         </Button>
       </div>
-    </form>
+    </div>
   );
 }
 

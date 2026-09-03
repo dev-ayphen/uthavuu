@@ -216,6 +216,14 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         anonymous,
         phoneVisible: draft.phoneVisible,
         neededVolunteers: Math.min(draft.neededVolunteers, config.maxVolunteersPerReport),
+        // The expiry the reporter actually picked. Without this the whole
+        // control on ReportLocationPage — six preset chips and a free hours
+        // field — was collected, validated, and thrown away: every report got
+        // the category default, up to 72h for Community Help, with nothing on
+        // screen saying so. `undefined` means "no choice made", which is what
+        // lets the category default stand.
+        expiryMinutes:
+          draft.customExpiryHours === null ? undefined : draft.customExpiryHours * 60,
         photoUrls: draft.photos
           .map((p) => p.uploadedUrl)
           .filter((url): url is string => Boolean(url)),

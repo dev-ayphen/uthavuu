@@ -64,6 +64,16 @@ export type CreateReportInput = {
   anonymous: boolean;
   phoneVisible: boolean;
   neededVolunteers?: number;
+  /**
+   * Minutes from now, and it may only SHORTEN the category default — the server
+   * applies `Math.min(expiryMinutes, categoryDefault)` (reports.service.ts), so
+   * asking for longer silently gets the default rather than an error.
+   *
+   * Omitted entirely when the reporter did not choose, which is not the same as
+   * sending the default: the category owns that number, and hardcoding it here
+   * would freeze a value an admin can change in the console.
+   */
+  expiryMinutes?: number;
   photoUrls: string[];
 };
 

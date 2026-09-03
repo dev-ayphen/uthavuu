@@ -423,11 +423,11 @@ export function BroadcastForm({
           submission (Enter in a text field) still works, because a submit
           button associated by `form=` is still the form's default button.
 
-          ⚠️ THE SAME BUG IS LIVE IN `features/announcements`, which passes
-          `UpdateActions` into `UpdateForm` as `secondaryActions` rendered
-          INSIDE its `<form>` — so Publish / Archive / Delete on the
-          announcement DETAIL page reload the page instead of acting. Not fixed
-          here: that file is outside this work's scope. Flagged in the handover.
+          `features/announcements` had the identical bug — `UpdateActions`
+          passed into `UpdateForm` as `secondaryActions` rendered INSIDE its
+          `<form>`, so Publish / Archive / Delete on the announcement DETAIL
+          page reloaded instead of acting. It now uses this same structure. Any
+          new form taking a `secondaryActions` slot should too.
           ── */}
       <div className="sticky bottom-0 -mb-2 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/90 py-3 backdrop-blur-md">
         {isDirty ? (
