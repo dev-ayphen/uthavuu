@@ -44,11 +44,10 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
 
-    # The API suite talks to a REAL Postgres — every service spec inserts rows
-    # and reads them back, and `db` is a module-level connection built from
-    # DATABASE_URL. There is no in-memory or mocked database to fall back on, so
-    # without this service the job fails at import time, long before any
-    # assertion runs.
+    # The API suite talks to REAL backing services — every service spec inserts
+    # rows and reads them back, and `db` and `redis` are both module-level
+    # connections built from env at import. There is nothing in-memory or mocked
+    # to fall back on, so a missing service does not skip a test, it hangs one.
     services:
       postgres:
         image: postgres:16
@@ -60,8 +59,24 @@ jobs:
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
 
+      # Redis is NOT optional here, and its absence is invisible in the failure.
+      # `otp-rate-limiter.spec.ts` keys the OTP send/verify limits in Redis; with
+      # no server, `redis.del()` in its afterEach simply never resolves and all 8
+      # tests die on Jest's 5s timeout with "Exceeded timeout", naming the hook
+      # rather than the missing dependency. Cost us one red build to read.
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/uthavu_test
+      # 6379, unlike docker-compose's host mapping of 6380 — that offset exists
+      # to avoid colliding with a developer's local Redis, and a CI runner has
+      # no such collision to avoid.
+      REDIS_URL: redis://localhost:6379
       # Better Auth refuses to construct without a secret. CI-only value; it
       # signs nothing that outlives the job.
       BETTER_AUTH_SECRET: ci-not-a-real-secret-000000000000
