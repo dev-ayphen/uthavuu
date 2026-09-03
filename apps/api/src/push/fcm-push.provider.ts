@@ -100,7 +100,11 @@ export function parseServiceAccount(raw: string): ServiceAccount {
     ? trimmed
     : Buffer.from(trimmed, 'base64').toString('utf8');
 
-  let parsed: { project_id?: string; client_email?: string; private_key?: string };
+  let parsed: {
+    project_id?: string;
+    client_email?: string;
+    private_key?: string;
+  };
   try {
     parsed = JSON.parse(text) as typeof parsed;
   } catch {

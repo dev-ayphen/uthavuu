@@ -14,25 +14,31 @@ export class UsersController {
   // Auth guard is registered globally by @thallesp/nestjs-better-auth — these
   // routes are authenticated by default, no decorator needed to require it.
   @Get('me')
-  async getMe(@Session() session: UserSession<typeof auth>) {
+  getMe(@Session() session: UserSession<typeof auth>) {
     return session.user;
   }
 
   @Patch('me')
   async completeProfile(
     @Session() session: UserSession<typeof auth>,
-    @Body() body: CompleteProfileDto
+    @Body() body: CompleteProfileDto,
   ) {
     return this.usersService.completeProfile(session.user.id, body);
   }
 
   @Patch('me/radius')
-  async updateRadius(@Session() session: UserSession<typeof auth>, @Body() body: UpdateRadiusDto) {
+  async updateRadius(
+    @Session() session: UserSession<typeof auth>,
+    @Body() body: UpdateRadiusDto,
+  ) {
     return this.usersService.updateRadius(session.user.id, body);
   }
 
   @Patch('me/locale')
-  async updateLocale(@Session() session: UserSession<typeof auth>, @Body() body: UpdateLocaleDto) {
+  async updateLocale(
+    @Session() session: UserSession<typeof auth>,
+    @Body() body: UpdateLocaleDto,
+  ) {
     return this.usersService.updateLocale(session.user.id, body);
   }
 
@@ -47,7 +53,10 @@ export class UsersController {
   }
 
   @Patch('me/privacy')
-  async updatePrivacy(@Session() session: UserSession<typeof auth>, @Body() body: UpdatePrivacyDto) {
+  async updatePrivacy(
+    @Session() session: UserSession<typeof auth>,
+    @Body() body: UpdatePrivacyDto,
+  ) {
     return this.usersService.updatePrivacyDefaults(session.user.id, body);
   }
 

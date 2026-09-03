@@ -30,6 +30,10 @@ import {
   createSpecDatabase,
   seedLookups,
 } from '../admin/testing/admin-spec-db';
+import {
+  removeUploadFixture,
+  writeUploadFixture,
+} from '../uploads/testing/upload-fixture';
 
 const DATABASE = 'uthavu_settings_enforcement_test';
 
@@ -58,6 +62,15 @@ describe('Platform settings enforcement', () => {
   const reporterId = uuidv7();
   const commenterId = uuidv7();
 
+  // Real files on disk. ReportsService refuses a photo URL that no upload ever
+  // produced (docs/_audit/issues.md issue 27), so these fixtures have to be
+  // genuine uploads or every create here fails for a reason this suite is not
+  // about. Three, because the over-the-limit case needs three.
+  const PHOTO_FIXTURES = [1, 2, 3].map(
+    (n) => `platform-settings-enforcement-spec-${n}.jpg`,
+  );
+  let photoUrls: string[];
+
   const setSettings = (values: Partial<typeof platformSettings.$inferInsert>) =>
     db
       .update(platformSettings)
@@ -75,11 +88,12 @@ describe('Platform settings enforcement', () => {
     anonymous: false,
     phoneVisible: false,
     neededVolunteers: 1,
-    photoUrls: ['https://example.test/1.jpg'],
+    photoUrls: [photoUrls[0]],
     ...overrides,
   });
 
   beforeAll(async () => {
+    photoUrls = PHOTO_FIXTURES.map(writeUploadFixture);
     await createSpecDatabase(DATABASE);
     await seedLookups(db);
     await db.insert(user).values([
@@ -93,6 +107,7 @@ describe('Platform settings enforcement', () => {
   });
 
   afterAll(async () => {
+    PHOTO_FIXTURES.forEach(removeUploadFixture);
     await db.$client.end();
   });
 
@@ -111,11 +126,7 @@ describe('Platform settings enforcement', () => {
         reportsService.create(
           reporterId,
           reportInput({
-            photoUrls: [
-              'https://example.test/1.jpg',
-              'https://example.test/2.jpg',
-              'https://example.test/3.jpg',
-            ],
+            photoUrls,
           }),
         ),
       ).rejects.toMatchObject({ response: { code: 'REPORT_PHOTO_LIMIT' } });
@@ -127,10 +138,7 @@ describe('Platform settings enforcement', () => {
       const created = await reportsService.create(
         reporterId,
         reportInput({
-          photoUrls: [
-            'https://example.test/1.jpg',
-            'https://example.test/2.jpg',
-          ],
+          photoUrls: [photoUrls[0], photoUrls[1]],
         }),
       );
 
@@ -145,11 +153,7 @@ describe('Platform settings enforcement', () => {
       const created = await reportsService.create(reporterId, reportInput());
 
       await expect(
-        reportsService.addPhoto(
-          created.id,
-          reporterId,
-          'https://example.test/2.jpg',
-        ),
+        reportsService.addPhoto(created.id, reporterId, photoUrls[1]),
       ).rejects.toMatchObject({ response: { code: 'REPORT_PHOTO_LIMIT' } });
     });
   });

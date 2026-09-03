@@ -184,13 +184,20 @@ export class MissionsService {
   // the caller sees it.
   private async expireStaleAndListVolunteers(missionId: string) {
     const rows = await db
-      .select({ mv: missionVolunteers, status: missionVolunteerStatuses, progress: progressStatuses })
+      .select({
+        mv: missionVolunteers,
+        status: missionVolunteerStatuses,
+        progress: progressStatuses,
+      })
       .from(missionVolunteers)
       .innerJoin(
         missionVolunteerStatuses,
         eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
       )
-      .leftJoin(progressStatuses, eq(missionVolunteers.progressStatusId, progressStatuses.id))
+      .leftJoin(
+        progressStatuses,
+        eq(missionVolunteers.progressStatusId, progressStatuses.id),
+      )
       .where(eq(missionVolunteers.missionId, missionId));
 
     const now = new Date();
@@ -212,13 +219,20 @@ export class MissionsService {
     }
 
     return db
-      .select({ mv: missionVolunteers, status: missionVolunteerStatuses, progress: progressStatuses })
+      .select({
+        mv: missionVolunteers,
+        status: missionVolunteerStatuses,
+        progress: progressStatuses,
+      })
       .from(missionVolunteers)
       .innerJoin(
         missionVolunteerStatuses,
         eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
       )
-      .leftJoin(progressStatuses, eq(missionVolunteers.progressStatusId, progressStatuses.id))
+      .leftJoin(
+        progressStatuses,
+        eq(missionVolunteers.progressStatusId, progressStatuses.id),
+      )
       .where(eq(missionVolunteers.missionId, missionId));
   }
 
@@ -273,7 +287,10 @@ export class MissionsService {
     // return type stays string[], not (string | null)[].
     return [
       ...new Set(
-        rows.filter((r) => r.status.key !== 'released').map((r) => r.mv.volunteerId).filter((id): id is string => id !== null)
+        rows
+          .filter((r) => r.status.key !== 'released')
+          .map((r) => r.mv.volunteerId)
+          .filter((id): id is string => id !== null),
       ),
     ];
   }
@@ -281,11 +298,16 @@ export class MissionsService {
   // My Impact Stories (reporter angle — ImpactStoriesService.list()): the
   // outcome/after-photo for reports this user reported themselves, keyed by
   // reportId. A report with no completed mission simply has no entry here.
-  async getCompletionPhotosByReportIds(reportIds: string[]): Promise<Map<string, string>> {
+  async getCompletionPhotosByReportIds(
+    reportIds: string[],
+  ): Promise<Map<string, string>> {
     if (reportIds.length === 0) return new Map();
 
     const rows = await db
-      .select({ reportId: missions.reportId, photoUrl: missionCompletions.photoUrl })
+      .select({
+        reportId: missions.reportId,
+        photoUrl: missionCompletions.photoUrl,
+      })
       .from(missionCompletions)
       .innerJoin(missions, eq(missionCompletions.missionId, missions.id))
       .where(inArray(missions.reportId, reportIds));
@@ -448,11 +470,11 @@ export class MissionsService {
     // Same filter as confirm()/leave() — a volunteer who left and rejoined
     // has an old released row alongside their current one; matching without
     // excluding released rows can grab the wrong (stale) one.
-    const mine = rows.find((r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released');
+    const mine = rows.find(
+      (r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released',
+    );
     if (!mine) {
-      throw new ForbiddenException(
-        'You are not part of this mission',
-      );
+      throw new ForbiddenException('You are not part of this mission');
     }
     if (mine.status.key !== 'active') {
       throw new BadRequestException(
@@ -501,7 +523,9 @@ export class MissionsService {
     // Same filter as confirm()/leave() — a volunteer who left and rejoined
     // has an old released row alongside their current one; matching without
     // excluding released rows can grab the wrong (stale) one.
-    const mine = rows.find((r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released');
+    const mine = rows.find(
+      (r) => r.mv.volunteerId === volunteerId && r.status.key !== 'released',
+    );
     if (!mine || mine.status.key !== 'active') {
       throw new BadRequestException(
         'You must be an active volunteer on this mission to complete it',
@@ -597,7 +621,13 @@ export class MissionsService {
     }
 
     const rows = await this.expireStaleAndListVolunteers(missionId);
-    const volunteerIds = [...new Set(rows.map((r) => r.mv.volunteerId).filter((id): id is string => id !== null))];
+    const volunteerIds = [
+      ...new Set(
+        rows
+          .map((r) => r.mv.volunteerId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
     const volunteerUsers = volunteerIds.length
       ? await db.select().from(user).where(inArray(user.id, volunteerIds))
       : [];
@@ -608,7 +638,10 @@ export class MissionsService {
     // them rejoin (accept-and-mission-chat.md documents re-accepting after
     // release as intended). Only an active (non-released) row counts as
     // "mine" here.
-    const mine = rows.find((r) => r.mv.volunteerId === requestingUserId && r.status.key !== 'released');
+    const mine = rows.find(
+      (r) =>
+        r.mv.volunteerId === requestingUserId && r.status.key !== 'released',
+    );
 
     const [completionRow] = await db
       .select()
@@ -633,9 +666,14 @@ export class MissionsService {
       volunteers: rows.map((r) => ({
         id: r.mv.id,
         volunteerId: r.mv.volunteerId,
-        name: (r.mv.volunteerId ? userById.get(r.mv.volunteerId)?.name : null) ?? 'Deleted User',
+        name:
+          (r.mv.volunteerId ? userById.get(r.mv.volunteerId)?.name : null) ??
+          'Deleted User',
         volunteerDeleted: r.mv.volunteerId === null,
-        avatarUrl: (r.mv.volunteerId ? userById.get(r.mv.volunteerId)?.avatarUrl : null) ?? null,
+        avatarUrl:
+          (r.mv.volunteerId
+            ? userById.get(r.mv.volunteerId)?.avatarUrl
+            : null) ?? null,
         status: r.status.key as VolunteerStatusKey,
         confirmDeadline:
           r.status.key === 'joined' ? r.mv.confirmDeadline.toISOString() : null,
@@ -823,10 +861,15 @@ export class MissionsService {
     // naturally empty for them and firstPhotoByReportId below still applies.
     const missionIds = dedupedRows.map((r) => r.mission.id);
     const completionRows = await db
-      .select({ missionId: missionCompletions.missionId, photoUrl: missionCompletions.photoUrl })
+      .select({
+        missionId: missionCompletions.missionId,
+        photoUrl: missionCompletions.photoUrl,
+      })
       .from(missionCompletions)
       .where(inArray(missionCompletions.missionId, missionIds));
-    const missionIdToReportId = new Map(dedupedRows.map((r) => [r.mission.id, r.mission.reportId]));
+    const missionIdToReportId = new Map(
+      dedupedRows.map((r) => [r.mission.id, r.mission.reportId]),
+    );
     const completionPhotoByReportId = new Map<string, string>();
     for (const c of completionRows) {
       const reportId = missionIdToReportId.get(c.missionId);
@@ -854,7 +897,9 @@ export class MissionsService {
           lat: found.report.lat,
           lng: found.report.lng,
           reporterName:
-            found.report.reporterId === null || found.report.anonymous ? null : (found.reporter?.name ?? null),
+            found.report.reporterId === null || found.report.anonymous
+              ? null
+              : (found.reporter?.name ?? null),
           reporterDeleted: found.report.reporterId === null,
           myStatus: r.status.key as VolunteerStatusKey,
           myConfirmDeadline:

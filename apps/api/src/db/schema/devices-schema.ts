@@ -16,8 +16,12 @@ export const devices = pgTable('devices', {
   // creating a duplicate.
   pushToken: text('push_token').notNull().unique(),
   platform: text('platform').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const deviceRelations = relations(devices, ({ one }) => ({

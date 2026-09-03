@@ -46,8 +46,12 @@ export const ticketCategories = pgTable('ticket_categories', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 /**
@@ -74,8 +78,12 @@ export const ticketStatuses = pgTable('ticket_statuses', {
   // The lifecycle has an order and the console renders it in that order;
   // alphabetical would put `closed` first and `waiting_for_user` last.
   sortOrder: integer('sort_order').default(0).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 /**
@@ -94,8 +102,12 @@ export const ticketPriorities = pgTable('ticket_priorities', {
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
   sortOrder: integer('sort_order').default(0).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 /**
@@ -113,8 +125,12 @@ export const ticketMessageSenderTypes = pgTable('ticket_message_sender_types', {
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
   sortOrder: integer('sort_order').default(0).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const supportTickets = pgTable(
@@ -189,8 +205,12 @@ export const supportTickets = pgTable(
      */
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     closedAt: timestamp('closed_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     // The citizen's own list — `where user_id = ? order by created_at desc`.
@@ -246,7 +266,9 @@ export const supportTicketMessages = pgTable(
     // No updated_at and no deleted_at, deliberately. A support conversation is a
     // record of what was said; an editable or disappearing message is a record
     // of nothing. Same reasoning as admin_audit_logs (ADR 0012).
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     // Every read of this table is "one ticket's messages, oldest first".
@@ -257,21 +279,48 @@ export const supportTicketMessages = pgTable(
   ],
 );
 
-export const supportTicketRelations = relations(supportTickets, ({ one, many }) => ({
-  user: one(user, { fields: [supportTickets.userId], references: [user.id] }),
-  category: one(ticketCategories, { fields: [supportTickets.categoryId], references: [ticketCategories.id] }),
-  status: one(ticketStatuses, { fields: [supportTickets.statusId], references: [ticketStatuses.id] }),
-  priority: one(ticketPriorities, { fields: [supportTickets.priorityId], references: [ticketPriorities.id] }),
-  assignedAdmin: one(user, { fields: [supportTickets.assignedAdminId], references: [user.id] }),
-  relatedReport: one(reports, { fields: [supportTickets.relatedReportId], references: [reports.id] }),
-  messages: many(supportTicketMessages),
-}));
-
-export const supportTicketMessageRelations = relations(supportTicketMessages, ({ one }) => ({
-  ticket: one(supportTickets, { fields: [supportTicketMessages.ticketId], references: [supportTickets.id] }),
-  senderType: one(ticketMessageSenderTypes, {
-    fields: [supportTicketMessages.senderTypeId],
-    references: [ticketMessageSenderTypes.id],
+export const supportTicketRelations = relations(
+  supportTickets,
+  ({ one, many }) => ({
+    user: one(user, { fields: [supportTickets.userId], references: [user.id] }),
+    category: one(ticketCategories, {
+      fields: [supportTickets.categoryId],
+      references: [ticketCategories.id],
+    }),
+    status: one(ticketStatuses, {
+      fields: [supportTickets.statusId],
+      references: [ticketStatuses.id],
+    }),
+    priority: one(ticketPriorities, {
+      fields: [supportTickets.priorityId],
+      references: [ticketPriorities.id],
+    }),
+    assignedAdmin: one(user, {
+      fields: [supportTickets.assignedAdminId],
+      references: [user.id],
+    }),
+    relatedReport: one(reports, {
+      fields: [supportTickets.relatedReportId],
+      references: [reports.id],
+    }),
+    messages: many(supportTicketMessages),
   }),
-  sender: one(user, { fields: [supportTicketMessages.senderUserId], references: [user.id] }),
-}));
+);
+
+export const supportTicketMessageRelations = relations(
+  supportTicketMessages,
+  ({ one }) => ({
+    ticket: one(supportTickets, {
+      fields: [supportTicketMessages.ticketId],
+      references: [supportTickets.id],
+    }),
+    senderType: one(ticketMessageSenderTypes, {
+      fields: [supportTicketMessages.senderTypeId],
+      references: [ticketMessageSenderTypes.id],
+    }),
+    sender: one(user, {
+      fields: [supportTicketMessages.senderUserId],
+      references: [user.id],
+    }),
+  }),
+);

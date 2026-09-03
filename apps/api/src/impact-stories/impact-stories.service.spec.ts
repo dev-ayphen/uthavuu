@@ -3,7 +3,12 @@ import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportPhotos,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { ReportsService } from '../reports/reports.service';
@@ -11,7 +16,10 @@ import { ImpactStoriesService } from './impact-stories.service';
 
 describe('ImpactStoriesService', () => {
   const missionsService = new MissionsService(new AlertsService());
-  const reportsService = new ReportsService(missionsService, new AlertsService());
+  const reportsService = new ReportsService(
+    missionsService,
+    new AlertsService(),
+  );
   const service = new ImpactStoriesService(reportsService, missionsService);
 
   let reporterId: string;
@@ -27,14 +35,38 @@ describe('ImpactStoriesService', () => {
     bystanderId = uuidv7();
 
     await db.insert(user).values([
-      { id: reporterId, name: 'Reporter', email: `${reporterId}@test.local`, phoneNumber: `+91-${reporterId}` },
-      { id: volunteerId, name: 'Volunteer', email: `${volunteerId}@test.local`, phoneNumber: `+91-${volunteerId}` },
-      { id: bystanderId, name: 'Bystander', email: `${bystanderId}@test.local`, phoneNumber: `+91-${bystanderId}` },
+      {
+        id: reporterId,
+        name: 'Reporter',
+        email: `${reporterId}@test.local`,
+        phoneNumber: `+91-${reporterId}`,
+      },
+      {
+        id: volunteerId,
+        name: 'Volunteer',
+        email: `${volunteerId}@test.local`,
+        phoneNumber: `+91-${volunteerId}`,
+      },
+      {
+        id: bystanderId,
+        name: 'Bystander',
+        email: `${bystanderId}@test.local`,
+        phoneNumber: `+91-${bystanderId}`,
+      },
     ]);
 
-    const [category] = await db.select().from(reportCategories).where(eq(reportCategories.key, 'medicalHelp'));
-    const [openStatus] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, 'open'));
-    const [completedStatus] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, 'completed'));
+    const [category] = await db
+      .select()
+      .from(reportCategories)
+      .where(eq(reportCategories.key, 'medicalHelp'));
+    const [openStatus] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, 'open'));
+    const [completedStatus] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, 'completed'));
     categoryId = category.id;
     openStatusId = openStatus.id;
     completedStatusId = completedStatus.id;
@@ -61,7 +93,12 @@ describe('ImpactStoriesService', () => {
       neededVolunteers: 1,
       expiryAt: new Date(Date.now() + 60 * 60_000),
     });
-    await db.insert(reportPhotos).values({ id: uuidv7(), reportId, url: 'https://example.test/photo.png', capturedLive: true });
+    await db.insert(reportPhotos).values({
+      id: uuidv7(),
+      reportId,
+      url: 'https://example.test/photo.png',
+      capturedLive: true,
+    });
 
     const mine = await service.list(reporterId);
     expect(mine.map((s) => s.reportId)).toContain(reportId);
@@ -106,13 +143,18 @@ describe('ImpactStoriesService', () => {
 
     await missionsService.accept(reportId, volunteerId);
     await missionsService.confirm(reportId, volunteerId);
-    await db.update(reports).set({ statusId: completedStatusId }).where(eq(reports.id, reportId));
+    await db
+      .update(reports)
+      .set({ statusId: completedStatusId })
+      .where(eq(reports.id, reportId));
 
     const volunteerStories = await service.list(volunteerId);
     expect(volunteerStories.map((s) => s.reportId)).toContain(reportId);
 
     const reporterStories = await service.list(reporterId);
     expect(reporterStories.map((s) => s.reportId)).toContain(reportId); // same report, reporter angle too — but only one entry
-    expect(reporterStories.filter((s) => s.reportId === reportId)).toHaveLength(1);
+    expect(reporterStories.filter((s) => s.reportId === reportId)).toHaveLength(
+      1,
+    );
   });
 });

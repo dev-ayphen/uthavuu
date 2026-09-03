@@ -29,9 +29,9 @@ describe('PushModule wiring', () => {
     // If this were falling back to defaultPushService(), it would be a
     // different object — and a change to the container's provider selection
     // would silently not apply to alerts.
-    expect((alertsService as unknown as { pushService: PushService }).pushService).toBe(
-      pushService,
-    );
+    expect(
+      (alertsService as unknown as { pushService: PushService }).pushService,
+    ).toBe(pushService);
 
     await moduleRef.close();
   });
@@ -40,10 +40,13 @@ describe('PushModule wiring', () => {
   // provider existing here is what makes that block a STARTUP failure in
   // production rather than a first-send failure.
   it('selects a provider through the factory at module init', async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [PushModule] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      imports: [PushModule],
+    }).compile();
 
     const pushService = moduleRef.get(PushService);
-    const provider = (pushService as unknown as { provider: { name: string } }).provider;
+    const provider = (pushService as unknown as { provider: { name: string } })
+      .provider;
 
     // No FCM credentials in the test environment, so this is the documented
     // ADR-0007-shaped fallback. Asserting the set rather than the value keeps

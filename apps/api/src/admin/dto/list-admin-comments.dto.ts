@@ -41,4 +41,6 @@ export const ListAdminCommentsSchema = PaginationSchema.extend({
   path: ['from'],
 });
 
-export class ListAdminCommentsDto extends createZodDto(ListAdminCommentsSchema) {}
+export class ListAdminCommentsDto extends createZodDto(
+  ListAdminCommentsSchema,
+) {}

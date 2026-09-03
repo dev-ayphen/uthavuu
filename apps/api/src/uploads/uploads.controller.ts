@@ -17,10 +17,13 @@ export class UploadsController {
   // UsersController) — this route is authenticated by default.
   @Post()
   @UseInterceptors(FileInterceptor('file', avatarUploadOptions))
-  uploadAvatar(@Req() req: Request, @UploadedFile() file?: Express.Multer.File) {
+  uploadAvatar(
+    @Req() req: Request,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
     if (!file) {
       throw new BadRequestException(
-        'No image uploaded, or it was not a jpeg/png/webp under 5MB.'
+        'No image uploaded, or it was not a jpeg/png/webp under 5MB.',
       );
     }
     // Derived from the request, not BETTER_AUTH_URL — see upload-url.ts. Still a

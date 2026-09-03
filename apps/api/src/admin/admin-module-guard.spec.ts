@@ -33,7 +33,7 @@ function controllersOf(moduleClass: Ctor): Ctor[] {
 }
 
 describe('AdminModule wiring', () => {
-  const controllers = controllersOf(AdminModule as unknown as Ctor);
+  const controllers = controllersOf(AdminModule);
 
   it('registers controllers at all (a silent empty list would pass every test below)', () => {
     expect(controllers.length).toBeGreaterThan(0);

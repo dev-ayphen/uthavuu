@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { auth } from '../auth/auth';
 import { SupportService } from './support.service';
@@ -30,7 +37,10 @@ export class SupportController {
   }
 
   @Post('support/tickets')
-  create(@Session() session: UserSession<typeof auth>, @Body() body: CreateTicketDto) {
+  create(
+    @Session() session: UserSession<typeof auth>,
+    @Body() body: CreateTicketDto,
+  ) {
     return this.supportService.create(session.user.id, body);
   }
 

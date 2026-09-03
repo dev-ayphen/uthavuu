@@ -5,10 +5,11 @@ import { eq } from 'drizzle-orm';
 // Hoisted above the imports — the database name must be a literal here.
 // See testing/admin-spec-db.ts.
 jest.mock('../db', () => {
-  const postgresModule = jest.requireActual<typeof import('postgres')>('postgres');
-  const drizzleModule = jest.requireActual<typeof import('drizzle-orm/postgres-js')>(
-    'drizzle-orm/postgres-js',
-  );
+  const postgresModule =
+    jest.requireActual<typeof import('postgres')>('postgres');
+  const drizzleModule = jest.requireActual<
+    typeof import('drizzle-orm/postgres-js')
+  >('drizzle-orm/postgres-js');
   const url = new URL(process.env.DATABASE_URL!);
   url.pathname = '/uthavu_admin_comments_test';
   return { db: drizzleModule.drizzle(postgresModule(url.toString())) };
@@ -64,9 +65,24 @@ describe('AdminCommentsService', () => {
 
     await db.insert(user).values([
       { id: adminId, name: 'Super Admin', email: 'admin@uthavu.org' },
-      { id: reporterId, name: 'Hari', email: 'hari@test.local', phoneNumber: '+919000000101' },
-      { id: commenterId, name: 'Priya', email: 'priya@test.local', phoneNumber: '+919000000102' },
-      { id: flaggerId, name: 'Ravi', email: 'ravi@test.local', phoneNumber: '+919000000103' },
+      {
+        id: reporterId,
+        name: 'Hari',
+        email: 'hari@test.local',
+        phoneNumber: '+919000000101',
+      },
+      {
+        id: commenterId,
+        name: 'Priya',
+        email: 'priya@test.local',
+        phoneNumber: '+919000000102',
+      },
+      {
+        id: flaggerId,
+        name: 'Ravi',
+        email: 'ravi@test.local',
+        phoneNumber: '+919000000103',
+      },
     ]);
   });
 
@@ -104,10 +120,15 @@ describe('AdminCommentsService', () => {
   });
 
   describe('DTO validation', () => {
-    const parse = (q: Record<string, unknown>) => ListAdminCommentsSchema.parse(q);
+    const parse = (q: Record<string, unknown>) =>
+      ListAdminCommentsSchema.parse(q);
 
     it('defaults to page 1, 25 per page, live comments only', () => {
-      expect(parse({})).toMatchObject({ page: 1, limit: 25, includeRemoved: false });
+      expect(parse({})).toMatchObject({
+        page: 1,
+        limit: 25,
+        includeRemoved: false,
+      });
     });
 
     it('reads "false" as false — the trap z.coerce.boolean() falls into', () => {
@@ -124,39 +145,69 @@ describe('AdminCommentsService', () => {
     });
 
     it('rejects a limit above the cap, a bad date, and an inverted range', () => {
-      expect(ListAdminCommentsSchema.safeParse({ limit: '9999' }).success).toBe(false);
-      expect(ListAdminCommentsSchema.safeParse({ from: 'not-a-date' }).success).toBe(false);
+      expect(ListAdminCommentsSchema.safeParse({ limit: '9999' }).success).toBe(
+        false,
+      );
+      expect(
+        ListAdminCommentsSchema.safeParse({ from: 'not-a-date' }).success,
+      ).toBe(false);
       // Cross-field validation lives in the DTO, not the service (CLAUDE.md).
       expect(
-        ListAdminCommentsSchema.safeParse({ from: '2026-08-28', to: '2026-08-01' }).success,
+        ListAdminCommentsSchema.safeParse({
+          from: '2026-08-28',
+          to: '2026-08-01',
+        }).success,
       ).toBe(false);
-      expect(ListAdminCommentsSchema.safeParse({ includeRemoved: 'yes' }).success).toBe(false);
+      expect(
+        ListAdminCommentsSchema.safeParse({ includeRemoved: 'yes' }).success,
+      ).toBe(false);
     });
 
     it('refuses to move a flag back to "submitted"', () => {
       // 'submitted' means "no admin has looked at this yet" — a fact about
       // history, not a state a moderator may reset a reviewed flag to.
-      expect(ResolveFlagSchema.safeParse({ statusKey: 'submitted' }).success).toBe(false);
-      expect(ResolveFlagSchema.safeParse({ statusKey: 'dismissed' }).success).toBe(true);
+      expect(
+        ResolveFlagSchema.safeParse({ statusKey: 'submitted' }).success,
+      ).toBe(false);
+      expect(
+        ResolveFlagSchema.safeParse({ statusKey: 'dismissed' }).success,
+      ).toBe(true);
     });
 
     it('requires a reason to remove a comment', () => {
       expect(ModerateCommentSchema.safeParse({}).success).toBe(false);
-      expect(ModerateCommentSchema.safeParse({ reason: '  ' }).success).toBe(false);
-      expect(ModerateCommentSchema.safeParse({ reason: 'Abusive language' }).success).toBe(true);
+      expect(ModerateCommentSchema.safeParse({ reason: '  ' }).success).toBe(
+        false,
+      );
+      expect(
+        ModerateCommentSchema.safeParse({ reason: 'Abusive language' }).success,
+      ).toBe(true);
     });
 
     it('accepts only the four real flag statuses in the queue filter', () => {
-      expect(ListFlaggedCommentsSchema.safeParse({ status: 'under_review' }).success).toBe(true);
-      expect(ListFlaggedCommentsSchema.safeParse({ status: 'invented' }).success).toBe(false);
+      expect(
+        ListFlaggedCommentsSchema.safeParse({ status: 'under_review' }).success,
+      ).toBe(true);
+      expect(
+        ListFlaggedCommentsSchema.safeParse({ status: 'invented' }).success,
+      ).toBe(false);
     });
   });
 
   describe('list', () => {
     it('returns a paginated envelope with the report and author joined', async () => {
-      const { items, pagination } = await service.list({ page: 1, limit: 25, includeRemoved: false });
+      const { items, pagination } = await service.list({
+        page: 1,
+        limit: 25,
+        includeRemoved: false,
+      });
 
-      expect(pagination).toEqual({ page: 1, limit: 25, total: 1, totalPages: 1 });
+      expect(pagination).toEqual({
+        page: 1,
+        limit: 25,
+        total: 1,
+        totalPages: 1,
+      });
       expect(items[0]).toMatchObject({
         id: commentId,
         body: 'I am on my way now',
@@ -182,7 +233,11 @@ describe('AdminCommentsService', () => {
         .set({ expiryAt: new Date(Date.now() - 60_000) })
         .where(eq(reports.id, reportId));
 
-      const { items } = await service.list({ page: 1, limit: 25, includeRemoved: false });
+      const { items } = await service.list({
+        page: 1,
+        limit: 25,
+        includeRemoved: false,
+      });
       expect(items[0].report.effectiveStatus).toBe('expired');
     });
 
@@ -195,16 +250,35 @@ describe('AdminCommentsService', () => {
         body: 'Thank you all',
       });
 
-      const { items } = await service.list({ page: 1, limit: 25, includeRemoved: false, q: 'Thank you' });
+      const { items } = await service.list({
+        page: 1,
+        limit: 25,
+        includeRemoved: false,
+        q: 'Thank you',
+      });
       expect(items[0].authorIsReporter).toBe(true);
     });
 
     it('searches the body case-insensitively', async () => {
       expect(
-        (await service.list({ page: 1, limit: 25, includeRemoved: false, q: 'MY WAY' })).pagination.total,
+        (
+          await service.list({
+            page: 1,
+            limit: 25,
+            includeRemoved: false,
+            q: 'MY WAY',
+          })
+        ).pagination.total,
       ).toBe(1);
       expect(
-        (await service.list({ page: 1, limit: 25, includeRemoved: false, q: 'nothing here' })).pagination.total,
+        (
+          await service.list({
+            page: 1,
+            limit: 25,
+            includeRemoved: false,
+            q: 'nothing here',
+          })
+        ).pagination.total,
       ).toBe(0);
     });
 
@@ -212,7 +286,14 @@ describe('AdminCommentsService', () => {
       // Without ESCAPE handling in likePattern(), searching "%" would return
       // every comment and the search box would silently lie.
       expect(
-        (await service.list({ page: 1, limit: 25, includeRemoved: false, q: '%' })).pagination.total,
+        (
+          await service.list({
+            page: 1,
+            limit: 25,
+            includeRemoved: false,
+            q: '%',
+          })
+        ).pagination.total,
       ).toBe(0);
 
       const pct = uuidv7();
@@ -223,18 +304,35 @@ describe('AdminCommentsService', () => {
         body: 'battery at 50% now',
       });
       expect(
-        (await service.list({ page: 1, limit: 25, includeRemoved: false, q: '50%' })).pagination.total,
+        (
+          await service.list({
+            page: 1,
+            limit: 25,
+            includeRemoved: false,
+            q: '50%',
+          })
+        ).pagination.total,
       ).toBe(1);
     });
 
     it('hides removed comments by default and reveals them on request', async () => {
-      await service.removeComment(admin, commentId, { reason: 'Abusive language' }, meta);
+      await service.removeComment(
+        admin,
+        commentId,
+        { reason: 'Abusive language' },
+        meta,
+      );
 
       expect(
-        (await service.list({ page: 1, limit: 25, includeRemoved: false })).pagination.total,
+        (await service.list({ page: 1, limit: 25, includeRemoved: false }))
+          .pagination.total,
       ).toBe(0);
 
-      const revealed = await service.list({ page: 1, limit: 25, includeRemoved: true });
+      const revealed = await service.list({
+        page: 1,
+        limit: 25,
+        includeRemoved: true,
+      });
       expect(revealed.pagination.total).toBe(1);
       expect(revealed.items[0]).toMatchObject({ removed: true });
       expect(revealed.items[0].removedAt).not.toBeNull();
@@ -258,20 +356,34 @@ describe('AdminCommentsService', () => {
         },
       ]);
 
-      const flagged = await service.list({ page: 1, limit: 25, includeRemoved: false, flagged: true });
+      const flagged = await service.list({
+        page: 1,
+        limit: 25,
+        includeRemoved: false,
+        flagged: true,
+      });
       // Two flags on one comment is still ONE row.
       expect(flagged.pagination.total).toBe(1);
       expect(flagged.items).toHaveLength(1);
       expect(flagged.items[0].flagCount).toBe(2);
 
       expect(
-        (await service.list({ page: 1, limit: 25, includeRemoved: false, flagged: false })).pagination.total,
+        (
+          await service.list({
+            page: 1,
+            limit: 25,
+            includeRemoved: false,
+            flagged: false,
+          })
+        ).pagination.total,
       ).toBe(0);
     });
 
     it('keeps a comment whose author deleted their account', async () => {
       const departing = uuidv7();
-      await db.insert(user).values({ id: departing, name: 'Gone', email: 'gone@test.local' });
+      await db
+        .insert(user)
+        .values({ id: departing, name: 'Gone', email: 'gone@test.local' });
       const orphan = uuidv7();
       await db.insert(reportComments).values({
         id: orphan,
@@ -308,7 +420,10 @@ describe('AdminCommentsService', () => {
     });
 
     it('defaults to the pending queue and names both people involved', async () => {
-      const { items, pagination } = await service.listFlags({ page: 1, limit: 25 });
+      const { items, pagination } = await service.listFlags({
+        page: 1,
+        limit: 25,
+      });
 
       expect(pagination.total).toBe(1);
       expect(items[0]).toMatchObject({
@@ -328,19 +443,34 @@ describe('AdminCommentsService', () => {
     it('drops a flag out of the pending queue once it is resolved', async () => {
       const [flag] = await db.select().from(reportCommentFlags);
 
-      await service.resolveFlag(admin, flag.id, { statusKey: 'dismissed' }, meta);
+      await service.resolveFlag(
+        admin,
+        flag.id,
+        { statusKey: 'dismissed' },
+        meta,
+      );
 
-      expect((await service.listFlags({ page: 1, limit: 25 })).pagination.total).toBe(0);
       expect(
-        (await service.listFlags({ page: 1, limit: 25, status: 'dismissed' })).pagination.total,
+        (await service.listFlags({ page: 1, limit: 25 })).pagination.total,
+      ).toBe(0);
+      expect(
+        (await service.listFlags({ page: 1, limit: 25, status: 'dismissed' }))
+          .pagination.total,
       ).toBe(1);
     });
 
     it('keeps under_review in the pending queue — opened is not finished', async () => {
       const [flag] = await db.select().from(reportCommentFlags);
-      await service.resolveFlag(admin, flag.id, { statusKey: 'under_review' }, meta);
+      await service.resolveFlag(
+        admin,
+        flag.id,
+        { statusKey: 'under_review' },
+        meta,
+      );
 
-      expect((await service.listFlags({ page: 1, limit: 25 })).pagination.total).toBe(1);
+      expect(
+        (await service.listFlags({ page: 1, limit: 25 })).pagination.total,
+      ).toBe(1);
     });
   });
 
@@ -357,7 +487,12 @@ describe('AdminCommentsService', () => {
 
       expect(await citizenComments.list(reportId)).toHaveLength(1);
 
-      await service.removeComment(admin, commentId, { reason: 'Abusive language' }, meta);
+      await service.removeComment(
+        admin,
+        commentId,
+        { reason: 'Abusive language' },
+        meta,
+      );
 
       // Gone from the public thread...
       expect(await citizenComments.list(reportId)).toEqual([]);
@@ -369,7 +504,12 @@ describe('AdminCommentsService', () => {
     });
 
     it('writes one audit row carrying the removed body and the reason', async () => {
-      await service.removeComment(admin, commentId, { reason: 'Abusive language' }, meta);
+      await service.removeComment(
+        admin,
+        commentId,
+        { reason: 'Abusive language' },
+        meta,
+      );
 
       const logs = await auditRows();
       expect(logs).toHaveLength(1);
@@ -381,7 +521,10 @@ describe('AdminCommentsService', () => {
         ipAddress: '10.0.0.1',
         userAgent: 'jest',
       });
-      expect(logs[0].before).toEqual({ body: 'I am on my way now', deletedAt: null });
+      expect(logs[0].before).toEqual({
+        body: 'I am on my way now',
+        deletedAt: null,
+      });
     });
 
     it('404s an unknown comment and 409s a second removal', async () => {
@@ -389,7 +532,12 @@ describe('AdminCommentsService', () => {
         service.removeComment(admin, uuidv7(), { reason: 'x1' }, meta),
       ).rejects.toMatchObject({ status: 404 });
 
-      await service.removeComment(admin, commentId, { reason: 'Abusive language' }, meta);
+      await service.removeComment(
+        admin,
+        commentId,
+        { reason: 'Abusive language' },
+        meta,
+      );
       await expect(
         service.removeComment(admin, commentId, { reason: 'again' }, meta),
       ).rejects.toMatchObject({
@@ -413,7 +561,12 @@ describe('AdminCommentsService', () => {
 
   describe('restoreComment', () => {
     it('round-trips a removal and audits both halves', async () => {
-      await service.removeComment(admin, commentId, { reason: 'Mistaken report' }, meta);
+      await service.removeComment(
+        admin,
+        commentId,
+        { reason: 'Mistaken report' },
+        meta,
+      );
       const restored = await service.restoreComment(
         admin,
         commentId,
@@ -421,7 +574,11 @@ describe('AdminCommentsService', () => {
         meta,
       );
 
-      expect(restored).toEqual({ id: commentId, removed: false, removedAt: null });
+      expect(restored).toEqual({
+        id: commentId,
+        removed: false,
+        removedAt: null,
+      });
       expect(await citizenComments.list(reportId)).toHaveLength(1);
 
       const [row] = await db
@@ -437,7 +594,12 @@ describe('AdminCommentsService', () => {
 
     it('409s restoring a comment that was never removed', async () => {
       await expect(
-        service.restoreComment(admin, commentId, { reason: 'nothing to undo' }, meta),
+        service.restoreComment(
+          admin,
+          commentId,
+          { reason: 'nothing to undo' },
+          meta,
+        ),
       ).rejects.toMatchObject({
         status: 409,
         response: { code: 'COMMENT_NOT_REMOVED' },
@@ -484,7 +646,12 @@ describe('AdminCommentsService', () => {
         service.resolveFlag(admin, uuidv7(), { statusKey: 'dismissed' }, meta),
       ).rejects.toMatchObject({ status: 404 });
 
-      await service.resolveFlag(admin, flagId, { statusKey: 'dismissed' }, meta);
+      await service.resolveFlag(
+        admin,
+        flagId,
+        { statusKey: 'dismissed' },
+        meta,
+      );
       await expect(
         service.resolveFlag(admin, flagId, { statusKey: 'dismissed' }, meta),
       ).rejects.toMatchObject({

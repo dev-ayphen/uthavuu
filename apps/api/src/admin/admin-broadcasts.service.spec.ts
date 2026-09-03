@@ -210,7 +210,7 @@ describe('AdminBroadcastsService', () => {
     await db.delete(user).where(ne(user.id, adminId));
 
     pushCalls = [];
-    pushImpl = async () => ({ sent: 1, failed: 0, deadTokens: [] });
+    pushImpl = () => Promise.resolve({ sent: 1, failed: 0, deadTokens: [] });
 
     // A fresh instance per test: the service memoises lookup-key -> id, and the
     // catalogue-failure test below removes a row a warm memo would paper over.
@@ -233,7 +233,9 @@ describe('AdminBroadcastsService', () => {
   });
 
   it('creates a scheduled broadcast when a schedule is supplied', async () => {
-    const created = await draft({ scheduledAt: new Date(Date.now() + 3600_000) });
+    const created = await draft({
+      scheduledAt: new Date(Date.now() + 3600_000),
+    });
     expect(created.status.key).toBe('scheduled');
   });
 
@@ -373,12 +375,18 @@ describe('AdminBroadcastsService', () => {
   it('KEEPS EVERY IN-APP ALERT WHEN PUSH FAILS OUTRIGHT', async () => {
     // The rule this whole ordering exists for. FCM being unreachable must never
     // mean citizens do not learn what happened.
-    const a = await citizen({ locale: 'en', district: DISTRICT, withDevice: true });
-    const b = await citizen({ locale: 'ta', district: DISTRICT, withDevice: true });
+    const a = await citizen({
+      locale: 'en',
+      district: DISTRICT,
+      withDevice: true,
+    });
+    const b = await citizen({
+      locale: 'ta',
+      district: DISTRICT,
+      withDevice: true,
+    });
 
-    pushImpl = async () => {
-      throw new Error('FCM unreachable');
-    };
+    pushImpl = () => Promise.reject(new Error('FCM unreachable'));
 
     const created = await draft({
       titleTa: TA_TITLE,
@@ -443,9 +451,9 @@ describe('AdminBroadcastsService', () => {
     const created = await draft();
     await service.send(created.id, admin, META);
 
-    await expect(
-      service.send(created.id, admin, META),
-    ).rejects.toMatchObject({ response: { code: 'BROADCAST_ALREADY_SENT' } });
+    await expect(service.send(created.id, admin, META)).rejects.toMatchObject({
+      response: { code: 'BROADCAST_ALREADY_SENT' },
+    });
   });
 
   it('refuses to edit or delete a sent broadcast', async () => {
@@ -457,9 +465,9 @@ describe('AdminBroadcastsService', () => {
       service.update(created.id, admin, { titleEn: 'Corrected' }, META),
     ).rejects.toMatchObject({ response: { code: 'BROADCAST_ALREADY_SENT' } });
 
-    await expect(
-      service.delete(created.id, admin, META),
-    ).rejects.toMatchObject({ response: { code: 'BROADCAST_ALREADY_SENT' } });
+    await expect(service.delete(created.id, admin, META)).rejects.toMatchObject(
+      { response: { code: 'BROADCAST_ALREADY_SENT' } },
+    );
   });
 
   it('refuses a second send while one is in progress', async () => {
@@ -472,20 +480,20 @@ describe('AdminBroadcastsService', () => {
       .set({ statusId: await statusIdOf('sending') })
       .where(eq(broadcasts.id, created.id));
 
-    await expect(
-      service.send(created.id, admin, META),
-    ).rejects.toMatchObject({
+    await expect(service.send(created.id, admin, META)).rejects.toMatchObject({
       response: { code: 'BROADCAST_SEND_IN_PROGRESS' },
     });
   });
 
   it('refuses to send a cancelled broadcast', async () => {
-    const created = await draft({ scheduledAt: new Date(Date.now() + 3600_000) });
+    const created = await draft({
+      scheduledAt: new Date(Date.now() + 3600_000),
+    });
     await service.cancel(created.id, admin, META);
 
-    await expect(
-      service.send(created.id, admin, META),
-    ).rejects.toMatchObject({ response: { code: 'BROADCAST_CANCELLED' } });
+    await expect(service.send(created.id, admin, META)).rejects.toMatchObject({
+      response: { code: 'BROADCAST_CANCELLED' },
+    });
   });
 
   // ───────────────────────────────────────────────────────── cancel / delete
@@ -500,9 +508,9 @@ describe('AdminBroadcastsService', () => {
     expect(cancelled.scheduledAt).not.toBeNull();
 
     const plain = await draft();
-    await expect(
-      service.cancel(plain.id, admin, META),
-    ).rejects.toMatchObject({ response: { code: 'BROADCAST_NOT_SCHEDULED' } });
+    await expect(service.cancel(plain.id, admin, META)).rejects.toMatchObject({
+      response: { code: 'BROADCAST_NOT_SCHEDULED' },
+    });
   });
 
   it('soft-deletes a draft and refuses a scheduled one', async () => {
@@ -536,7 +544,12 @@ describe('AdminBroadcastsService', () => {
     await citizen({ locale: 'en' });
 
     const created = await draft();
-    await service.update(created.id, admin, { titleEn: 'Flood warning II' }, META);
+    await service.update(
+      created.id,
+      admin,
+      { titleEn: 'Flood warning II' },
+      META,
+    );
     await service.send(created.id, admin, META);
 
     expect(await auditKeys()).toEqual([

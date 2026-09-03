@@ -35,14 +35,20 @@ export class AlertsService {
   // the container instance in the running app (AlertsModule imports PushModule);
   // the memoised fallback covers hand construction.
   constructor(
-    @Optional() private readonly pushService: PushService = defaultPushService(),
+    @Optional()
+    private readonly pushService: PushService = defaultPushService(),
   ) {}
 
   // Callers pass structured `params`, never prose. The English rendering is
   // stored alongside them so the row stays self-describing and older clients
   // still have something to show; the mobile app re-renders from `type` +
   // `params` in the user's current language. See alert-templates.ts.
-  async create(userId: string, type: AlertType, params: AlertParams, reportId?: string): Promise<void> {
+  async create(
+    userId: string,
+    type: AlertType,
+    params: AlertParams,
+    reportId?: string,
+  ): Promise<void> {
     const { title, body } = renderAlert(type, params, DEFAULT_ALERT_LOCALE);
 
     await db.insert(alerts).values({
@@ -70,7 +76,12 @@ export class AlertsService {
    * a push must not be able to undo an alert row that is already committed —
    * let alone the report, mission or moderation action that raised it.
    */
-  private async push(userId: string, type: AlertType, params: AlertParams, reportId?: string): Promise<void> {
+  private async push(
+    userId: string,
+    type: AlertType,
+    params: AlertParams,
+    reportId?: string,
+  ): Promise<void> {
     try {
       const locale = await this.resolveLocale(userId);
       // Rendered a second time, in the recipient's language rather than the
@@ -88,7 +99,6 @@ export class AlertsService {
         data: { type, ...(reportId ? { reportId } : {}) },
       });
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[alerts] push for ${type} to user ${userId} failed — the alert itself was saved`,
         error instanceof Error ? error.message : error,
@@ -106,7 +116,9 @@ export class AlertsService {
     // Falls back to English for null (never set) or a stale/unknown value —
     // same rule renderAlert() applies, applied early so the fallback is
     // explicit rather than incidental.
-    return isAlertLocale(recipient?.locale) ? recipient.locale : DEFAULT_ALERT_LOCALE;
+    return isAlertLocale(recipient?.locale)
+      ? recipient.locale
+      : DEFAULT_ALERT_LOCALE;
   }
 
   async list(userId: string) {
@@ -129,7 +141,9 @@ export class AlertsService {
       .select({ alert: alerts })
       .from(alerts)
       .leftJoin(reports, eq(alerts.reportId, reports.id))
-      .where(and(eq(alerts.userId, userId), or(isNull(alerts.reportId), notRemoved)))
+      .where(
+        and(eq(alerts.userId, userId), or(isNull(alerts.reportId), notRemoved)),
+      )
       .orderBy(desc(alerts.createdAt))
       .limit(50);
 

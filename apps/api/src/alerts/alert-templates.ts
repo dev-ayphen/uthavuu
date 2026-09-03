@@ -21,7 +21,11 @@
 
 // Known type tags. Not DB-enforced (see alerts-schema.ts) — an event-log
 // discriminator with no valid-transition rules to enforce.
-export type AlertType = 'volunteer_accepted' | 'volunteer_released' | 'mission_completed' | 'report_cancelled';
+export type AlertType =
+  | 'volunteer_accepted'
+  | 'volunteer_released'
+  | 'mission_completed'
+  | 'report_cancelled';
 
 export const ALERT_LOCALES = ['en', 'ta'] as const;
 export type AlertLocale = (typeof ALERT_LOCALES)[number];
@@ -44,61 +48,82 @@ type Template = {
   body: (params: AlertParams, anonymousVolunteer: string) => string;
 };
 
-const TEMPLATES: Record<AlertLocale, { anonymousVolunteer: string } & Record<AlertType, Template>> = {
+const TEMPLATES: Record<
+  AlertLocale,
+  { anonymousVolunteer: string } & Record<AlertType, Template>
+> = {
   en: {
     anonymousVolunteer: 'A volunteer',
     volunteer_accepted: {
       title: 'Volunteer Accepted',
-      body: (p, who) => `${p.volunteerName ?? who} is heading to help with "${p.reportTitle}".`,
+      body: (p, who) =>
+        `${p.volunteerName ?? who} is heading to help with "${p.reportTitle}".`,
     },
     volunteer_released: {
       title: 'Volunteer Update',
-      body: (p, who) => `${p.volunteerName ?? who} is no longer available to help with "${p.reportTitle}".`,
+      body: (p, who) =>
+        `${p.volunteerName ?? who} is no longer available to help with "${p.reportTitle}".`,
     },
     mission_completed: {
       title: 'Mission Completed',
-      body: (p, who) => `${p.volunteerName ?? who} marked "${p.reportTitle}" as complete.`,
+      body: (p, who) =>
+        `${p.volunteerName ?? who} marked "${p.reportTitle}" as complete.`,
     },
     // Sent to a volunteer, not the reporter — volunteerName doesn't apply
     // here (there's no third party to name), so the body only uses reportTitle.
     report_cancelled: {
       title: 'Request Cancelled',
-      body: (p) => `The request you joined ("${p.reportTitle}") has been cancelled by the reporter.`,
+      body: (p) =>
+        `The request you joined ("${p.reportTitle}") has been cancelled by the reporter.`,
     },
   },
   ta: {
     anonymousVolunteer: 'ஒரு தன்னார்வலர்',
     volunteer_accepted: {
       title: 'தன்னார்வலர் ஏற்றுக்கொண்டார்',
-      body: (p, who) => `"${p.reportTitle}" என்பதற்கு உதவ ${p.volunteerName ?? who} வருகிறார்.`,
+      body: (p, who) =>
+        `"${p.reportTitle}" என்பதற்கு உதவ ${p.volunteerName ?? who} வருகிறார்.`,
     },
     volunteer_released: {
       title: 'தன்னார்வலர் புதுப்பிப்பு',
-      body: (p, who) => `"${p.reportTitle}" என்பதற்கு உதவ ${p.volunteerName ?? who} இனி கிடைக்கவில்லை.`,
+      body: (p, who) =>
+        `"${p.reportTitle}" என்பதற்கு உதவ ${p.volunteerName ?? who} இனி கிடைக்கவில்லை.`,
     },
     mission_completed: {
       title: 'பணி நிறைவடைந்தது',
-      body: (p, who) => `${p.volunteerName ?? who} "${p.reportTitle}" ஐ நிறைவு செய்துள்ளார்.`,
+      body: (p, who) =>
+        `${p.volunteerName ?? who} "${p.reportTitle}" ஐ நிறைவு செய்துள்ளார்.`,
     },
     report_cancelled: {
       title: 'கோரிக்கை ரத்து செய்யப்பட்டது',
-      body: (p) => `நீங்கள் இணைந்த கோரிக்கை ("${p.reportTitle}") புகாரளித்தவரால் ரத்து செய்யப்பட்டது.`,
+      body: (p) =>
+        `நீங்கள் இணைந்த கோரிக்கை ("${p.reportTitle}") புகாரளித்தவரால் ரத்து செய்யப்பட்டது.`,
     },
   },
 };
 
 export function isAlertLocale(value: unknown): value is AlertLocale {
-  return typeof value === 'string' && (ALERT_LOCALES as readonly string[]).includes(value);
+  return (
+    typeof value === 'string' &&
+    (ALERT_LOCALES as readonly string[]).includes(value)
+  );
 }
 
 // Falls back to English for an unrecognised locale rather than throwing: an
 // alert that renders in the wrong language is a bad experience, but an alert
 // that fails to send because a stale locale string reached the renderer is a
 // worse one.
-export function renderAlert(type: AlertType, params: AlertParams, locale: AlertLocale = DEFAULT_ALERT_LOCALE): RenderedAlert {
+export function renderAlert(
+  type: AlertType,
+  params: AlertParams,
+  locale: AlertLocale = DEFAULT_ALERT_LOCALE,
+): RenderedAlert {
   const catalog = TEMPLATES[locale] ?? TEMPLATES[DEFAULT_ALERT_LOCALE];
   const template = catalog[type];
-  return { title: template.title, body: template.body(params, catalog.anonymousVolunteer) };
+  return {
+    title: template.title,
+    body: template.body(params, catalog.anonymousVolunteer),
+  };
 }
 
 // ─── BROADCASTS ─────────────────────────────────────────────────────────────

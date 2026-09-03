@@ -20,7 +20,7 @@ export class Msg91OtpProvider implements OtpProvider {
 
     if (!authKey || !templateId) {
       throw new Error(
-        'MSG91_AUTH_KEY / MSG91_TEMPLATE_ID are not configured — cannot send a real OTP.'
+        'MSG91_AUTH_KEY / MSG91_TEMPLATE_ID are not configured — cannot send a real OTP.',
       );
     }
 

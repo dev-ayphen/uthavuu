@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, count, eq, inArray, max, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, max, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
@@ -133,20 +133,17 @@ export class SupportService {
   }
 
   async listMine(userId: string) {
-    const rows = await this.ticketQuery().where(eq(supportTickets.userId, userId));
+    const rows = await this.ticketQuery()
+      .where(eq(supportTickets.userId, userId))
+      // Newest first, id breaking ties — the same tiebreaker the admin queue
+      // uses, and with uuidv7 ids that is still true creation order. Not
+      // paginated: this is one person's own tickets on a phone, which is the
+      // same reason no other citizen endpoint paginates (admin-pagination.ts).
+      .orderBy(desc(supportTickets.createdAt), desc(supportTickets.id));
 
     const counts = await this.messageCounts(rows.map((r) => r.id));
 
-    return rows
-      .map((row) => this.toResponse(row, counts.get(row.id)))
-      // Ordered here rather than in SQL so the tiebreaker is the same one the
-      // console uses: newest first, id breaking ties (uuidv7 is time-ordered, so
-      // that is still creation order).
-      .sort((a, b) =>
-        a.createdAt === b.createdAt
-          ? b.id.localeCompare(a.id)
-          : b.createdAt.localeCompare(a.createdAt),
-      );
+    return rows.map((row) => this.toResponse(row, counts.get(row.id)));
   }
 
   /** The full conversation — the citizen's own, with internal notes removed. */
@@ -272,8 +269,13 @@ export class SupportService {
       // outlives its author's account deletion. The body stays; the identity
       // goes.
       .leftJoin(user, eq(supportTicketMessages.senderUserId, user.id))
-      .where(and(eq(supportTicketMessages.ticketId, ticketId), this.notInternal))
-      .orderBy(asc(supportTicketMessages.createdAt), asc(supportTicketMessages.id));
+      .where(
+        and(eq(supportTicketMessages.ticketId, ticketId), this.notInternal),
+      )
+      .orderBy(
+        asc(supportTicketMessages.createdAt),
+        asc(supportTicketMessages.id),
+      );
 
     return rows.map((row) => ({
       id: row.id,
@@ -297,7 +299,10 @@ export class SupportService {
       })
       .from(supportTicketMessages)
       .where(
-        and(inArray(supportTicketMessages.ticketId, ticketIds), this.notInternal),
+        and(
+          inArray(supportTicketMessages.ticketId, ticketIds),
+          this.notInternal,
+        ),
       )
       .groupBy(supportTicketMessages.ticketId);
 
@@ -346,10 +351,7 @@ export class SupportService {
       );
   }
 
-  private toResponse(
-    row: TicketRow,
-    messages?: MessageTotals,
-  ) {
+  private toResponse(row: TicketRow, messages?: MessageTotals) {
     return {
       id: row.id,
       ticketNumber: row.ticketNumber,

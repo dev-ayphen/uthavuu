@@ -3,7 +3,11 @@ import { and, count, eq, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reports } from '../db/schema/reports-schema';
-import { missions, missionVolunteers, missionVolunteerStatuses } from '../db/schema/missions-schema';
+import {
+  missions,
+  missionVolunteers,
+  missionVolunteerStatuses,
+} from '../db/schema/missions-schema';
 import type { CompleteProfileDto } from './dto/complete-profile.dto';
 import type { UpdateRadiusDto } from './dto/update-radius.dto';
 import type { UpdateLocaleDto } from './dto/update-locale.dto';
@@ -40,11 +44,17 @@ export class UsersService {
         lastLat: input.lat,
         lastLng: input.lng,
         profileCompletedAt: new Date(),
-        ...(input.contactEmail !== undefined && { contactEmail: input.contactEmail }),
+        ...(input.contactEmail !== undefined && {
+          contactEmail: input.contactEmail,
+        }),
         ...(input.language !== undefined && { language: input.language }),
         ...(input.profession !== undefined && { profession: input.profession }),
-        ...(input.organization !== undefined && { organization: input.organization }),
-        ...(input.showProfession !== undefined && { showProfession: input.showProfession }),
+        ...(input.organization !== undefined && {
+          organization: input.organization,
+        }),
+        ...(input.showProfession !== undefined && {
+          showProfession: input.showProfession,
+        }),
         ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
       })
       .where(eq(user.id, userId))
@@ -69,8 +79,12 @@ export class UsersService {
     const [updated] = await db
       .update(user)
       .set({
-        ...(input.defaultAnonymous !== undefined && { defaultAnonymous: input.defaultAnonymous }),
-        ...(input.defaultPhoneVisible !== undefined && { defaultPhoneVisible: input.defaultPhoneVisible }),
+        ...(input.defaultAnonymous !== undefined && {
+          defaultAnonymous: input.defaultAnonymous,
+        }),
+        ...(input.defaultPhoneVisible !== undefined && {
+          defaultPhoneVisible: input.defaultPhoneVisible,
+        }),
       })
       .where(eq(user.id, userId))
       .returning();
@@ -122,7 +136,10 @@ export class UsersService {
         .where(and(eq(reports.reporterId, userId), isNull(reports.deletedAt)));
 
       for (const report of myReports) {
-        const [missionRow] = await tx.select({ id: missions.id }).from(missions).where(eq(missions.reportId, report.id));
+        const [missionRow] = await tx
+          .select({ id: missions.id })
+          .from(missions)
+          .where(eq(missions.reportId, report.id));
 
         let everHadVolunteer = false;
         if (missionRow) {
@@ -134,7 +151,10 @@ export class UsersService {
         }
 
         if (!everHadVolunteer) {
-          await tx.update(reports).set({ deletedAt: new Date(), deletedBy: userId }).where(eq(reports.id, report.id));
+          await tx
+            .update(reports)
+            .set({ deletedAt: new Date(), deletedBy: userId })
+            .where(eq(reports.id, report.id));
         }
       }
 
@@ -148,7 +168,10 @@ export class UsersService {
         .where(eq(missionVolunteerStatuses.key, 'released'));
 
       const myVolunteerRows = await tx
-        .select({ id: missionVolunteers.id, statusId: missionVolunteers.statusId })
+        .select({
+          id: missionVolunteers.id,
+          statusId: missionVolunteers.statusId,
+        })
         .from(missionVolunteers)
         .where(eq(missionVolunteers.volunteerId, userId));
 
@@ -156,7 +179,11 @@ export class UsersService {
         if (releasedStatus && mv.statusId !== releasedStatus.id) {
           await tx
             .update(missionVolunteers)
-            .set({ statusId: releasedStatus.id, releasedAt: new Date(), releaseReason: 'account_deleted' })
+            .set({
+              statusId: releasedStatus.id,
+              releasedAt: new Date(),
+              releaseReason: 'account_deleted',
+            })
             .where(eq(missionVolunteers.id, mv.id));
         }
       }
@@ -187,7 +214,10 @@ export class UsersService {
   // exactly what's honestly computable today: real totals, no invented
   // success/reliability rate.
   async getStats(userId: string) {
-    const [reportsRow] = await db.select({ value: count() }).from(reports).where(eq(reports.reporterId, userId));
+    const [reportsRow] = await db
+      .select({ value: count() })
+      .from(reports)
+      .where(eq(reports.reporterId, userId));
     const [missionsRow] = await db
       .select({ value: count() })
       .from(missionVolunteers)
@@ -206,10 +236,18 @@ export class UsersService {
   // (2026-08-24): v1 is a genuine shareable invite only, no referral
   // tracking, since there's no public landing page yet for a claim flow to
   // land on (apps/marketing isn't built).
-  async getOrCreateInvite(userId: string): Promise<{ code: string; link: string }> {
-    const [existing] = await db.select({ inviteCode: user.inviteCode }).from(user).where(eq(user.id, userId));
+  async getOrCreateInvite(
+    userId: string,
+  ): Promise<{ code: string; link: string }> {
+    const [existing] = await db
+      .select({ inviteCode: user.inviteCode })
+      .from(user)
+      .where(eq(user.id, userId));
     if (existing?.inviteCode) {
-      return { code: existing.inviteCode, link: inviteLink(existing.inviteCode) };
+      return {
+        code: existing.inviteCode,
+        link: inviteLink(existing.inviteCode),
+      };
     }
 
     // Collision retry rather than a single attempt — an 8-char base32 code
@@ -220,7 +258,10 @@ export class UsersService {
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = randomInviteCode();
       try {
-        await db.update(user).set({ inviteCode: code }).where(eq(user.id, userId));
+        await db
+          .update(user)
+          .set({ inviteCode: code })
+          .where(eq(user.id, userId));
         return { code, link: inviteLink(code) };
       } catch (err) {
         if (!isUniqueViolation(err)) throw err;
@@ -237,7 +278,10 @@ const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function randomInviteCode(length = 8): string {
   let code = '';
   for (let i = 0; i < length; i++) {
-    code += INVITE_CODE_ALPHABET[Math.floor(Math.random() * INVITE_CODE_ALPHABET.length)];
+    code +=
+      INVITE_CODE_ALPHABET[
+        Math.floor(Math.random() * INVITE_CODE_ALPHABET.length)
+      ];
   }
   return code;
 }
@@ -252,5 +296,10 @@ function inviteLink(code: string): string {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === '23505';
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    err.code === '23505'
+  );
 }

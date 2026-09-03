@@ -11,31 +11,46 @@ import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reports } from '../db/schema/reports-schema';
-import { missionCompletions, missionVolunteers, missions } from '../db/schema/missions-schema';
+import { reports } from '../db/schema/reports-schema';
+import {
+  missionCompletions,
+  missionVolunteers,
+  missions,
+} from '../db/schema/missions-schema';
 import { UsersService } from './users.service';
 import { ReportsService } from '../reports/reports.service';
 import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { CommentsService } from '../comments/comments.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
+import {
+  removeUploadFixture,
+  writeUploadFixture,
+} from '../uploads/testing/upload-fixture';
 import type { CreateReportDto } from '../reports/dto/create-report.dto';
 
 describe('Account deletion — community mission preservation', () => {
   const usersService = new UsersService();
   const missionsService = new MissionsService(new AlertsService());
-  const reportsService = new ReportsService(missionsService, new AlertsService());
+  const reportsService = new ReportsService(
+    missionsService,
+    new AlertsService(),
+  );
   const commentsService = new CommentsService();
 
-  let medicalCategoryId: string;
   const createdUserIds: string[] = [];
+  // A real file, because create() now refuses a photo URL no upload produced
+  // (docs/_audit/issues.md issue 27). Named per-suite: UPLOADS_DIR is shared by
+  // every Jest worker.
+  const REPORT_PHOTO_FIXTURE = 'delete-account-spec-report.jpg';
+  let reportPhotoUrl: string;
 
-  beforeAll(async () => {
-    const [category] = await db.select().from(reportCategories).where(eq(reportCategories.key, 'medicalHelp'));
-    medicalCategoryId = category.id;
+  beforeAll(() => {
+    reportPhotoUrl = writeUploadFixture(REPORT_PHOTO_FIXTURE);
   });
 
   afterAll(async () => {
+    removeUploadFixture(REPORT_PHOTO_FIXTURE);
     // Whatever's left of each test's fixtures — deleteAccount() itself
     // already removed the users under test, this just mops up the rest
     // (reports belonging to any user that survived a test, or a
@@ -48,12 +63,19 @@ describe('Account deletion — community mission preservation', () => {
 
   async function makeUser(name: string): Promise<string> {
     const id = uuidv7();
-    await db.insert(user).values({ id, name, email: `${id}@test.local`, phoneNumber: `+91-${id}` });
+    await db.insert(user).values({
+      id,
+      name,
+      email: `${id}@test.local`,
+      phoneNumber: `+91-${id}`,
+    });
     createdUserIds.push(id);
     return id;
   }
 
-  function baseInput(overrides: Partial<CreateReportDto> = {}): CreateReportDto {
+  function baseInput(
+    overrides: Partial<CreateReportDto> = {},
+  ): CreateReportDto {
     return {
       categoryKey: 'medicalHelp',
       title: 'Test report',
@@ -63,9 +85,9 @@ describe('Account deletion — community mission preservation', () => {
       anonymous: false,
       phoneVisible: false,
       neededVolunteers: 1,
-      photoUrls: ['http://localhost:3001/uploads/test1.jpg'],
+      photoUrls: [reportPhotoUrl],
       ...overrides,
-    } as CreateReportDto;
+    };
   }
 
   describe('Rule 1 — nobody ever volunteered', () => {
@@ -75,7 +97,10 @@ describe('Account deletion — community mission preservation', () => {
 
       await usersService.deleteAccount(reporterId);
 
-      const [row] = await db.select().from(reports).where(eq(reports.id, created.id));
+      const [row] = await db
+        .select()
+        .from(reports)
+        .where(eq(reports.id, created.id));
       expect(row).toBeDefined(); // still a real row — soft delete, not gone
       expect(row.deletedAt).not.toBeNull();
       // The account is gone by the time this FK would matter — deletedBy
@@ -87,7 +112,9 @@ describe('Account deletion — community mission preservation', () => {
       // path — and says so honestly rather than as a bare "not found", which
       // is indistinguishable from a broken link. Same REPORT_REMOVED state an
       // admin hide produces: deleted_at is deleted_at, whoever set it.
-      await expect(reportsService.findOne(created.id, reporterId)).rejects.toMatchObject({
+      await expect(
+        reportsService.findOne(created.id, reporterId),
+      ).rejects.toMatchObject({
         response: { code: 'REPORT_REMOVED' },
       });
     });
@@ -102,7 +129,10 @@ describe('Account deletion — community mission preservation', () => {
 
       await usersService.deleteAccount(reporterId);
 
-      const [row] = await db.select().from(reports).where(eq(reports.id, created.id));
+      const [row] = await db
+        .select()
+        .from(reports)
+        .where(eq(reports.id, created.id));
       expect(row.deletedAt).toBeNull(); // NOT soft-deleted — it has volunteer history
       expect(row.reporterId).toBeNull(); // but the identity is gone
     });
@@ -113,7 +143,10 @@ describe('Account deletion — community mission preservation', () => {
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
 
     beforeAll(() => {
-      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+      writeFileSync(
+        join(UPLOADS_DIR, fixtureFilename),
+        Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+      );
     });
 
     afterAll(() => {
@@ -128,26 +161,41 @@ describe('Account deletion — community mission preservation', () => {
         const volunteerId = await makeUser('Volunteer Mid Mission');
 
         // Reporter creates.
-        const created = await reportsService.create(reporterId, baseInput({ title: 'Need groceries urgently' }));
+        const created = await reportsService.create(
+          reporterId,
+          baseInput({ title: 'Need groceries urgently' }),
+        );
 
         // Volunteer accepts.
-        const afterAccept = await missionsService.accept(created.id, volunteerId);
+        const afterAccept = await missionsService.accept(
+          created.id,
+          volunteerId,
+        );
         expect(afterAccept.myStatus).toBe('joined');
 
         // Volunteer starts (confirm -> active).
-        const afterConfirm = await missionsService.confirm(created.id, volunteerId);
+        const afterConfirm = await missionsService.confirm(
+          created.id,
+          volunteerId,
+        );
         expect(afterConfirm.myStatus).toBe('active');
 
         // Reporter deletes account — mid-mission, volunteer already active.
         await usersService.deleteAccount(reporterId);
 
-        const [reportRow] = await db.select().from(reports).where(eq(reports.id, created.id));
+        const [reportRow] = await db
+          .select()
+          .from(reports)
+          .where(eq(reports.id, created.id));
         expect(reportRow.deletedAt).toBeNull(); // real mission activity — never soft-deleted
         expect(reportRow.reporterId).toBeNull();
 
         // The report is still readable, by the volunteer, with the reporter
         // shown as deleted — never conflated with "posted anonymously".
-        const asVolunteer = await reportsService.findOne(created.id, volunteerId);
+        const asVolunteer = await reportsService.findOne(
+          created.id,
+          volunteerId,
+        );
         expect(asVolunteer.reporter).toBeNull();
         expect(asVolunteer.reporterDeleted).toBe(true);
         expect(asVolunteer.anonymous).toBe(false); // this report was never posted anonymously
@@ -155,34 +203,51 @@ describe('Account deletion — community mission preservation', () => {
         // Volunteer continues: roster still shows them active, unaffected.
         const roster = await missionsService.getRoster(created.id, volunteerId);
         expect(roster.myStatus).toBe('active');
-        const myRow = roster.volunteers.find((v) => v.volunteerId === volunteerId);
+        const myRow = roster.volunteers.find(
+          (v) => v.volunteerId === volunteerId,
+        );
         expect(myRow?.volunteerDeleted).toBe(false);
 
         // Volunteer keeps making real progress updates.
-        const afterProgress = await missionsService.updateProgress(created.id, volunteerId, 'helping_now');
+        const afterProgress = await missionsService.updateProgress(
+          created.id,
+          volunteerId,
+          'helping_now',
+        );
         expect(afterProgress.myProgressStatus?.key).toBe('helping_now');
 
         // Volunteer completes the mission — must not throw despite the
         // reporter (who would normally get an alert) being gone.
-        const completed = await missionsService.complete(created.id, volunteerId, fixturePhotoUrl, 'Delivered groceries.');
+        const completed = await missionsService.complete(
+          created.id,
+          volunteerId,
+          fixturePhotoUrl,
+          'Delivered groceries.',
+        );
         expect(completed.completion).toEqual({
           photoUrl: fixturePhotoUrl,
           note: 'Delivered groceries.',
-          verifiedAt: expect.any(String),
+          verifiedAt: expect.any(String) as string,
         });
 
-        const [finalReport] = await db.select().from(reports).where(eq(reports.id, created.id));
+        const [finalReport] = await db
+          .select()
+          .from(reports)
+          .where(eq(reports.id, created.id));
         expect(finalReport.closedAt).not.toBeNull();
 
         // The completion record — future Impact Story material — survives
         // with its real completedById (the volunteer, who still has an account).
-        const [missionRow] = await db.select().from(missions).where(eq(missions.reportId, created.id));
+        const [missionRow] = await db
+          .select()
+          .from(missions)
+          .where(eq(missions.reportId, created.id));
         const [completionRow] = await db
           .select()
           .from(missionCompletions)
           .where(eq(missionCompletions.missionId, missionRow.id));
         expect(completionRow.completedById).toBe(volunteerId);
-      }
+      },
     );
   });
 
@@ -192,20 +257,33 @@ describe('Account deletion — community mission preservation', () => {
       const volunteerId = await makeUser('Volunteer Who Deletes');
       const thirdVolunteerId = await makeUser('Third Volunteer');
 
-      const created = await reportsService.create(reporterId, baseInput({ neededVolunteers: 1 }));
+      const created = await reportsService.create(
+        reporterId,
+        baseInput({ neededVolunteers: 1 }),
+      );
 
       await missionsService.accept(created.id, volunteerId);
       await missionsService.confirm(created.id, volunteerId);
 
       // Leaves real, preserved history behind before deleting.
       await missionsService.sendMessage(created.id, volunteerId, 'On my way!');
-      await commentsService.create(created.id, volunteerId, 'Happy to help with this.');
+      await commentsService.create(
+        created.id,
+        volunteerId,
+        'Happy to help with this.',
+      );
 
       await usersService.deleteAccount(volunteerId);
 
       // The mission_volunteers row survives, anonymized and genuinely released.
-      const [mission] = await db.select().from(missions).where(eq(missions.reportId, created.id));
-      const [mvRow] = await db.select().from(missionVolunteers).where(eq(missionVolunteers.missionId, mission.id));
+      const [mission] = await db
+        .select()
+        .from(missions)
+        .where(eq(missions.reportId, created.id));
+      const [mvRow] = await db
+        .select()
+        .from(missionVolunteers)
+        .where(eq(missionVolunteers.missionId, mission.id));
       expect(mvRow.volunteerId).toBeNull();
       expect(mvRow.releaseReason).toBe('account_deleted');
       expect(mvRow.releasedAt).not.toBeNull();
@@ -217,11 +295,17 @@ describe('Account deletion — community mission preservation', () => {
       expect(roster.volunteers[0].status).toBe('released');
 
       // The slot genuinely reopened — a third volunteer can join.
-      const afterThirdJoins = await missionsService.accept(created.id, thirdVolunteerId);
+      const afterThirdJoins = await missionsService.accept(
+        created.id,
+        thirdVolunteerId,
+      );
       expect(afterThirdJoins.myStatus).toBe('joined');
 
       // Mission Chat message is preserved, author anonymized.
-      const messages = await missionsService.listMessages(created.id, reporterId);
+      const messages = await missionsService.listMessages(
+        created.id,
+        reporterId,
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].body).toBe('On my way!');
       expect(messages[0].senderDeleted).toBe(true);

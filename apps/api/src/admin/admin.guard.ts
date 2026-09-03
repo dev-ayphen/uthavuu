@@ -1,6 +1,11 @@
 import { CanActivate, ForbiddenException, Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import {
+  ADMIN_MISSING_PERMISSION,
+  ADMIN_NOT_AN_ADMIN,
+  ADMIN_NO_SESSION,
+} from '@uthavu/libs-common';
 import { AdminService } from './admin.service';
 import { ADMIN_PERMISSIONS_METADATA } from './admin-rbac';
 import type { AdminIdentity } from './admin-rbac';
@@ -18,6 +23,11 @@ import type { AdminIdentity } from './admin-rbac';
  *
  * Every exit is either `true` or a throw. There is no `return true` fallthrough
  * at the bottom, and no default-allow branch to forget.
+ *
+ * All three refusals are 403 and the `code` is the only thing separating them,
+ * so the console has to spell them exactly right to tell "signed out" from "not
+ * staff" from "wrong role". They come from @uthavu/libs-common for that reason —
+ * see the note there.
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -38,7 +48,7 @@ export class AdminGuard implements CanActivate {
     const userId = request.session?.user?.id;
     if (!userId) {
       throw new ForbiddenException({
-        code: 'ADMIN_NO_SESSION',
+        code: ADMIN_NO_SESSION,
         message: 'Admin access requires a signed-in admin session.',
       });
     }
@@ -47,7 +57,7 @@ export class AdminGuard implements CanActivate {
     if (!admin) {
       // A perfectly valid citizen session. Being signed in is not being staff.
       throw new ForbiddenException({
-        code: 'ADMIN_NOT_AN_ADMIN',
+        code: ADMIN_NOT_AN_ADMIN,
         message: 'This account does not have admin access.',
       });
     }
@@ -68,7 +78,7 @@ export class AdminGuard implements CanActivate {
       );
       if (missing.length > 0) {
         throw new ForbiddenException({
-          code: 'ADMIN_MISSING_PERMISSION',
+          code: ADMIN_MISSING_PERMISSION,
           message: `Missing admin permission: ${missing.join(', ')}`,
         });
       }

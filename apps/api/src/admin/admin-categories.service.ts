@@ -259,7 +259,9 @@ export class AdminCategoriesService {
     const [row] = await db
       .select({ count: sql<string>`count(*)` })
       .from(reports)
-      .where(sql`${reports.categoryId} = ${categoryId} and ${reports.deletedAt} is null`);
+      .where(
+        sql`${reports.categoryId} = ${categoryId} and ${reports.deletedAt} is null`,
+      );
     return Number(row?.count ?? 0);
   }
 

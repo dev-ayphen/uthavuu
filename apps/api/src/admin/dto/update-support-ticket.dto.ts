@@ -58,4 +58,6 @@ export class UpdateSupportTicketDto extends createZodDto(
  * instance. Two code paths that move a ticket's status is exactly how the two of
  * them end up disagreeing about `resolvedAt`.
  */
-export type UpdateSupportTicketInput = z.infer<typeof UpdateSupportTicketSchema>;
+export type UpdateSupportTicketInput = z.infer<
+  typeof UpdateSupportTicketSchema
+>;

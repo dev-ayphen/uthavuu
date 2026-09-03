@@ -228,7 +228,9 @@ export class AdminBroadcastsService {
     meta: AdminRequestMeta,
   ) {
     const scheduledAt = dto.scheduledAt ?? null;
-    const statusId = await this.statusIdFor(scheduledAt ? 'scheduled' : 'draft');
+    const statusId = await this.statusIdFor(
+      scheduledAt ? 'scheduled' : 'draft',
+    );
     const audienceId = await this.audienceIdFor(dto.audience);
     const id = uuidv7();
 
@@ -777,6 +779,12 @@ export class AdminBroadcastsService {
     copy: BroadcastAlertCopy,
     broadcastId: string,
   ): Promise<number> {
+    // Declared OUTSIDE the try so a failure partway through a page keeps the
+    // sends that already succeeded. Zeroing it in the catch would under-report
+    // `delivered_count` — claiming nothing was pushed when some of it was — and
+    // this column exists to be honest about push, not tidy.
+    let delivered = 0;
+
     try {
       const withDevices = await db
         .selectDistinct({ userId: devices.userId })
@@ -791,7 +799,6 @@ export class AdminBroadcastsService {
       const targetIds = new Set(withDevices.map((row) => row.userId));
       const targets = page.filter((recipient) => targetIds.has(recipient.id));
 
-      let delivered = 0;
       for (let i = 0; i < targets.length; i += PUSH_CONCURRENCY) {
         const slice = targets.slice(i, i + PUSH_CONCURRENCY);
         const results = await Promise.all(
@@ -809,25 +816,21 @@ export class AdminBroadcastsService {
         );
         delivered += results.reduce((sum, result) => sum + result.sent, 0);
       }
-      return delivered;
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.warn(
         '[broadcasts] push for one fan-out page failed — the in-app alerts for that page were already saved',
         error instanceof Error ? error.message : error,
       );
-      return 0;
     }
+
+    return delivered;
   }
 
   // ---------------------------------------------------------------- internals
 
   /** Refuses a PATCH on a broadcast that has started or finished going out. */
   private assertMutable(existing: BroadcastRow, verb: string): void {
-    if (
-      existing.statusKey === 'draft' ||
-      existing.statusKey === 'scheduled'
-    ) {
+    if (existing.statusKey === 'draft' || existing.statusKey === 'scheduled') {
       return;
     }
 
@@ -1066,10 +1069,7 @@ export class AdminBroadcastsService {
     );
   }
 
-  private auditShape(
-    row: typeof broadcasts.$inferSelect,
-    audienceKey: string,
-  ) {
+  private auditShape(row: typeof broadcasts.$inferSelect, audienceKey: string) {
     return this.serialiseFields({
       titleEn: row.titleEn,
       bodyEn: row.bodyEn,

@@ -14,7 +14,10 @@ export const UpdateReportSchema = z.object({
   description: z
     .string()
     .trim()
-    .min(20, 'Description must be at least 20 characters — give volunteers enough to act on')
+    .min(
+      20,
+      'Description must be at least 20 characters — give volunteers enough to act on',
+    )
     .max(2000)
     .optional(),
   landmark: z.string().trim().max(200).optional(),

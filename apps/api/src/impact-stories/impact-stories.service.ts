@@ -15,7 +15,7 @@ import { MissionsService } from '../missions/missions.service';
 export class ImpactStoriesService {
   constructor(
     private readonly reportsService: ReportsService,
-    private readonly missionsService: MissionsService
+    private readonly missionsService: MissionsService,
   ) {}
 
   // COMPOSING TWO LISTS MEANS INHERITING BOTH THEIR FILTERS — including the
@@ -37,14 +37,25 @@ export class ImpactStoriesService {
       this.missionsService.listMyMissions(userId),
     ]);
 
-    const completedReportIds = myReports.filter((r) => r.status === 'completed').map((r) => r.id);
+    const completedReportIds = myReports
+      .filter((r) => r.status === 'completed')
+      .map((r) => r.id);
     // The outcome/after-photo, not the original report's before-photo — an
     // Impact Story shows what happened, not the problem that was reported.
-    const completionPhotos = await this.missionsService.getCompletionPhotosByReportIds(completedReportIds);
+    const completionPhotos =
+      await this.missionsService.getCompletionPhotosByReportIds(
+        completedReportIds,
+      );
 
     const stories = new Map<
       string,
-      { reportId: string; title: string; category: { key: string; label: string; emoji: string }; photo: string | null; sortKey: string }
+      {
+        reportId: string;
+        title: string;
+        category: { key: string; label: string; emoji: string };
+        photo: string | null;
+        sortKey: string;
+      }
     >();
 
     for (const r of myReports) {
@@ -71,6 +82,12 @@ export class ImpactStoriesService {
 
     return [...stories.values()]
       .sort((a, b) => (a.sortKey < b.sortKey ? 1 : -1))
-      .map(({ sortKey: _sortKey, ...story }) => story);
+      .map((entry) => {
+        // `sortKey` orders the list and is then dropped: it is an internal
+        // ordering key, not part of the story's response shape.
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { sortKey, ...story } = entry;
+        return story;
+      });
   }
 }

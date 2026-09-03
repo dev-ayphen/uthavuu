@@ -3,10 +3,11 @@ import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 
 jest.mock('../db', () => {
-  const postgresModule = jest.requireActual<typeof import('postgres')>('postgres');
-  const drizzleModule = jest.requireActual<typeof import('drizzle-orm/postgres-js')>(
-    'drizzle-orm/postgres-js',
-  );
+  const postgresModule =
+    jest.requireActual<typeof import('postgres')>('postgres');
+  const drizzleModule = jest.requireActual<
+    typeof import('drizzle-orm/postgres-js')
+  >('drizzle-orm/postgres-js');
   const url = new URL(process.env.DATABASE_URL!);
   url.pathname = '/uthavu_admin_reports_test';
   return { db: drizzleModule.drizzle(postgresModule(url.toString())) };
@@ -64,10 +65,31 @@ describe('AdminReportsService', () => {
     lookups = await seedLookups(db);
 
     await db.insert(user).values([
-      { id: reporterId, name: 'Hari S', email: 'hari@test.local', phoneNumber: '+919000000001', district: 'Chennai' },
-      { id: volunteerId, name: 'Priya K', email: 'priya@test.local', phoneNumber: '+919000000002' },
-      { id: anonReporterId, name: 'Anon Poster', email: 'anon@test.local', phoneNumber: '+919000000003' },
-      { id: departingId, name: 'Departing', email: 'departing@test.local', phoneNumber: '+919000000004' },
+      {
+        id: reporterId,
+        name: 'Hari S',
+        email: 'hari@test.local',
+        phoneNumber: '+919000000001',
+        district: 'Chennai',
+      },
+      {
+        id: volunteerId,
+        name: 'Priya K',
+        email: 'priya@test.local',
+        phoneNumber: '+919000000002',
+      },
+      {
+        id: anonReporterId,
+        name: 'Anon Poster',
+        email: 'anon@test.local',
+        phoneNumber: '+919000000003',
+      },
+      {
+        id: departingId,
+        name: 'Departing',
+        email: 'departing@test.local',
+        phoneNumber: '+919000000004',
+      },
     ]);
 
     const fixture = (
@@ -85,13 +107,48 @@ describe('AdminReportsService', () => {
     });
 
     await db.insert(reports).values([
-      fixture({ id: ids.open, title: 'Blood needed at Apollo', description: 'O negative', landmark: 'Apollo Hospital' }),
-      fixture({ id: ids.expired, title: 'Stray dog injured', expiryAt: new Date(Date.now() - HOUR) }),
-      fixture({ id: ids.closed, title: 'Cancelled request', statusId: lookups.reportStatusIds.closed, closedAt: new Date() }),
-      fixture({ id: ids.completed, title: 'Rescued the puppy', statusId: lookups.reportStatusIds.completed, expiryAt: new Date(Date.now() - HOUR) }),
-      fixture({ id: ids.deleted, title: 'Removed by moderator', deletedAt: new Date(), deletedBy: reporterId }),
-      fixture({ id: ids.anonymous, title: 'Anonymous plea', reporterId: anonReporterId, anonymous: true, phoneVisible: false }),
-      fixture({ id: ids.orphaned, title: 'Author left', reporterId: departingId, categoryId: lookups.categoryIds.animalRescue }),
+      fixture({
+        id: ids.open,
+        title: 'Blood needed at Apollo',
+        description: 'O negative',
+        landmark: 'Apollo Hospital',
+      }),
+      fixture({
+        id: ids.expired,
+        title: 'Stray dog injured',
+        expiryAt: new Date(Date.now() - HOUR),
+      }),
+      fixture({
+        id: ids.closed,
+        title: 'Cancelled request',
+        statusId: lookups.reportStatusIds.closed,
+        closedAt: new Date(),
+      }),
+      fixture({
+        id: ids.completed,
+        title: 'Rescued the puppy',
+        statusId: lookups.reportStatusIds.completed,
+        expiryAt: new Date(Date.now() - HOUR),
+      }),
+      fixture({
+        id: ids.deleted,
+        title: 'Removed by moderator',
+        deletedAt: new Date(),
+        deletedBy: reporterId,
+      }),
+      fixture({
+        id: ids.anonymous,
+        title: 'Anonymous plea',
+        reporterId: anonReporterId,
+        anonymous: true,
+        phoneVisible: false,
+      }),
+      fixture({
+        id: ids.orphaned,
+        title: 'Author left',
+        reporterId: departingId,
+        categoryId: lookups.categoryIds.animalRescue,
+      }),
     ]);
 
     // The reporter's account goes away; SET NULL keeps the report.
@@ -107,7 +164,12 @@ describe('AdminReportsService', () => {
       const result = await service.list({ ...base, limit: 3 });
       expect(Object.keys(result)).toEqual(['items', 'pagination']);
       // 7 rows minus the soft-deleted one, which is hidden by default.
-      expect(result.pagination).toEqual({ page: 1, limit: 3, total: 6, totalPages: 2 });
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 3,
+        total: 6,
+        totalPages: 2,
+      });
       expect(result.items).toHaveLength(3);
     });
 
@@ -145,7 +207,10 @@ describe('AdminReportsService', () => {
 
     it('hides soft-deleted reports by default and reveals them on request', async () => {
       expect((await service.list(base)).pagination.total).toBe(6);
-      expect((await service.list({ ...base, includeDeleted: true })).pagination.total).toBe(7);
+      expect(
+        (await service.list({ ...base, includeDeleted: true })).pagination
+          .total,
+      ).toBe(7);
 
       const onlyDeleted = await service.list({ ...base, status: 'deleted' });
       expect(onlyDeleted.pagination.total).toBe(1);
@@ -153,29 +218,56 @@ describe('AdminReportsService', () => {
     });
 
     it('filters by category, reporter and date range', async () => {
-      expect((await service.list({ ...base, categoryKey: 'animalRescue' })).pagination.total).toBe(1);
-      expect((await service.list({ ...base, reporterId: anonReporterId })).pagination.total).toBe(1);
-      expect((await service.list({ ...base, from: new Date(Date.now() + HOUR) })).pagination.total).toBe(0);
+      expect(
+        (await service.list({ ...base, categoryKey: 'animalRescue' }))
+          .pagination.total,
+      ).toBe(1);
+      expect(
+        (await service.list({ ...base, reporterId: anonReporterId })).pagination
+          .total,
+      ).toBe(1);
+      expect(
+        (await service.list({ ...base, from: new Date(Date.now() + HOUR) }))
+          .pagination.total,
+      ).toBe(0);
     });
 
     it('searches title, description and landmark', async () => {
-      expect((await service.list({ ...base, q: 'Apollo' })).pagination.total).toBe(1);
-      expect((await service.list({ ...base, q: 'O negative' })).pagination.total).toBe(1);
-      expect((await service.list({ ...base, q: 'puppy' })).pagination.total).toBe(1);
+      expect(
+        (await service.list({ ...base, q: 'Apollo' })).pagination.total,
+      ).toBe(1);
+      expect(
+        (await service.list({ ...base, q: 'O negative' })).pagination.total,
+      ).toBe(1);
+      expect(
+        (await service.list({ ...base, q: 'puppy' })).pagination.total,
+      ).toBe(1);
     });
 
     it('treats a literal % as text, not as "match everything"', async () => {
       // likePattern escapes LIKE metacharacters. Without it the console's search
       // box would silently return the whole table for a single stray %.
-      expect((await service.list({ ...base, q: '%' })).pagination.total).toBe(0);
+      expect((await service.list({ ...base, q: '%' })).pagination.total).toBe(
+        0,
+      );
     });
 
     it('sorts by the requested column in the requested direction', async () => {
-      const asc = await service.list({ ...base, sort: 'title', order: 'asc', limit: 100 });
+      const asc = await service.list({
+        ...base,
+        sort: 'title',
+        order: 'asc',
+        limit: 100,
+      });
       const titles = asc.items.map((i) => i.title);
       expect(titles).toEqual([...titles].sort());
 
-      const desc = await service.list({ ...base, sort: 'title', order: 'desc', limit: 100 });
+      const desc = await service.list({
+        ...base,
+        sort: 'title',
+        order: 'desc',
+        limit: 100,
+      });
       expect(desc.items.map((i) => i.title)).toEqual([...titles].reverse());
     });
 
@@ -199,11 +291,15 @@ describe('AdminReportsService', () => {
 
   describe('findOne', () => {
     beforeAll(async () => {
-      await db.insert(reportPhotos).values([
-        { id: uuidv7(), reportId: ids.completed, url: '/uploads/before.jpg' },
-      ]);
+      await db
+        .insert(reportPhotos)
+        .values([
+          { id: uuidv7(), reportId: ids.completed, url: '/uploads/before.jpg' },
+        ]);
       const missionId = uuidv7();
-      await db.insert(missions).values({ id: missionId, reportId: ids.completed });
+      await db
+        .insert(missions)
+        .values({ id: missionId, reportId: ids.completed });
       await db.insert(missionVolunteers).values({
         id: uuidv7(),
         missionId,
@@ -253,7 +349,12 @@ describe('AdminReportsService', () => {
         status: 'verified',
         completedBy: { id: volunteerId, name: 'Priya K' },
       });
-      expect(report.counts).toMatchObject({ photos: 1, comments: 1, volunteers: 1, activeVolunteers: 1 });
+      expect(report.counts).toMatchObject({
+        photos: 1,
+        comments: 1,
+        volunteers: 1,
+        activeVolunteers: 1,
+      });
     });
 
     it('NEVER exposes Mission Chat', async () => {

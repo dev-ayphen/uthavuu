@@ -12,7 +12,14 @@ jest.mock('../db', () => {
   >('drizzle-orm/postgres-js');
   const url = new URL(process.env.DATABASE_URL!);
   url.pathname = '/uthavu_support_test';
-  return { db: drizzleModule.drizzle(postgresModule(url.toString())) };
+  // max: 3 — this suite is deliberately a small consumer of connections. Several
+  // sessions run Jest against this Postgres at once (COORDINATION.md), and
+  // postgres.js's default pool of 10 per suite is what turns that into "sorry,
+  // too many clients already" — a failure that looks like a broken test and is
+  // not one. Three is more than the two this suite ever holds concurrently.
+  return {
+    db: drizzleModule.drizzle(postgresModule(url.toString(), { max: 3 })),
+  };
 });
 
 import { db } from '../db';
@@ -56,13 +63,15 @@ describe('SupportService', () => {
   let lookups: SeededLookups;
   let reportId: string;
 
-  const fileTicket = (overrides: Record<string, unknown> = {}) =>
+  type TicketInput = Parameters<SupportService['create']>[1];
+
+  const fileTicket = (overrides: Partial<TicketInput> = {}) =>
     service.create(ownerId, {
       categoryKey: 'bug_report',
       subject: 'Photo upload fails',
       description: 'Uploading a photo during report creation times out on 3G.',
       ...overrides,
-    } as Parameters<SupportService['create']>[1]);
+    });
 
   /** Writes a message straight to the table, bypassing every service rule. */
   const insertMessage = async (
@@ -207,12 +216,12 @@ describe('SupportService', () => {
     it('404s — not 403s — when a stranger reads someone else’s ticket', async () => {
       const ticket = await fileTicket();
 
-      await expect(service.findOne(ticket.id, strangerId)).rejects.toMatchObject(
-        {
-          status: 404,
-          response: { code: 'TICKET_NOT_FOUND' },
-        },
-      );
+      await expect(
+        service.findOne(ticket.id, strangerId),
+      ).rejects.toMatchObject({
+        status: 404,
+        response: { code: 'TICKET_NOT_FOUND' },
+      });
     });
 
     it('404s when a stranger replies to someone else’s ticket, and writes nothing', async () => {
@@ -241,7 +250,8 @@ describe('SupportService', () => {
   describe('internal notes never reach the citizen', () => {
     it('omits an internal note from the whole serialised payload', async () => {
       const ticket = await fileTicket();
-      const NOTE = 'INTERNAL: this user has filed six of these, watch for abuse';
+      const NOTE =
+        'INTERNAL: this user has filed six of these, watch for abuse';
       await insertMessage(ticket.id, 'admin', 'We are looking into it.');
       await insertMessage(ticket.id, 'admin', NOTE, true);
 

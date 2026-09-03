@@ -26,6 +26,7 @@ describe('isStoredUpload', () => {
   ] as const;
 
   let saved: Partial<Record<(typeof ENV_KEYS)[number], string | undefined>>;
+  let warnSpy: jest.SpyInstance;
 
   beforeAll(() => {
     writeFileSync(
@@ -47,7 +48,7 @@ describe('isStoredUpload', () => {
       delete process.env[key];
     }
     process.env.BETTER_AUTH_URL = 'http://localhost:3001';
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -61,9 +62,9 @@ describe('isStoredUpload', () => {
 
   describe('a URL this API really served', () => {
     it('accepts an upload on the API’s own declared origin', () => {
-      expect(
-        isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`),
-      ).toBe(true);
+      expect(isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`)).toBe(
+        true,
+      );
     });
 
     // THE regression the old hard-coded prefix caused. A phone uploads through
@@ -81,18 +82,18 @@ describe('isStoredUpload', () => {
     // would then have refused every single completion photo.
     it('accepts an upload on UPLOADS_PUBLIC_URL once that is configured', () => {
       process.env.UPLOADS_PUBLIC_URL = 'http://localhost:3001';
-      expect(
-        isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`),
-      ).toBe(true);
+      expect(isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`)).toBe(
+        true,
+      );
     });
 
     // Rows written before UPLOADS_PUBLIC_URL was introduced still point at the
     // old origin, and the mobile edit form resends them on every save.
     it('still accepts a BETTER_AUTH_URL row after UPLOADS_PUBLIC_URL is pointed elsewhere', () => {
       process.env.UPLOADS_PUBLIC_URL = 'https://cdn.uthavu.app';
-      expect(
-        isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`),
-      ).toBe(true);
+      expect(isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`)).toBe(
+        true,
+      );
     });
 
     it('honours a base path on the configured origin', () => {
@@ -106,9 +107,9 @@ describe('isStoredUpload', () => {
     });
 
     it('matches the host case-insensitively, as DNS does', () => {
-      expect(
-        isStoredUpload(`http://LOCALHOST:3001/uploads/${REAL_FILE}`),
-      ).toBe(true);
+      expect(isStoredUpload(`http://LOCALHOST:3001/uploads/${REAL_FILE}`)).toBe(
+        true,
+      );
     });
 
     // A TLS-terminating proxy legitimately turns an http origin into https on
@@ -180,7 +181,9 @@ describe('isStoredUpload', () => {
     // filename check intact. It is the traversal that actually gets here.
     it('rejects a percent-encoded path traversal', () => {
       expect(
-        isStoredUpload('http://localhost:3001/uploads/%2e%2e%2f%2e%2e%2fetc%2fpasswd'),
+        isStoredUpload(
+          'http://localhost:3001/uploads/%2e%2e%2f%2e%2e%2fetc%2fpasswd',
+        ),
       ).toBe(false);
     });
 
@@ -216,9 +219,9 @@ describe('isStoredUpload', () => {
 
     it('rejects everything when no origin is declared at all', () => {
       delete process.env.BETTER_AUTH_URL;
-      expect(
-        isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`),
-      ).toBe(false);
+      expect(isStoredUpload(`http://localhost:3001/uploads/${REAL_FILE}`)).toBe(
+        false,
+      );
     });
   });
 
@@ -249,9 +252,13 @@ describe('isStoredUpload', () => {
       expect(JSON.stringify(thrown)).not.toContain('evil.com');
       expect((thrown as Error).message).not.toContain('evil.com');
 
-      for (const call of (console.warn as jest.Mock).mock.calls) {
-        expect(String(call[0])).not.toContain('evil.com');
-      }
+      // Every warning this suite has produced, not just this call's: the
+      // rejection log is deduplicated per reason, so the line for an
+      // undeclared origin may have been emitted by an earlier test.
+      const everythingLogged = warnSpy.mock.calls
+        .map((call: unknown[]) => call.map((arg) => String(arg)).join(' '))
+        .join('\n');
+      expect(everythingLogged).not.toContain('evil.com');
     });
 
     it('uses the caller’s wording when one is supplied', () => {

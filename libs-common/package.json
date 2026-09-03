@@ -1,0 +1,19 @@
+{
+  "name": "@uthavu/libs-common",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Contract constants shared by apps/api, apps/admin and libs-mobile. Zero runtime dependencies.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "tsc -p tsconfig.json",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

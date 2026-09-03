@@ -23,7 +23,9 @@ export const ListAuditLogsSchema = PaginationSchema.extend({
   // Constrained to the seeded catalogue rather than a free string: a typo'd
   // action silently returns an empty page, which reads as "nothing happened"
   // rather than "you asked for something that does not exist".
-  action: z.enum(ADMIN_AUDIT_ACTION_KEYS as unknown as [string, ...string[]]).optional(),
+  action: z
+    .enum(ADMIN_AUDIT_ACTION_KEYS as unknown as [string, ...string[]])
+    .optional(),
   targetType: z
     .enum(ADMIN_AUDIT_TARGET_TYPE_KEYS as unknown as [string, ...string[]])
     .optional(),

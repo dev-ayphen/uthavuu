@@ -18,6 +18,7 @@ import {
   ACTIVE_STATUS_KEY,
   SUSPENDED_STATUS_KEY,
 } from '../account-status/account-status';
+import { SUPER_ADMIN_ROLE_KEY } from '@uthavu/libs-common';
 import { AdminAuditService } from './admin-audit.service';
 import { ADMIN_CREDENTIALS } from './admin-credentials';
 import type { AdminCredentials } from './admin-credentials';
@@ -43,7 +44,9 @@ type Executor = Pick<
   'select' | 'selectDistinctOn' | 'insert' | 'update' | 'delete'
 >;
 
-const SUPER_ADMIN_ROLE_KEY = 'super_admin';
+// SUPER_ADMIN_ROLE_KEY is imported from @uthavu/libs-common — the console
+// compares against the same string to decide what to render, so it is contract,
+// not a local detail.
 const CREDENTIAL_PROVIDER_ID = 'credential';
 
 /** What every mutating route on this surface hands back. */

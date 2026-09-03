@@ -57,12 +57,20 @@ export class AdminSystemHealthService {
       // drizzle's own bookkeeping table. `created_at` is the epoch-ms stamp
       // from the migration journal, which is what lets the applied head be
       // matched back to a file name below.
-      const applied = await db.execute<{ count: string; latest: string | null }>(
+      const applied = await db.execute<{
+        count: string;
+        latest: string | null;
+      }>(
         sql`select count(*)::text as count, max(created_at)::text as latest from drizzle.__drizzle_migrations`,
       );
-      const row = (applied as unknown as Array<{ count: string; latest: string | null }>)[0];
+      const row = (
+        applied as unknown as Array<{ count: string; latest: string | null }>
+      )[0];
       const appliedCount = Number(row?.count ?? 0);
-      const latestEpochMs = row?.latest === null || row?.latest === undefined ? null : Number(row.latest);
+      const latestEpochMs =
+        row?.latest === null || row?.latest === undefined
+          ? null
+          : Number(row.latest);
 
       return {
         reachable: true,
@@ -70,7 +78,10 @@ export class AdminSystemHealthService {
         error: null,
         migrations: {
           applied: appliedCount,
-          latestAppliedAt: latestEpochMs === null ? null : new Date(latestEpochMs).toISOString(),
+          latestAppliedAt:
+            latestEpochMs === null
+              ? null
+              : new Date(latestEpochMs).toISOString(),
           head: this.migrationHead(latestEpochMs),
         },
       };
@@ -96,7 +107,15 @@ export class AdminSystemHealthService {
 
     const candidates = [
       path.join(__dirname, '..', '..', 'drizzle', 'meta', '_journal.json'),
-      path.join(__dirname, '..', '..', '..', 'drizzle', 'meta', '_journal.json'),
+      path.join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'drizzle',
+        'meta',
+        '_journal.json',
+      ),
       path.join(process.cwd(), 'drizzle', 'meta', '_journal.json'),
     ];
 
@@ -106,7 +125,9 @@ export class AdminSystemHealthService {
         const journal = JSON.parse(fs.readFileSync(candidate, 'utf8')) as {
           entries: Array<{ when: number; tag: string }>;
         };
-        return journal.entries.find((e) => e.when === latestEpochMs)?.tag ?? null;
+        return (
+          journal.entries.find((e) => e.when === latestEpochMs)?.tag ?? null
+        );
       } catch {
         // A malformed or unreadable journal is not a reason to fail the health
         // check — the database half of the answer is the important half.
@@ -148,7 +169,8 @@ export class AdminSystemHealthService {
       // ADR 0007: with no msg91 credentials the API logs the OTP to its own
       // console instead of sending SMS. Surfaced because an operator seeing
       // "no OTP received" needs to know this is why.
-      devOtpFallbackActive: !msg91Configured && process.env.NODE_ENV !== 'production',
+      devOtpFallbackActive:
+        !msg91Configured && process.env.NODE_ENV !== 'production',
       fcmConfigured: Boolean(
         process.env.FCM_PROJECT_ID && process.env.FCM_SERVICE_ACCOUNT_JSON,
       ),

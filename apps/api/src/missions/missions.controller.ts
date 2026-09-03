@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { auth } from '../auth/auth';
 import { MissionsService } from './missions.service';
@@ -11,12 +19,18 @@ export class MissionsController {
   constructor(private readonly missionsService: MissionsService) {}
 
   @Post('volunteers')
-  accept(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  accept(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.missionsService.accept(id, session.user.id);
   }
 
   @Patch('volunteers/me')
-  confirm(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  confirm(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.missionsService.confirm(id, session.user.id);
   }
 
@@ -29,27 +43,42 @@ export class MissionsController {
   updateProgress(
     @Session() session: UserSession<typeof auth>,
     @Param('id') id: string,
-    @Body() body: UpdateProgressDto
+    @Body() body: UpdateProgressDto,
   ) {
-    return this.missionsService.updateProgress(id, session.user.id, body.status);
+    return this.missionsService.updateProgress(
+      id,
+      session.user.id,
+      body.status,
+    );
   }
 
   @Post('complete')
   complete(
     @Session() session: UserSession<typeof auth>,
     @Param('id') id: string,
-    @Body() body: CompleteMissionDto
+    @Body() body: CompleteMissionDto,
   ) {
-    return this.missionsService.complete(id, session.user.id, body.photoUrl, body.note);
+    return this.missionsService.complete(
+      id,
+      session.user.id,
+      body.photoUrl,
+      body.note,
+    );
   }
 
   @Get('volunteers')
-  roster(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  roster(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.missionsService.getRoster(id, session.user.id);
   }
 
   @Get('messages')
-  messages(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  messages(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.missionsService.listMessages(id, session.user.id);
   }
 
@@ -57,7 +86,7 @@ export class MissionsController {
   send(
     @Session() session: UserSession<typeof auth>,
     @Param('id') id: string,
-    @Body() body: SendMessageDto
+    @Body() body: SendMessageDto,
   ) {
     return this.missionsService.sendMessage(id, session.user.id, body.body);
   }

@@ -5,10 +5,11 @@ import { eq } from 'drizzle-orm';
 // See admin-spec-db.ts: the factory is hoisted above the imports, so the
 // database name has to be a literal here.
 jest.mock('../db', () => {
-  const postgresModule = jest.requireActual<typeof import('postgres')>('postgres');
-  const drizzleModule = jest.requireActual<typeof import('drizzle-orm/postgres-js')>(
-    'drizzle-orm/postgres-js',
-  );
+  const postgresModule =
+    jest.requireActual<typeof import('postgres')>('postgres');
+  const drizzleModule = jest.requireActual<
+    typeof import('drizzle-orm/postgres-js')
+  >('drizzle-orm/postgres-js');
   const url = new URL(process.env.DATABASE_URL!);
   url.pathname = '/uthavu_admin_audit_test';
   return { db: drizzleModule.drizzle(postgresModule(url.toString())) };
@@ -22,7 +23,11 @@ import {
   ADMIN_AUDIT_ACTIONS,
   ADMIN_AUDIT_TARGET_TYPES,
 } from './admin-audit-catalogue';
-import { createSpecDatabase, fakeAdmin, seedLookups } from './testing/admin-spec-db';
+import {
+  createSpecDatabase,
+  fakeAdmin,
+  seedLookups,
+} from './testing/admin-spec-db';
 
 const DATABASE = 'uthavu_admin_audit_test';
 
@@ -111,7 +116,11 @@ describe('AdminAuditService', () => {
   });
 
   it('resolves the target type from the action, so a caller cannot mislabel one', async () => {
-    await service.record({ admin, action: 'support_ticket.status_change', targetId: 't1' });
+    await service.record({
+      admin,
+      action: 'support_ticket.status_change',
+      targetId: 't1',
+    });
     const { items } = await listAll();
     expect(items[0].target.type.key).toBe('support_ticket');
   });
@@ -159,7 +168,12 @@ describe('AdminAuditService', () => {
     // no audit row.
     await expect(
       db.transaction(async (tx) => {
-        await service.record({ admin, action: 'report.close', targetId: 'r1', tx });
+        await service.record({
+          admin,
+          action: 'report.close',
+          targetId: 'r1',
+          tx,
+        });
         throw new Error('mutation failed after the audit write');
       }),
     ).rejects.toThrow('mutation failed after the audit write');
@@ -169,7 +183,9 @@ describe('AdminAuditService', () => {
 
   it('filters by actor, action, target and date range', async () => {
     const other = uuidv7();
-    await db.insert(user).values({ id: other, name: 'Ops', email: 'ops2@uthavu.org' });
+    await db
+      .insert(user)
+      .values({ id: other, name: 'Ops', email: 'ops2@uthavu.org' });
 
     await service.record({ admin, action: 'report.close', targetId: 'r1' });
     await service.record({ admin, action: 'report.hide', targetId: 'r2' });
@@ -179,12 +195,30 @@ describe('AdminAuditService', () => {
       targetId: 'r3',
     });
 
-    expect((await service.list({ page: 1, limit: 50, actorUserId: other })).pagination.total).toBe(1);
-    expect((await service.list({ page: 1, limit: 50, action: 'report.close' })).pagination.total).toBe(2);
-    expect((await service.list({ page: 1, limit: 50, targetId: 'r2' })).pagination.total).toBe(1);
-    expect((await service.list({ page: 1, limit: 50, targetType: 'report' })).pagination.total).toBe(3);
     expect(
-      (await service.list({ page: 1, limit: 50, from: new Date(Date.now() + 60_000) })).pagination.total,
+      (await service.list({ page: 1, limit: 50, actorUserId: other }))
+        .pagination.total,
+    ).toBe(1);
+    expect(
+      (await service.list({ page: 1, limit: 50, action: 'report.close' }))
+        .pagination.total,
+    ).toBe(2);
+    expect(
+      (await service.list({ page: 1, limit: 50, targetId: 'r2' })).pagination
+        .total,
+    ).toBe(1);
+    expect(
+      (await service.list({ page: 1, limit: 50, targetType: 'report' }))
+        .pagination.total,
+    ).toBe(3);
+    expect(
+      (
+        await service.list({
+          page: 1,
+          limit: 50,
+          from: new Date(Date.now() + 60_000),
+        })
+      ).pagination.total,
     ).toBe(0);
 
     await db.delete(user).where(eq(user.id, other));
@@ -197,7 +231,12 @@ describe('AdminAuditService', () => {
 
     const first = await service.list({ page: 1, limit: 2 });
     expect(first.items.map((i) => i.target.id)).toEqual(['e', 'd']);
-    expect(first.pagination).toEqual({ page: 1, limit: 2, total: 5, totalPages: 3 });
+    expect(first.pagination).toEqual({
+      page: 1,
+      limit: 2,
+      total: 5,
+      totalPages: 3,
+    });
 
     const last = await service.list({ page: 3, limit: 2 });
     expect(last.items.map((i) => i.target.id)).toEqual(['a']);

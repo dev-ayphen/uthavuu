@@ -3,10 +3,11 @@ import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 
 jest.mock('../db', () => {
-  const postgresModule = jest.requireActual<typeof import('postgres')>('postgres');
-  const drizzleModule = jest.requireActual<typeof import('drizzle-orm/postgres-js')>(
-    'drizzle-orm/postgres-js',
-  );
+  const postgresModule =
+    jest.requireActual<typeof import('postgres')>('postgres');
+  const drizzleModule = jest.requireActual<
+    typeof import('drizzle-orm/postgres-js')
+  >('drizzle-orm/postgres-js');
   const url = new URL(process.env.DATABASE_URL!);
   url.pathname = '/uthavu_effective_status_test';
   return { db: drizzleModule.drizzle(postgresModule(url.toString())) };
@@ -15,7 +16,10 @@ jest.mock('../db', () => {
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reportStatuses, reports } from '../db/schema/reports-schema';
-import { effectiveStatusOf, effectiveStatusSql } from './report-effective-status';
+import {
+  effectiveStatusOf,
+  effectiveStatusSql,
+} from './report-effective-status';
 import { createSpecDatabase, seedLookups } from './testing/admin-spec-db';
 
 const DATABASE = 'uthavu_effective_status_test';
@@ -89,18 +93,72 @@ describe('report effective status', () => {
     deleted: boolean;
     expected: string;
   }> = [
-    { name: 'open and still in date', stored: 'open', expiryAt: future, deleted: false, expected: 'open' },
-    { name: 'open but past expiry', stored: 'open', expiryAt: past, deleted: false, expected: 'expired' },
-    { name: 'closed, in date', stored: 'closed', expiryAt: future, deleted: false, expected: 'closed' },
-    { name: 'closed, past expiry', stored: 'closed', expiryAt: past, deleted: false, expected: 'closed' },
-    { name: 'completed, in date', stored: 'completed', expiryAt: future, deleted: false, expected: 'completed' },
+    {
+      name: 'open and still in date',
+      stored: 'open',
+      expiryAt: future,
+      deleted: false,
+      expected: 'open',
+    },
+    {
+      name: 'open but past expiry',
+      stored: 'open',
+      expiryAt: past,
+      deleted: false,
+      expected: 'expired',
+    },
+    {
+      name: 'closed, in date',
+      stored: 'closed',
+      expiryAt: future,
+      deleted: false,
+      expected: 'closed',
+    },
+    {
+      name: 'closed, past expiry',
+      stored: 'closed',
+      expiryAt: past,
+      deleted: false,
+      expected: 'closed',
+    },
+    {
+      name: 'completed, in date',
+      stored: 'completed',
+      expiryAt: future,
+      deleted: false,
+      expected: 'completed',
+    },
     // The case that matters most in this database: 23 of 23 completions are
     // past expiry. Calling them "expired" would report every success as a
     // failure.
-    { name: 'completed, past expiry', stored: 'completed', expiryAt: past, deleted: false, expected: 'completed' },
-    { name: 'soft-deleted beats open', stored: 'open', expiryAt: future, deleted: true, expected: 'deleted' },
-    { name: 'soft-deleted beats expired', stored: 'open', expiryAt: past, deleted: true, expected: 'deleted' },
-    { name: 'soft-deleted beats completed', stored: 'completed', expiryAt: past, deleted: true, expected: 'deleted' },
+    {
+      name: 'completed, past expiry',
+      stored: 'completed',
+      expiryAt: past,
+      deleted: false,
+      expected: 'completed',
+    },
+    {
+      name: 'soft-deleted beats open',
+      stored: 'open',
+      expiryAt: future,
+      deleted: true,
+      expected: 'deleted',
+    },
+    {
+      name: 'soft-deleted beats expired',
+      stored: 'open',
+      expiryAt: past,
+      deleted: true,
+      expected: 'deleted',
+    },
+    {
+      name: 'soft-deleted beats completed',
+      stored: 'completed',
+      expiryAt: past,
+      deleted: true,
+      expected: 'deleted',
+    },
   ];
 
   it.each(cases)('$name -> $expected, in SQL and in TypeScript', async (c) => {

@@ -14,15 +14,21 @@ export const missions = pgTable('missions', {
     .notNull()
     .unique()
     .references(() => reports.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const missionVolunteerStatuses = pgTable('mission_volunteer_statuses', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 // Deliberately separate from missionVolunteerStatuses: that table answers
@@ -37,8 +43,12 @@ export const progressStatuses = pgTable('progress_statuses', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const missionVolunteers = pgTable(
@@ -53,13 +63,19 @@ export const missionVolunteers = pgTable(
     // identity is removed. See UsersService.deleteAccount(): it also
     // explicitly releases this row (status -> 'released') so the slot
     // reopens, not just relying on the FK to null the column.
-    volunteerId: text('volunteer_id').references(() => user.id, { onDelete: 'set null' }),
+    volunteerId: text('volunteer_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
     statusId: uuid('status_id')
       .notNull()
       .references(() => missionVolunteerStatuses.id),
     // BR-3: joinedAt + 15 minutes, checked lazily — never a scheduled job.
-    confirmDeadline: timestamp('confirm_deadline', { withTimezone: true }).notNull(),
-    joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
+    confirmDeadline: timestamp('confirm_deadline', {
+      withTimezone: true,
+    }).notNull(),
+    joinedAt: timestamp('joined_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     releasedAt: timestamp('released_at', { withTimezone: true }),
     // 'timeout' | 'voluntary' | 'account_deleted' — not a lookup table, just
@@ -75,7 +91,9 @@ export const missionVolunteers = pgTable(
     // earlier progress value moves progressStatusId but never overwrites an
     // already-set timestamp, so the real history of when each milestone was
     // first reached survives even if the volunteer later corrects course.
-    progressStatusId: uuid('progress_status_id').references(() => progressStatuses.id),
+    progressStatusId: uuid('progress_status_id').references(
+      () => progressStatuses.id,
+    ),
     onWayAt: timestamp('on_way_at', { withTimezone: true }),
     reachedAt: timestamp('reached_at', { withTimezone: true }),
     helpingAt: timestamp('helping_at', { withTimezone: true }),
@@ -83,7 +101,7 @@ export const missionVolunteers = pgTable(
   (table) => [
     index('mission_volunteers_mission_id_idx').on(table.missionId),
     index('mission_volunteers_volunteer_id_idx').on(table.volunteerId),
-  ]
+  ],
 );
 
 export const missionMessages = pgTable(
@@ -96,20 +114,31 @@ export const missionMessages = pgTable(
     // Nullable + SET NULL — a chat message is preserved for the other
     // participant's context even if its sender later deletes their account;
     // only the identity is removed, never the body.
-    senderId: text('sender_id').references(() => user.id, { onDelete: 'set null' }),
+    senderId: text('sender_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
     body: text('body').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [index('mission_messages_mission_id_idx').on(table.missionId)]
+  (table) => [index('mission_messages_mission_id_idx').on(table.missionId)],
 );
 
-export const missionCompletionStatuses = pgTable('mission_completion_statuses', {
-  id: uuid('id').primaryKey(),
-  key: text('key').notNull().unique(),
-  label: text('label').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const missionCompletionStatuses = pgTable(
+  'mission_completion_statuses',
+  {
+    id: uuid('id').primaryKey(),
+    key: text('key').notNull().unique(),
+    label: text('label').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+);
 
 // docs/features/mission-completion.md BR-4: modeled as a real, distinct,
 // timestamped state even though today's verification is synchronous and
@@ -124,7 +153,9 @@ export const missionCompletions = pgTable('mission_completions', {
   // Nullable + SET NULL — a completed mission's record (photo/note/who
   // helped) is preserved community history even if the volunteer who
   // completed it later deletes their account.
-  completedById: text('completed_by_id').references(() => user.id, { onDelete: 'set null' }),
+  completedById: text('completed_by_id').references(() => user.id, {
+    onDelete: 'set null',
+  }),
   photoUrl: text('photo_url').notNull(),
   note: text('note').notNull(),
   statusId: uuid('status_id')
@@ -135,35 +166,68 @@ export const missionCompletions = pgTable('mission_completions', {
 });
 
 export const missionRelations = relations(missions, ({ one, many }) => ({
-  report: one(reports, { fields: [missions.reportId], references: [reports.id] }),
+  report: one(reports, {
+    fields: [missions.reportId],
+    references: [reports.id],
+  }),
   volunteers: many(missionVolunteers),
   messages: many(missionMessages),
-  completion: one(missionCompletions, { fields: [missions.id], references: [missionCompletions.missionId] }),
-}));
-
-export const missionVolunteerRelations = relations(missionVolunteers, ({ one }) => ({
-  mission: one(missions, { fields: [missionVolunteers.missionId], references: [missions.id] }),
-  volunteer: one(user, { fields: [missionVolunteers.volunteerId], references: [user.id] }),
-  status: one(missionVolunteerStatuses, {
-    fields: [missionVolunteers.statusId],
-    references: [missionVolunteerStatuses.id],
-  }),
-  progressStatus: one(progressStatuses, {
-    fields: [missionVolunteers.progressStatusId],
-    references: [progressStatuses.id],
+  completion: one(missionCompletions, {
+    fields: [missions.id],
+    references: [missionCompletions.missionId],
   }),
 }));
 
-export const missionMessageRelations = relations(missionMessages, ({ one }) => ({
-  mission: one(missions, { fields: [missionMessages.missionId], references: [missions.id] }),
-  sender: one(user, { fields: [missionMessages.senderId], references: [user.id] }),
-}));
-
-export const missionCompletionRelations = relations(missionCompletions, ({ one }) => ({
-  mission: one(missions, { fields: [missionCompletions.missionId], references: [missions.id] }),
-  completedBy: one(user, { fields: [missionCompletions.completedById], references: [user.id] }),
-  status: one(missionCompletionStatuses, {
-    fields: [missionCompletions.statusId],
-    references: [missionCompletionStatuses.id],
+export const missionVolunteerRelations = relations(
+  missionVolunteers,
+  ({ one }) => ({
+    mission: one(missions, {
+      fields: [missionVolunteers.missionId],
+      references: [missions.id],
+    }),
+    volunteer: one(user, {
+      fields: [missionVolunteers.volunteerId],
+      references: [user.id],
+    }),
+    status: one(missionVolunteerStatuses, {
+      fields: [missionVolunteers.statusId],
+      references: [missionVolunteerStatuses.id],
+    }),
+    progressStatus: one(progressStatuses, {
+      fields: [missionVolunteers.progressStatusId],
+      references: [progressStatuses.id],
+    }),
   }),
-}));
+);
+
+export const missionMessageRelations = relations(
+  missionMessages,
+  ({ one }) => ({
+    mission: one(missions, {
+      fields: [missionMessages.missionId],
+      references: [missions.id],
+    }),
+    sender: one(user, {
+      fields: [missionMessages.senderId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const missionCompletionRelations = relations(
+  missionCompletions,
+  ({ one }) => ({
+    mission: one(missions, {
+      fields: [missionCompletions.missionId],
+      references: [missions.id],
+    }),
+    completedBy: one(user, {
+      fields: [missionCompletions.completedById],
+      references: [user.id],
+    }),
+    status: one(missionCompletionStatuses, {
+      fields: [missionCompletions.statusId],
+      references: [missionCompletionStatuses.id],
+    }),
+  }),
+);

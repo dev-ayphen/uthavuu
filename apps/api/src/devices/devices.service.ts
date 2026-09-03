@@ -13,7 +13,12 @@ export class DevicesService {
   async register(userId: string, input: RegisterDeviceDto) {
     const [device] = await db
       .insert(devices)
-      .values({ id: uuidv7(), userId, pushToken: input.token, platform: input.platform })
+      .values({
+        id: uuidv7(),
+        userId,
+        pushToken: input.token,
+        platform: input.platform,
+      })
       .onConflictDoUpdate({
         target: devices.pushToken,
         set: { userId, platform: input.platform, updatedAt: sql`now()` },

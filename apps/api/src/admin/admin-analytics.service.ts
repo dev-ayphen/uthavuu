@@ -3,7 +3,11 @@ import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import {
   missionCompletions,
   missionVolunteers,
@@ -36,14 +40,16 @@ export class AdminAnalyticsService {
     // against the requested zone's clock, and a schema-level default would bake
     // in UTC's.
     const to = query.to ?? new Date();
-    const from = query.from ?? new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const from =
+      query.from ?? new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // gte/lte, not a raw sql template. Drizzle's operators carry the column's
     // type through to the driver; a bare `sql`${col} >= ${date}`` hands
     // postgres.js an unhinted parameter and it throws ERR_INVALID_ARG_TYPE on
     // the Date. Found by the first live curl, not by a type error — the raw
     // template type-checks perfectly and fails at runtime.
-    const inRange = (column: PgColumn) => and(gte(column, from), lte(column, to));
+    const inRange = (column: PgColumn) =>
+      and(gte(column, from), lte(column, to));
 
     // date_trunc in the reader's zone, then back to timestamptz so the label is
     // the local calendar bucket rather than UTC's.
@@ -90,9 +96,16 @@ export class AdminAnalyticsService {
         })
         .from(reports)
         .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-        .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+        .innerJoin(
+          reportCategories,
+          eq(reports.categoryId, reportCategories.id),
+        )
         .where(and(isNull(reports.deletedAt), inRange(reports.createdAt)))
-        .groupBy(reportCategories.key, reportCategories.label, reportCategories.emoji)
+        .groupBy(
+          reportCategories.key,
+          reportCategories.label,
+          reportCategories.emoji,
+        )
         .orderBy(sql`count(*) desc`),
 
       db
@@ -115,7 +128,10 @@ export class AdminAnalyticsService {
         })
         .from(missions)
         .innerJoin(reports, eq(missions.reportId, reports.id))
-        .leftJoin(missionCompletions, eq(missionCompletions.missionId, missions.id))
+        .leftJoin(
+          missionCompletions,
+          eq(missionCompletions.missionId, missions.id),
+        )
         .where(and(isNull(reports.deletedAt), inRange(reports.createdAt))),
 
       // Percentiles, not averages: one report that sat for three days would drag
@@ -164,7 +180,9 @@ export class AdminAnalyticsService {
       db
         .select({ total: sql<string>`count(*)` })
         .from(user)
-        .where(sql`not exists (select 1 from ${adminUsers} where ${adminUsers.userId} = ${user.id})`),
+        .where(
+          sql`not exists (select 1 from ${adminUsers} where ${adminUsers.userId} = ${user.id})`,
+        ),
 
       db
         .select({
@@ -189,7 +207,12 @@ export class AdminAnalyticsService {
     const missionsCompleted = Number(missionStats[0]?.completed ?? 0);
 
     return {
-      range: { from: from.toISOString(), to: to.toISOString(), timeZone, bucket },
+      range: {
+        from: from.toISOString(),
+        to: to.toISOString(),
+        timeZone,
+        bucket,
+      },
 
       reportsOverTime: reportsOverTime.map((r) => ({
         bucket: r.bucket,

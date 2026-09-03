@@ -22,7 +22,10 @@ class FakePushProvider implements PushProvider {
 
   constructor(private readonly outcome: (tokens: string[]) => PushSendResult) {}
 
-  sendToTokens(tokens: string[], message: PushMessage): Promise<PushSendResult> {
+  sendToTokens(
+    tokens: string[],
+    message: PushMessage,
+  ): Promise<PushSendResult> {
     this.calls.push({ tokens, message });
     return Promise.resolve(this.outcome(tokens));
   }
@@ -51,8 +54,18 @@ describe('PushService', () => {
     userId = uuidv7();
     otherUserId = uuidv7();
     await db.insert(user).values([
-      { id: userId, name: 'Push Target', email: `${userId}@test.local`, phoneNumber: `+91-${userId}` },
-      { id: otherUserId, name: 'Bystander', email: `${otherUserId}@test.local`, phoneNumber: `+91-${otherUserId}` },
+      {
+        id: userId,
+        name: 'Push Target',
+        email: `${userId}@test.local`,
+        phoneNumber: `+91-${userId}`,
+      },
+      {
+        id: otherUserId,
+        name: 'Bystander',
+        email: `${otherUserId}@test.local`,
+        phoneNumber: `+91-${otherUserId}`,
+      },
     ]);
   });
 
@@ -106,14 +119,22 @@ describe('PushService', () => {
     });
 
     expect(provider.calls).toHaveLength(1);
-    expect(provider.calls[0].tokens.sort()).toEqual([`tok-a-${userId}`, `tok-b-${userId}`]);
-    expect(provider.calls[0].message.data).toEqual({ type: 'volunteer_accepted' });
+    expect(provider.calls[0].tokens.sort()).toEqual([
+      `tok-a-${userId}`,
+      `tok-b-${userId}`,
+    ]);
+    expect(provider.calls[0].message.data).toEqual({
+      type: 'volunteer_accepted',
+    });
     expect(result).toEqual({ sent: 2, failed: 0, deadTokens: [] });
   });
 
   it('does not call the provider at all when the user has no devices', async () => {
     const provider = new FakePushProvider(allDelivered);
-    const result = await new PushService(provider).sendToUser(userId, { title: 't', body: 'b' });
+    const result = await new PushService(provider).sendToUser(userId, {
+      title: 't',
+      body: 'b',
+    });
 
     expect(provider.calls).toHaveLength(0);
     expect(result).toEqual(emptyPushResult());
@@ -135,7 +156,10 @@ describe('PushService', () => {
       deadTokens: [dead, alsoDead],
     }));
 
-    await new PushService(provider).sendToUser(userId, { title: 't', body: 'b' });
+    await new PushService(provider).sendToUser(userId, {
+      title: 't',
+      body: 'b',
+    });
 
     expect(await tokensFor(userId)).toEqual([live]);
   });
@@ -143,8 +167,15 @@ describe('PushService', () => {
   it('leaves every row in place when nothing was reported dead', async () => {
     await registerDevice(userId, `tok-keep-${userId}`);
 
-    const provider = new FakePushProvider(() => ({ sent: 0, failed: 1, deadTokens: [] }));
-    await new PushService(provider).sendToUser(userId, { title: 't', body: 'b' });
+    const provider = new FakePushProvider(() => ({
+      sent: 0,
+      failed: 1,
+      deadTokens: [],
+    }));
+    await new PushService(provider).sendToUser(userId, {
+      title: 't',
+      body: 'b',
+    });
 
     expect(await tokensFor(userId)).toEqual([`tok-keep-${userId}`]);
   });
@@ -154,8 +185,15 @@ describe('PushService', () => {
     await registerDevice(userId, dead);
     await registerDevice(otherUserId, `tok-other-${otherUserId}`);
 
-    const provider = new FakePushProvider(() => ({ sent: 0, failed: 1, deadTokens: [dead] }));
-    await new PushService(provider).sendToUser(userId, { title: 't', body: 'b' });
+    const provider = new FakePushProvider(() => ({
+      sent: 0,
+      failed: 1,
+      deadTokens: [dead],
+    }));
+    await new PushService(provider).sendToUser(userId, {
+      title: 't',
+      body: 'b',
+    });
 
     expect(await tokensFor(userId)).toEqual([]);
     expect(await tokensFor(otherUserId)).toEqual([`tok-other-${otherUserId}`]);
@@ -166,10 +204,13 @@ describe('PushService', () => {
   it('never throws when the provider fails, so the caller is unaffected', async () => {
     await registerDevice(userId, `tok-a-${userId}`);
 
-    const result = await new PushService(new ThrowingPushProvider()).sendToUser(userId, {
-      title: 't',
-      body: 'b',
-    });
+    const result = await new PushService(new ThrowingPushProvider()).sendToUser(
+      userId,
+      {
+        title: 't',
+        body: 'b',
+      },
+    );
 
     expect(result).toEqual(emptyPushResult());
     expect(warnSpy).toHaveBeenCalled();
@@ -178,7 +219,10 @@ describe('PushService', () => {
   it('keeps the device row when the send failed outright — a failure is not a dead token', async () => {
     await registerDevice(userId, `tok-a-${userId}`);
 
-    await new PushService(new ThrowingPushProvider()).sendToUser(userId, { title: 't', body: 'b' });
+    await new PushService(new ThrowingPushProvider()).sendToUser(userId, {
+      title: 't',
+      body: 'b',
+    });
 
     expect(await tokensFor(userId)).toEqual([`tok-a-${userId}`]);
   });
@@ -194,7 +238,10 @@ describe('PushService', () => {
       deadTokens: ['tok-never-existed'],
     }));
 
-    const result = await new PushService(provider).sendToUser(userId, { title: 't', body: 'b' });
+    const result = await new PushService(provider).sendToUser(userId, {
+      title: 't',
+      body: 'b',
+    });
 
     expect(result.sent).toBe(1);
     expect(await tokensFor(userId)).toEqual([`tok-a-${userId}`]);

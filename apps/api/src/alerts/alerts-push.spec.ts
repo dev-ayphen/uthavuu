@@ -13,7 +13,11 @@ import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { alerts } from '../db/schema/alerts-schema';
-import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import { PushService } from '../push/push.service';
 import type {
   PushMessage,
@@ -28,7 +32,8 @@ class RecordingPushService extends PushService {
   constructor() {
     super({
       name: 'unused',
-      sendToTokens: () => Promise.resolve({ sent: 0, failed: 0, deadTokens: [] }),
+      sendToTokens: () =>
+        Promise.resolve({ sent: 0, failed: 0, deadTokens: [] }),
     });
   }
 
@@ -61,13 +66,36 @@ describe('AlertsService — push delivery', () => {
     unsetLocaleUserId = uuidv7();
 
     await db.insert(user).values([
-      { id: reporterId, name: 'Reporter', email: `${reporterId}@test.local`, phoneNumber: `+91-${reporterId}`, locale: 'en' },
-      { id: tamilUserId, name: 'Tamil Reader', email: `${tamilUserId}@test.local`, phoneNumber: `+91-${tamilUserId}`, locale: 'ta' },
-      { id: unsetLocaleUserId, name: 'No Locale', email: `${unsetLocaleUserId}@test.local`, phoneNumber: `+91-${unsetLocaleUserId}` },
+      {
+        id: reporterId,
+        name: 'Reporter',
+        email: `${reporterId}@test.local`,
+        phoneNumber: `+91-${reporterId}`,
+        locale: 'en',
+      },
+      {
+        id: tamilUserId,
+        name: 'Tamil Reader',
+        email: `${tamilUserId}@test.local`,
+        phoneNumber: `+91-${tamilUserId}`,
+        locale: 'ta',
+      },
+      {
+        id: unsetLocaleUserId,
+        name: 'No Locale',
+        email: `${unsetLocaleUserId}@test.local`,
+        phoneNumber: `+91-${unsetLocaleUserId}`,
+      },
     ]);
 
-    const [category] = await db.select().from(reportCategories).where(eq(reportCategories.key, 'medicalHelp'));
-    const [openStatus] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, 'open'));
+    const [category] = await db
+      .select()
+      .from(reportCategories)
+      .where(eq(reportCategories.key, 'medicalHelp'));
+    const [openStatus] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, 'open'));
 
     reportId = uuidv7();
     await db.insert(reports).values({
@@ -135,7 +163,10 @@ describe('AlertsService — push delivery', () => {
     );
 
     // uthavu://requests/:reportId — FCM data values must be strings.
-    expect(push.sends[0].message.data).toEqual({ type: 'mission_completed', reportId });
+    expect(push.sends[0].message.data).toEqual({
+      type: 'mission_completed',
+      reportId,
+    });
   });
 
   it('omits reportId entirely for an alert with no report to open', async () => {
@@ -174,10 +205,14 @@ describe('AlertsService — push delivery', () => {
 
   it('falls back to English when the recipient never reported a locale', async () => {
     const push = new RecordingPushService();
-    await new AlertsService(push).create(unsetLocaleUserId, 'mission_completed', {
-      volunteerName: 'Priya',
-      reportTitle: 'Need an ambulance',
-    });
+    await new AlertsService(push).create(
+      unsetLocaleUserId,
+      'mission_completed',
+      {
+        volunteerName: 'Priya',
+        reportTitle: 'Need an ambulance',
+      },
+    );
 
     expect(push.sends[0].message.title).toBe('Mission Completed');
   });
@@ -218,16 +253,26 @@ describe('AlertsService — push delivery', () => {
     // A locale the catalog no longer ships (or never did). Getting a push in
     // the wrong language is a bad experience; a push that never arrives because
     // of a stale string is a worse one — same rule alert-templates.ts states.
-    await db.update(user).set({ locale: 'fr-CA' }).where(eq(user.id, unsetLocaleUserId));
+    await db
+      .update(user)
+      .set({ locale: 'fr-CA' })
+      .where(eq(user.id, unsetLocaleUserId));
 
     const push = new RecordingPushService();
-    await new AlertsService(push).create(unsetLocaleUserId, 'volunteer_accepted', {
-      volunteerName: 'Priya',
-      reportTitle: 'Need an ambulance',
-    });
+    await new AlertsService(push).create(
+      unsetLocaleUserId,
+      'volunteer_accepted',
+      {
+        volunteerName: 'Priya',
+        reportTitle: 'Need an ambulance',
+      },
+    );
 
     expect(push.sends[0].message.title).toBe('Volunteer Accepted');
 
-    await db.update(user).set({ locale: null }).where(eq(user.id, unsetLocaleUserId));
+    await db
+      .update(user)
+      .set({ locale: null })
+      .where(eq(user.id, unsetLocaleUserId));
   });
 });

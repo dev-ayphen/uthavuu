@@ -18,7 +18,7 @@ export class CommentsController {
   create(
     @Session() session: UserSession<typeof auth>,
     @Param('id') reportId: string,
-    @Body() body: CreateCommentDto
+    @Body() body: CreateCommentDto,
   ) {
     return this.commentsService.create(reportId, session.user.id, body.body);
   }
@@ -27,7 +27,7 @@ export class CommentsController {
   flag(
     @Session() session: UserSession<typeof auth>,
     @Param('commentId') commentId: string,
-    @Body() body: FlagCommentDto
+    @Body() body: FlagCommentDto,
   ) {
     return this.commentsService.flag(commentId, session.user.id, body.reason);
   }

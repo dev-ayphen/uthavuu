@@ -3,8 +3,15 @@ import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
-import { reportCommentFlags, reportComments } from '../db/schema/comments-schema';
+import {
+  reportCategories,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
+import {
+  reportCommentFlags,
+  reportComments,
+} from '../db/schema/comments-schema';
 import { CommentsService } from './comments.service';
 
 describe('CommentsService — flagging', () => {
@@ -23,13 +30,34 @@ describe('CommentsService — flagging', () => {
     otherFlaggerId = uuidv7();
 
     await db.insert(user).values([
-      { id: authorId, name: 'Comment Author', email: `${authorId}@test.local`, phoneNumber: `+91-${authorId}` },
-      { id: flaggerId, name: 'Flagger', email: `${flaggerId}@test.local`, phoneNumber: `+91-${flaggerId}` },
-      { id: otherFlaggerId, name: 'Other Flagger', email: `${otherFlaggerId}@test.local`, phoneNumber: `+91-${otherFlaggerId}` },
+      {
+        id: authorId,
+        name: 'Comment Author',
+        email: `${authorId}@test.local`,
+        phoneNumber: `+91-${authorId}`,
+      },
+      {
+        id: flaggerId,
+        name: 'Flagger',
+        email: `${flaggerId}@test.local`,
+        phoneNumber: `+91-${flaggerId}`,
+      },
+      {
+        id: otherFlaggerId,
+        name: 'Other Flagger',
+        email: `${otherFlaggerId}@test.local`,
+        phoneNumber: `+91-${otherFlaggerId}`,
+      },
     ]);
 
-    const [category] = await db.select().from(reportCategories).where(eq(reportCategories.key, 'medicalHelp'));
-    const [openStatus] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, 'open'));
+    const [category] = await db
+      .select()
+      .from(reportCategories)
+      .where(eq(reportCategories.key, 'medicalHelp'));
+    const [openStatus] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, 'open'));
     categoryId = category.id;
     openStatusId = openStatus.id;
   });
@@ -56,7 +84,9 @@ describe('CommentsService — flagging', () => {
       expiryAt: new Date(Date.now() + 60 * 60_000),
     });
     commentId = uuidv7();
-    await db.insert(reportComments).values({ id: commentId, reportId, authorId, body: 'Test comment' });
+    await db
+      .insert(reportComments)
+      .values({ id: commentId, reportId, authorId, body: 'Test comment' });
   });
 
   afterEach(async () => {
@@ -66,19 +96,24 @@ describe('CommentsService — flagging', () => {
   });
 
   it('rejects flagging your own comment', async () => {
-    await expect(service.flag(commentId, authorId, 'spam')).rejects.toThrow('You cannot flag your own comment');
+    await expect(service.flag(commentId, authorId, 'spam')).rejects.toThrow(
+      'You cannot flag your own comment',
+    );
   });
 
   it('is idempotent — a second flag from the same user is a no-op, first reason wins', async () => {
     await service.flag(commentId, flaggerId, 'spam');
     await service.flag(commentId, flaggerId, 'abuse');
 
-    const rows = await db.select().from(reportCommentFlags).where(eq(reportCommentFlags.commentId, commentId));
+    const rows = await db
+      .select()
+      .from(reportCommentFlags)
+      .where(eq(reportCommentFlags.commentId, commentId));
     expect(rows).toHaveLength(1);
     expect(rows[0].reason).toBe('spam');
   });
 
-  it('lists only the requesting user\'s own flags, scoped correctly', async () => {
+  it("lists only the requesting user's own flags, scoped correctly", async () => {
     await service.flag(commentId, flaggerId, 'duplicate');
     await service.flag(commentId, otherFlaggerId, 'other');
 

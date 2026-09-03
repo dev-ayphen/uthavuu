@@ -1,10 +1,22 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
-import { flagStatuses, reportCommentFlags, reportComments } from '../db/schema/comments-schema';
+import {
+  reportCategories,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
+import {
+  flagStatuses,
+  reportCommentFlags,
+  reportComments,
+} from '../db/schema/comments-schema';
 import type { FLAG_REASONS } from './dto/flag-comment.dto';
 import { getPlatformConfig } from '../config/platform-settings';
 import { notRemoved, requireVisibleReport } from '../reports/report-visibility';
@@ -14,8 +26,14 @@ import { notRemoved, requireVisibleReport } from '../reports/report-visibility';
 @Injectable()
 export class CommentsService {
   private async getFlagStatusIdByKey(key: string): Promise<string> {
-    const [status] = await db.select().from(flagStatuses).where(eq(flagStatuses.key, key));
-    if (!status) throw new Error(`flag_statuses row missing for key "${key}" — did db:seed run?`);
+    const [status] = await db
+      .select()
+      .from(flagStatuses)
+      .where(eq(flagStatuses.key, key));
+    if (!status)
+      throw new Error(
+        `flag_statuses row missing for key "${key}" — did db:seed run?`,
+      );
     return status.id;
   }
 
@@ -39,7 +57,12 @@ export class CommentsService {
       // show. See the deletedAt note in db/schema/comments-schema.ts.
       // Deliberately NOT applied to listMyFlags(): the flagger keeps seeing
       // their flag reach 'Action Taken' rather than watching it vanish.
-      .where(and(eq(reportComments.reportId, reportId), isNull(reportComments.deletedAt)))
+      .where(
+        and(
+          eq(reportComments.reportId, reportId),
+          isNull(reportComments.deletedAt),
+        ),
+      )
       .orderBy(asc(reportComments.createdAt));
 
     return rows.map((r) => ({
@@ -50,7 +73,8 @@ export class CommentsService {
       // A deleted reporter's report can never equal a live commenter's id,
       // so this naturally reads false once the reporter is gone too — a
       // deleted-author comment is never mislabeled as "from the reporter".
-      authorIsReporter: r.comment.authorId !== null && r.comment.authorId === report.reporterId,
+      authorIsReporter:
+        r.comment.authorId !== null && r.comment.authorId === report.reporterId,
       body: r.comment.body,
       createdAt: r.comment.createdAt.toISOString(),
     }));
@@ -65,7 +89,8 @@ export class CommentsService {
     if (!config.commentsEnabled) {
       throw new ForbiddenException({
         code: 'COMMENTS_DISABLED',
-        message: 'Community comments are currently turned off for this platform.',
+        message:
+          'Community comments are currently turned off for this platform.',
       });
     }
 
@@ -76,11 +101,17 @@ export class CommentsService {
     // moderation action was simply invisible to the write path.
     await requireVisibleReport(reportId);
 
-    await db.insert(reportComments).values({ id: uuidv7(), reportId, authorId, body });
+    await db
+      .insert(reportComments)
+      .values({ id: uuidv7(), reportId, authorId, body });
     return this.list(reportId);
   }
 
-  async flag(commentId: string, flaggedById: string, reason: (typeof FLAG_REASONS)[number]) {
+  async flag(
+    commentId: string,
+    flaggedById: string,
+    reason: (typeof FLAG_REASONS)[number],
+  ) {
     // Platform -> App Settings, and independent of commentsEnabled on purpose:
     // an operator who stops new comments still wants the existing thread
     // flaggable, and one who is drowning in bad-faith flags wants to stop the
@@ -94,7 +125,10 @@ export class CommentsService {
       });
     }
 
-    const [comment] = await db.select().from(reportComments).where(eq(reportComments.id, commentId));
+    const [comment] = await db
+      .select()
+      .from(reportComments)
+      .where(eq(reportComments.id, commentId));
     if (!comment) throw new NotFoundException('Comment not found');
     // Flagging is also a write, and a comment on a hidden report is no longer
     // reachable through list() — a flag arriving here is either a stale client
@@ -114,8 +148,16 @@ export class CommentsService {
     const submittedStatusId = await this.getFlagStatusIdByKey('submitted');
     await db
       .insert(reportCommentFlags)
-      .values({ id: uuidv7(), commentId, flaggedById, reason, statusId: submittedStatusId })
-      .onConflictDoNothing({ target: [reportCommentFlags.commentId, reportCommentFlags.flaggedById] });
+      .values({
+        id: uuidv7(),
+        commentId,
+        flaggedById,
+        reason,
+        statusId: submittedStatusId,
+      })
+      .onConflictDoNothing({
+        target: [reportCommentFlags.commentId, reportCommentFlags.flaggedById],
+      });
     return { flagged: true };
   }
 
@@ -134,7 +176,10 @@ export class CommentsService {
         flagStatus: flagStatuses,
       })
       .from(reportCommentFlags)
-      .innerJoin(reportComments, eq(reportCommentFlags.commentId, reportComments.id))
+      .innerJoin(
+        reportComments,
+        eq(reportCommentFlags.commentId, reportComments.id),
+      )
       .innerJoin(reports, eq(reportComments.reportId, reports.id))
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
@@ -160,7 +205,11 @@ export class CommentsService {
       reportTitle: r.report.title,
       reportLandmark: r.report.landmark,
       reportStatus: r.status.key,
-      category: { key: r.category.key, label: r.category.label, emoji: r.category.emoji },
+      category: {
+        key: r.category.key,
+        label: r.category.label,
+        emoji: r.category.emoji,
+      },
     }));
   }
 }

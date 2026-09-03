@@ -4,7 +4,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, desc, eq, exists, gte, ilike, isNotNull, isNull, lte, notExists, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  gte,
+  ilike,
+  isNotNull,
+  isNull,
+  lte,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { adminRoles, adminUsers } from '../db/schema/admin-schema';
@@ -12,16 +26,22 @@ import {
   userAccountStatus,
   userStatuses,
 } from '../db/schema/user-status-schema';
-import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import {
   missionCompletions,
   missionVolunteerStatuses,
   missionVolunteers,
   missions,
 } from '../db/schema/missions-schema';
-import { reportComments, reportCommentFlags } from '../db/schema/comments-schema';
+import {
+  reportComments,
+  reportCommentFlags,
+} from '../db/schema/comments-schema';
 import { supportTickets } from '../db/schema/tickets-schema';
-import { uuidv7 } from 'uuidv7';
 import {
   ACTIVE_STATUS_KEY,
   SUSPENDED_STATUS_KEY,
@@ -29,10 +49,7 @@ import {
 import { AdminAuditService } from './admin-audit.service';
 import type { AdminIdentity } from './admin-rbac';
 import type { AdminRequestMeta } from './admin-request-meta';
-import type {
-  ReactivateUserDto,
-  SuspendUserDto,
-} from './dto/suspend-user.dto';
+import type { ReactivateUserDto, SuspendUserDto } from './dto/suspend-user.dto';
 import { effectiveStatusSql } from './report-effective-status';
 import { likePattern, offsetFor, paginate } from './admin-pagination';
 import type { ListAdminUsersDto } from './dto/list-admin-users.dto';
@@ -86,9 +103,7 @@ export class AdminUsersService {
             )
           : undefined,
 
-      query.status === 'all'
-        ? undefined
-        : eq(this.statusKeySql, query.status),
+      query.status === 'all' ? undefined : eq(this.statusKeySql, query.status),
 
       query.district ? eq(user.district, query.district) : undefined,
       query.profileCompleted === undefined
@@ -368,7 +383,10 @@ export class AdminUsersService {
         .select({ count: sql<string>`count(*)` })
         .from(reportComments)
         .where(
-          and(eq(reportComments.authorId, userId), isNull(reportComments.deletedAt)),
+          and(
+            eq(reportComments.authorId, userId),
+            isNull(reportComments.deletedAt),
+          ),
         ),
 
       db

@@ -16,10 +16,14 @@ const OTP_TTL_SECONDS = 300;
 
 export class DevConsoleOtpProvider implements OtpProvider {
   async send(phoneNumber: string, code: string): Promise<void> {
-    // eslint-disable-next-line no-console
     console.log(`\n🔑 DEV OTP — no real SMS sent (msg91 not configured)`);
     console.log(`   Phone: ${phoneNumber}`);
     console.log(`   Code:  ${code}\n`);
-    await redis.set(`otp:dev-last-code:${phoneNumber}`, code, 'EX', OTP_TTL_SECONDS);
+    await redis.set(
+      `otp:dev-last-code:${phoneNumber}`,
+      code,
+      'EX',
+      OTP_TTL_SECONDS,
+    );
   }
 }

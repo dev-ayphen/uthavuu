@@ -7,7 +7,7 @@ import { z } from 'zod';
 function optionalTrimmed<T extends z.ZodTypeAny>(schema: T) {
   return z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
-    schema.optional()
+    schema.optional(),
   );
 }
 

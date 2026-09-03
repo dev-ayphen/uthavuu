@@ -6,7 +6,11 @@ import { uuidv7 } from 'uuidv7';
 import { sql } from 'drizzle-orm';
 import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
-import { missionCompletionStatuses, missionVolunteerStatuses, progressStatuses } from './schema/missions-schema';
+import {
+  missionCompletionStatuses,
+  missionVolunteerStatuses,
+  progressStatuses,
+} from './schema/missions-schema';
 import { flagStatuses } from './schema/comments-schema';
 import {
   ticketCategories,
@@ -35,16 +39,70 @@ import { seedAuditCatalogue } from './seed-audit';
 // docs/features/report-a-request.md BR-1 (the 8 citizen categories) and BR-2
 // (per-category default expiry, in minutes here).
 const CATEGORIES = [
-  { key: 'animalRescue', label: 'Animal Rescue', emoji: '🐶', defaultExpiryMinutes: 12 * 60, citizenSelectable: true },
-  { key: 'medicalHelp', label: 'Medical Help', emoji: '❤️', defaultExpiryMinutes: 6 * 60, citizenSelectable: true },
-  { key: 'foodDonation', label: 'Food Donation', emoji: '🍱', defaultExpiryMinutes: 12 * 60, citizenSelectable: true },
-  { key: 'roadsideHelp', label: 'Roadside Help', emoji: '🚗', defaultExpiryMinutes: 6 * 60, citizenSelectable: true },
-  { key: 'elderlySupport', label: 'Elderly Support', emoji: '👴', defaultExpiryMinutes: 24 * 60, citizenSelectable: true },
-  { key: 'bloodDonation', label: 'Blood Donation', emoji: '🩸', defaultExpiryMinutes: 4 * 60, citizenSelectable: true },
-  { key: 'communityHelp', label: 'Community Help', emoji: '🤝', defaultExpiryMinutes: 72 * 60, citizenSelectable: true },
-  { key: 'lostAndFound', label: 'Lost & Found', emoji: '🔍', defaultExpiryMinutes: 72 * 60, citizenSelectable: true },
+  {
+    key: 'animalRescue',
+    label: 'Animal Rescue',
+    emoji: '🐶',
+    defaultExpiryMinutes: 12 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'medicalHelp',
+    label: 'Medical Help',
+    emoji: '❤️',
+    defaultExpiryMinutes: 6 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'foodDonation',
+    label: 'Food Donation',
+    emoji: '🍱',
+    defaultExpiryMinutes: 12 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'roadsideHelp',
+    label: 'Roadside Help',
+    emoji: '🚗',
+    defaultExpiryMinutes: 6 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'elderlySupport',
+    label: 'Elderly Support',
+    emoji: '👴',
+    defaultExpiryMinutes: 24 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'bloodDonation',
+    label: 'Blood Donation',
+    emoji: '🩸',
+    defaultExpiryMinutes: 4 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'communityHelp',
+    label: 'Community Help',
+    emoji: '🤝',
+    defaultExpiryMinutes: 72 * 60,
+    citizenSelectable: true,
+  },
+  {
+    key: 'lostAndFound',
+    label: 'Lost & Found',
+    emoji: '🔍',
+    defaultExpiryMinutes: 72 * 60,
+    citizenSelectable: true,
+  },
   // BR-3: exists for the schema/admin milestone, not citizen-selectable yet.
-  { key: 'disasterRelief', label: 'Disaster Relief', emoji: '🚨', defaultExpiryMinutes: 24 * 60, citizenSelectable: false },
+  {
+    key: 'disasterRelief',
+    label: 'Disaster Relief',
+    emoji: '🚨',
+    defaultExpiryMinutes: 24 * 60,
+    citizenSelectable: false,
+  },
 ] as const;
 
 const STATUSES = [
@@ -297,7 +355,11 @@ async function seed() {
       .values({ id: uuidv7(), ...status })
       .onConflictDoUpdate({
         target: ticketStatuses.key,
-        set: { label: status.label, sortOrder: status.sortOrder, updatedAt: sql`now()` },
+        set: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          updatedAt: sql`now()`,
+        },
       });
   }
 
@@ -307,7 +369,11 @@ async function seed() {
       .values({ id: uuidv7(), ...priority })
       .onConflictDoUpdate({
         target: ticketPriorities.key,
-        set: { label: priority.label, sortOrder: priority.sortOrder, updatedAt: sql`now()` },
+        set: {
+          label: priority.label,
+          sortOrder: priority.sortOrder,
+          updatedAt: sql`now()`,
+        },
       });
   }
 
@@ -317,7 +383,11 @@ async function seed() {
       .values({ id: uuidv7(), ...senderType })
       .onConflictDoUpdate({
         target: ticketMessageSenderTypes.key,
-        set: { label: senderType.label, sortOrder: senderType.sortOrder, updatedAt: sql`now()` },
+        set: {
+          label: senderType.label,
+          sortOrder: senderType.sortOrder,
+          updatedAt: sql`now()`,
+        },
       });
   }
 
@@ -327,7 +397,11 @@ async function seed() {
       .values({ id: uuidv7(), ...status })
       .onConflictDoUpdate({
         target: userStatuses.key,
-        set: { label: status.label, sortOrder: status.sortOrder, updatedAt: sql`now()` },
+        set: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          updatedAt: sql`now()`,
+        },
       });
   }
 
@@ -432,7 +506,7 @@ async function seed() {
   const audit = await seedAuditCatalogue();
 
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`,
   );
   process.exit(0);
 }

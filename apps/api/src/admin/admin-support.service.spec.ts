@@ -12,16 +12,21 @@ jest.mock('../db', () => {
   >('drizzle-orm/postgres-js');
   const url = new URL(process.env.DATABASE_URL!);
   url.pathname = '/uthavu_admin_support_test';
-  return { db: drizzleModule.drizzle(postgresModule(url.toString())) };
+  // max: 3 — this suite is deliberately a small consumer of connections. Several
+  // sessions run Jest against this Postgres at once (COORDINATION.md), and
+  // postgres.js's default pool of 10 per suite is what turns that into "sorry,
+  // too many clients already" — a failure that looks like a broken test and is
+  // not one. Three is more than the two this suite ever holds concurrently.
+  return {
+    db: drizzleModule.drizzle(postgresModule(url.toString(), { max: 3 })),
+  };
 });
 
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { adminUsers } from '../db/schema/admin-schema';
 import { adminAuditActions, adminAuditLogs } from '../db/schema/audit-schema';
-import {
-  userAccountStatus,
-} from '../db/schema/user-status-schema';
+import { userAccountStatus } from '../db/schema/user-status-schema';
 import {
   supportTicketMessages,
   supportTickets,
@@ -88,7 +93,7 @@ describe('AdminSupportService', () => {
       categoryKey: 'bug_report',
       subject,
       description: 'Uploading a photo times out on 3G.',
-    } as Parameters<SupportService['create']>[1]);
+    });
 
   beforeAll(async () => {
     await createSpecDatabase(DATABASE);
@@ -304,9 +309,7 @@ describe('AdminSupportService', () => {
       );
       expect(rows.every((r) => r.reason === 'Triage')).toBe(true);
 
-      const assign = rows.find(
-        (r) => r.actionKey === 'support_ticket.assign',
-      );
+      const assign = rows.find((r) => r.actionKey === 'support_ticket.assign');
       expect(assign?.before).toEqual({
         assignedAdminId: null,
         assignedAdminName: null,
@@ -351,7 +354,12 @@ describe('AdminSupportService', () => {
 
     it('unassigns with an explicit null', async () => {
       const ticket = await fileTicket();
-      await service.update(ticket.id, admin, { assignedAdminId: adminId }, META);
+      await service.update(
+        ticket.id,
+        admin,
+        { assignedAdminId: adminId },
+        META,
+      );
 
       const cleared = await service.update(
         ticket.id,

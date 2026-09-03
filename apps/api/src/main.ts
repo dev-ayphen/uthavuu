@@ -50,4 +50,4 @@ async function bootstrap() {
   app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

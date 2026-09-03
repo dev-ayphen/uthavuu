@@ -9,7 +9,9 @@ import { FlaggedCommentsService } from './flagged-comments.service';
 // files the only ones touched by "comments I've flagged" work.
 @Controller('users/me/flagged-comments')
 export class FlaggedCommentsController {
-  constructor(private readonly flaggedCommentsService: FlaggedCommentsService) {}
+  constructor(
+    private readonly flaggedCommentsService: FlaggedCommentsService,
+  ) {}
 
   @Get()
   list(@Session() session: UserSession<typeof auth>) {

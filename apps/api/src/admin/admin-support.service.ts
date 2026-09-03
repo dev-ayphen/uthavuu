@@ -35,10 +35,7 @@ import {
   ticketStatuses,
 } from '../db/schema/tickets-schema';
 import { ACTIVE_STATUS_KEY } from '../account-status/account-status';
-import {
-  acceptsMessages,
-  statusAfterMessage,
-} from '../support/ticket-status';
+import { acceptsMessages, statusAfterMessage } from '../support/ticket-status';
 import type { AdminAuditAction } from './admin-audit-catalogue';
 import { AdminAuditService } from './admin-audit.service';
 import type { Executor } from './admin-audit.service';
@@ -229,9 +226,7 @@ export class AdminSupportService {
     // rejected PATCH should never have held a row lock, and record()'s own
     // catalogue reads go to a second pooled connection (ADR 0012's "one
     // wrinkle"), so the less time the transaction is open the better.
-    const status = dto.status
-      ? await this.requireStatus(dto.status)
-      : null;
+    const status = dto.status ? await this.requireStatus(dto.status) : null;
     const priority = dto.priority
       ? await this.requirePriority(dto.priority)
       : null;
@@ -400,11 +395,12 @@ export class AdminSupportService {
     const nextStatus = nextStatusKey
       ? await this.requireStatus(nextStatusKey)
       : null;
+    const senderTypeId = await this.senderTypeIdFor('admin');
 
     await db.transaction(async (tx) => {
       await this.insertMessage(tx, {
         ticketId: id,
-        senderType: 'admin',
+        senderTypeId,
         senderUserId: admin.userId,
         body: dto.body,
         isInternalNote: dto.isInternalNote,
@@ -515,11 +511,17 @@ export class AdminSupportService {
       });
     }
 
+    // After the guard, so a refused resolve/close costs no extra query — and
+    // before the transaction, for the reason insertMessage() documents.
+    const senderTypeId = dto.message
+      ? await this.senderTypeIdFor('admin')
+      : null;
+
     await db.transaction(async (tx) => {
-      if (dto.message) {
+      if (dto.message && senderTypeId) {
         await this.insertMessage(tx, {
           ticketId: id,
-          senderType: 'admin',
+          senderTypeId,
           senderUserId: admin.userId,
           body: dto.message,
           // A closing message is part of the closing act and goes to the
@@ -559,21 +561,31 @@ export class AdminSupportService {
     return this.findOne(id);
   }
 
-  private async insertMessage(
+  /**
+   * A pure write — every lookup it needs is resolved by the caller BEFORE the
+   * transaction opens.
+   *
+   * That is deliberate, not stylistic. Drizzle's `tx` holds one pooled
+   * connection; a `db` query issued from inside the callback checks out a
+   * SECOND one and blocks until it is free. ADR 0012 records the same wrinkle in
+   * AdminAuditService.record() and notes it would deadlock at pool size 1. There
+   * is no reason to add another instance of it for a lookup whose value is known
+   * before the first row is touched.
+   */
+  private insertMessage(
     tx: Executor,
     message: {
       ticketId: string;
-      senderType: 'user' | 'admin';
+      senderTypeId: string;
       senderUserId: string;
       body: string;
       isInternalNote: boolean;
     },
   ) {
-    const senderTypeId = await this.senderTypeIdFor(message.senderType);
-    await tx.insert(supportTicketMessages).values({
+    return tx.insert(supportTicketMessages).values({
       id: uuidv7(),
       ticketId: message.ticketId,
-      senderTypeId,
+      senderTypeId: message.senderTypeId,
       senderUserId: message.senderUserId,
       body: message.body,
       isInternalNote: message.isInternalNote,
@@ -628,9 +640,7 @@ export class AdminSupportService {
     return rows.map((row) => ({
       id: row.id,
       senderType: row.senderTypeKey,
-      sender: row.senderId
-        ? { id: row.senderId, name: row.senderName }
-        : null,
+      sender: row.senderId ? { id: row.senderId, name: row.senderName } : null,
       body: row.body,
       isInternalNote: row.isInternalNote,
       createdAt: row.createdAt.toISOString(),
@@ -789,61 +799,66 @@ export class AdminSupportService {
   }
 
   private baseQuery() {
-    return db
-      .select({
-        id: supportTickets.id,
-        ticketNumber: supportTickets.ticketNumber,
-        subject: supportTickets.subject,
-        description: supportTickets.description,
-        createdAt: supportTickets.createdAt,
-        updatedAt: supportTickets.updatedAt,
-        resolvedAt: supportTickets.resolvedAt,
-        closedAt: supportTickets.closedAt,
-        relatedReportId: supportTickets.relatedReportId,
-        categoryId: ticketCategories.id,
-        categoryKey: ticketCategories.key,
-        categoryLabel: ticketCategories.label,
-        statusId: supportTickets.statusId,
-        statusKey: ticketStatuses.key,
-        statusLabel: ticketStatuses.label,
-        priorityId: supportTickets.priorityId,
-        priorityKey: ticketPriorities.key,
-        priorityLabel: ticketPriorities.label,
-        userId: user.id,
-        userName: user.name,
-        userPhoneNumber: user.phoneNumber,
-        userAvatarUrl: user.avatarUrl,
-        userStatusKey: this.userStatusKeySql,
-        userStatusLabel: userStatuses.label,
-        assignedAdminId: supportTickets.assignedAdminId,
-        assignedAdminName: assignedAdmin.name,
-      })
-      .from(supportTickets)
-      .innerJoin(
-        ticketCategories,
-        eq(supportTickets.categoryId, ticketCategories.id),
-      )
-      .innerJoin(ticketStatuses, eq(supportTickets.statusId, ticketStatuses.id))
-      .innerJoin(
-        ticketPriorities,
-        eq(supportTickets.priorityId, ticketPriorities.id),
-      )
-      // innerJoin on `user` is correct here and must stay an innerJoin.
-      // support_tickets.user_id is NOT NULL and ON DELETE CASCADE, so a ticket
-      // cannot outlive its author — unlike reports and comments, which use SET
-      // NULL to preserve community history and therefore need leftJoin. Someone
-      // "fixing" this to a leftJoin for consistency would be adding a branch for
-      // a row that cannot exist.
-      .innerJoin(user, eq(supportTickets.userId, user.id))
-      // leftJoin, and coalesced above: no user_account_status row means active.
-      .leftJoin(userAccountStatus, eq(userAccountStatus.userId, user.id))
-      .leftJoin(userStatuses, eq(userAccountStatus.statusId, userStatuses.id))
-      // leftJoin: assigned_admin_id is nullable (unassigned) and SET NULL (the
-      // admin left). Both are normal states, not missing data.
-      .leftJoin(
-        assignedAdmin,
-        eq(supportTickets.assignedAdminId, assignedAdmin.id),
-      );
+    return (
+      db
+        .select({
+          id: supportTickets.id,
+          ticketNumber: supportTickets.ticketNumber,
+          subject: supportTickets.subject,
+          description: supportTickets.description,
+          createdAt: supportTickets.createdAt,
+          updatedAt: supportTickets.updatedAt,
+          resolvedAt: supportTickets.resolvedAt,
+          closedAt: supportTickets.closedAt,
+          relatedReportId: supportTickets.relatedReportId,
+          categoryId: ticketCategories.id,
+          categoryKey: ticketCategories.key,
+          categoryLabel: ticketCategories.label,
+          statusId: supportTickets.statusId,
+          statusKey: ticketStatuses.key,
+          statusLabel: ticketStatuses.label,
+          priorityId: supportTickets.priorityId,
+          priorityKey: ticketPriorities.key,
+          priorityLabel: ticketPriorities.label,
+          userId: user.id,
+          userName: user.name,
+          userPhoneNumber: user.phoneNumber,
+          userAvatarUrl: user.avatarUrl,
+          userStatusKey: this.userStatusKeySql,
+          userStatusLabel: userStatuses.label,
+          assignedAdminId: supportTickets.assignedAdminId,
+          assignedAdminName: assignedAdmin.name,
+        })
+        .from(supportTickets)
+        .innerJoin(
+          ticketCategories,
+          eq(supportTickets.categoryId, ticketCategories.id),
+        )
+        .innerJoin(
+          ticketStatuses,
+          eq(supportTickets.statusId, ticketStatuses.id),
+        )
+        .innerJoin(
+          ticketPriorities,
+          eq(supportTickets.priorityId, ticketPriorities.id),
+        )
+        // innerJoin on `user` is correct here and must stay an innerJoin.
+        // support_tickets.user_id is NOT NULL and ON DELETE CASCADE, so a ticket
+        // cannot outlive its author — unlike reports and comments, which use SET
+        // NULL to preserve community history and therefore need leftJoin. Someone
+        // "fixing" this to a leftJoin for consistency would be adding a branch for
+        // a row that cannot exist.
+        .innerJoin(user, eq(supportTickets.userId, user.id))
+        // leftJoin, and coalesced above: no user_account_status row means active.
+        .leftJoin(userAccountStatus, eq(userAccountStatus.userId, user.id))
+        .leftJoin(userStatuses, eq(userAccountStatus.statusId, userStatuses.id))
+        // leftJoin: assigned_admin_id is nullable (unassigned) and SET NULL (the
+        // admin left). Both are normal states, not missing data.
+        .leftJoin(
+          assignedAdmin,
+          eq(supportTickets.assignedAdminId, assignedAdmin.id),
+        )
+    );
   }
 
   private toResponse(row: AdminTicketRow, totals?: MessageTotals) {

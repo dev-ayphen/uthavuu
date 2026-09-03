@@ -4,7 +4,16 @@
 // here: it's computed client-side from `expiryAt` using the TONES bands
 // (docs/design/design-system.md §5) rather than stored — see report-a-request.md BR-2.
 import { relations } from 'drizzle-orm';
-import { boolean, doublePrecision, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 
 export const reportCategories = pgTable('report_categories', {
@@ -18,16 +27,24 @@ export const reportCategories = pgTable('report_categories', {
   // BR-3: Disaster Relief exists as a category but isn't citizen-selectable —
   // the create-report DTO filters on this rather than hardcoding an exclusion.
   citizenSelectable: boolean('citizen_selectable').default(true).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const reportStatuses = pgTable('report_statuses', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const reports = pgTable(
@@ -41,7 +58,9 @@ export const reports = pgTable(
     // UsersService.deleteAccount() for the full policy (only a genuinely
     // unclaimed report — one no volunteer ever joined — gets soft-deleted
     // alongside the account).
-    reporterId: text('reporter_id').references(() => user.id, { onDelete: 'set null' }),
+    reporterId: text('reporter_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
     categoryId: uuid('category_id')
       .notNull()
       .references(() => reportCategories.id),
@@ -80,15 +99,21 @@ export const reports = pgTable(
     // user (or their own account-deletion's Rule 1) ever soft-deleted. This
     // is just an audit trail of who triggered the soft-delete; it should go
     // null along with reporterId when that account is gone, not block deletion.
-    deletedBy: text('deleted_by').references(() => user.id, { onDelete: 'set null' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    deletedBy: text('deleted_by').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     index('reports_reporter_id_idx').on(table.reporterId),
     index('reports_category_id_idx').on(table.categoryId),
     index('reports_status_id_idx').on(table.statusId),
-  ]
+  ],
 );
 
 export const reportPhotos = pgTable(
@@ -103,18 +128,29 @@ export const reportPhotos = pgTable(
     // stays true unconditionally for v0.1 — see report-a-request.md's "Known
     // enforcement gap": nothing server-side verifies it yet (no EXIF check).
     capturedLive: boolean('captured_live').default(true).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [index('report_photos_report_id_idx').on(table.reportId)]
+  (table) => [index('report_photos_report_id_idx').on(table.reportId)],
 );
 
 export const reportRelations = relations(reports, ({ one, many }) => ({
   reporter: one(user, { fields: [reports.reporterId], references: [user.id] }),
-  category: one(reportCategories, { fields: [reports.categoryId], references: [reportCategories.id] }),
-  status: one(reportStatuses, { fields: [reports.statusId], references: [reportStatuses.id] }),
+  category: one(reportCategories, {
+    fields: [reports.categoryId],
+    references: [reportCategories.id],
+  }),
+  status: one(reportStatuses, {
+    fields: [reports.statusId],
+    references: [reportStatuses.id],
+  }),
   photos: many(reportPhotos),
 }));
 
 export const reportPhotoRelations = relations(reportPhotos, ({ one }) => ({
-  report: one(reports, { fields: [reportPhotos.reportId], references: [reports.id] }),
+  report: one(reports, {
+    fields: [reportPhotos.reportId],
+    references: [reports.id],
+  }),
 }));

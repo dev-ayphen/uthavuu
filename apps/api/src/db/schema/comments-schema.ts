@@ -16,7 +16,14 @@
 // (AdminCommentsService.resolveFlag, PATCH /admin/flagged-comments/:id,
 // audited as comment_flag.resolve).
 import { relations } from 'drizzle-orm';
-import { index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 import { reports } from './reports-schema';
 
@@ -30,7 +37,9 @@ export const reportComments = pgTable(
     // Nullable + SET NULL — a comment is preserved for other participants'
     // context even if its author later deletes their account; only the
     // identity is removed, never the body.
-    authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+    authorId: text('author_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
     body: text('body').notNull(),
     // Moderation removal, added deliberately for the admin console's comment
     // moderation — CLAUDE.md's rule is soft-delete only where a feature needs
@@ -53,10 +62,14 @@ export const reportComments = pgTable(
     // is: this is an audit breadcrumb, not a dependency, and it must never block
     // deletion of the account it points at. The durable record of who did it
     // lives in admin_audit_logs, which snapshots the actor's identity.
-    deletedBy: text('deleted_by').references(() => user.id, { onDelete: 'set null' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    deletedBy: text('deleted_by').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [index('report_comments_report_id_idx').on(table.reportId)]
+  (table) => [index('report_comments_report_id_idx').on(table.reportId)],
 );
 
 // Submitted → Under Review → Action Taken → Dismissed. A flag is created at
@@ -69,8 +82,12 @@ export const flagStatuses = pgTable('flag_statuses', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const reportCommentFlags = pgTable(
@@ -87,7 +104,9 @@ export const reportCommentFlags = pgTable(
     statusId: uuid('status_id')
       .notNull()
       .references(() => flagStatuses.id),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     index('report_comment_flags_comment_id_idx').on(table.commentId),
@@ -95,22 +114,46 @@ export const reportCommentFlags = pgTable(
     // flagging the same comment twice should be a no-op (ON CONFLICT DO
     // NOTHING), same idempotency shape as report_saves, not a growing pile
     // of duplicate rows for one user+comment pair.
-    uniqueIndex('report_comment_flags_comment_id_flagged_by_id_key').on(table.commentId, table.flaggedById),
-  ]
+    uniqueIndex('report_comment_flags_comment_id_flagged_by_id_key').on(
+      table.commentId,
+      table.flaggedById,
+    ),
+  ],
 );
 
 export const flagStatusRelations = relations(flagStatuses, ({ many }) => ({
   flags: many(reportCommentFlags),
 }));
 
-export const reportCommentRelations = relations(reportComments, ({ one, many }) => ({
-  report: one(reports, { fields: [reportComments.reportId], references: [reports.id] }),
-  author: one(user, { fields: [reportComments.authorId], references: [user.id] }),
-  flags: many(reportCommentFlags),
-}));
+export const reportCommentRelations = relations(
+  reportComments,
+  ({ one, many }) => ({
+    report: one(reports, {
+      fields: [reportComments.reportId],
+      references: [reports.id],
+    }),
+    author: one(user, {
+      fields: [reportComments.authorId],
+      references: [user.id],
+    }),
+    flags: many(reportCommentFlags),
+  }),
+);
 
-export const reportCommentFlagRelations = relations(reportCommentFlags, ({ one }) => ({
-  comment: one(reportComments, { fields: [reportCommentFlags.commentId], references: [reportComments.id] }),
-  flaggedBy: one(user, { fields: [reportCommentFlags.flaggedById], references: [user.id] }),
-  status: one(flagStatuses, { fields: [reportCommentFlags.statusId], references: [flagStatuses.id] }),
-}));
+export const reportCommentFlagRelations = relations(
+  reportCommentFlags,
+  ({ one }) => ({
+    comment: one(reportComments, {
+      fields: [reportCommentFlags.commentId],
+      references: [reportComments.id],
+    }),
+    flaggedBy: one(user, {
+      fields: [reportCommentFlags.flaggedById],
+      references: [user.id],
+    }),
+    status: one(flagStatuses, {
+      fields: [reportCommentFlags.statusId],
+      references: [flagStatuses.id],
+    }),
+  }),
+);

@@ -17,7 +17,8 @@ export class DevOtpController {
   async getLastCode(@Query('phone') phone?: string) {
     if (!phone) throw new NotFoundException('phone query param required');
     const code = await redis.get(`otp:dev-last-code:${phone}`);
-    if (!code) throw new NotFoundException('No OTP sent for this phone number yet');
+    if (!code)
+      throw new NotFoundException('No OTP sent for this phone number yet');
     return { code };
   }
 }

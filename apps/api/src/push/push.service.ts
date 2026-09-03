@@ -14,9 +14,7 @@ import {
 
 @Injectable()
 export class PushService {
-  constructor(
-    @Inject(PUSH_PROVIDER) private readonly provider: PushProvider,
-  ) {}
+  constructor(@Inject(PUSH_PROVIDER) private readonly provider: PushProvider) {}
 
   /**
    * Delivers one notification to every device a user has registered.
@@ -87,13 +85,14 @@ export class PushService {
   // console directly — so these match the house style rather than introducing a
   // logging dependency as a side effect of a push feature.
   private log(message: string): void {
-    // eslint-disable-next-line no-console
     console.log(`[push] ${message}`);
   }
 
   private warn(message: string, error?: unknown): void {
-    // eslint-disable-next-line no-console
-    console.warn(`[push] ${message}`, error instanceof Error ? error.message : error);
+    console.warn(
+      `[push] ${message}`,
+      error instanceof Error ? error.message : error,
+    );
   }
 }
 

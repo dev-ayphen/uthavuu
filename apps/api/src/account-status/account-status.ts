@@ -55,8 +55,14 @@ export const SUSPENDED_STATUS_KEY = 'suspended';
  * must NOT clear their token and bounce them to the login screen as though
  * nothing had happened. A bare 401 is indistinguishable from an expired session,
  * which is exactly why suspension answers 403 with this code instead.
+ *
+ * The string itself now lives in @uthavu/libs-common, because the client that
+ * has to recognise it is the other half of the contract and used to keep its
+ * own copy. Re-exported under the local `_CODE` name so it still reads as a
+ * pair with ACCOUNT_SUSPENDED_MESSAGE below — the message is server-authored
+ * prose and stays here; mobile renders its own localised copy.
  */
-export const ACCOUNT_SUSPENDED_CODE = 'ACCOUNT_SUSPENDED';
+export { ACCOUNT_SUSPENDED as ACCOUNT_SUSPENDED_CODE } from '@uthavu/libs-common';
 
 export const ACCOUNT_SUSPENDED_MESSAGE =
   'This account has been suspended. Contact support if you believe this is a mistake.';

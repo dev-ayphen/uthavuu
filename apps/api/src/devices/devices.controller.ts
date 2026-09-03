@@ -11,7 +11,10 @@ export class DevicesController {
   // Auth guard is registered globally by @thallesp/nestjs-better-auth — this
   // route is authenticated by default.
   @Post()
-  register(@Session() session: UserSession<typeof auth>, @Body() body: RegisterDeviceDto) {
+  register(
+    @Session() session: UserSession<typeof auth>,
+    @Body() body: RegisterDeviceDto,
+  ) {
     return this.devicesService.register(session.user.id, body);
   }
 }

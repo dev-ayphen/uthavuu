@@ -3,7 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, notExists, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  exists,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  notExists,
+  sql,
+} from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import {
@@ -21,7 +33,6 @@ import type { AdminIdentity } from './admin-rbac';
 import type { AdminRequestMeta } from './admin-request-meta';
 import { likePattern, offsetFor, paginate } from './admin-pagination';
 import { effectiveStatusSql } from './report-effective-status';
-import type { EffectiveStatus } from './report-effective-status';
 import type { ListAdminCommentsDto } from './dto/list-admin-comments.dto';
 import type { ListFlaggedCommentsDto } from './dto/list-flagged-comments.dto';
 import { PENDING_FLAG_STATUS_KEYS } from './dto/list-flagged-comments.dto';
@@ -105,7 +116,10 @@ export class AdminCommentsService {
         })
         .from(reportComments)
         .innerJoin(reports, eq(reportComments.reportId, reports.id))
-        .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+        .innerJoin(
+          reportCategories,
+          eq(reports.categoryId, reportCategories.id),
+        )
         .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
         // leftJoin: authorId is SET NULL on account deletion, and a comment
         // whose author left is exactly the kind a moderator still needs to see.
@@ -119,7 +133,10 @@ export class AdminCommentsService {
         .select({ count: sql<string>`count(*)` })
         .from(reportComments)
         .innerJoin(reports, eq(reportComments.reportId, reports.id))
-        .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+        .innerJoin(
+          reportCategories,
+          eq(reports.categoryId, reportCategories.id),
+        )
         .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
         .leftJoin(user, eq(reportComments.authorId, user.id))
         .where(where),
@@ -143,7 +160,7 @@ export class AdminCommentsService {
         report: {
           id: row.reportId,
           title: row.reportTitle,
-          effectiveStatus: row.effectiveStatus as EffectiveStatus,
+          effectiveStatus: row.effectiveStatus,
           category: {
             key: row.categoryKey,
             label: row.categoryLabel,
@@ -191,21 +208,30 @@ export class AdminCommentsService {
           flaggedById: reportCommentFlags.flaggedById,
         })
         .from(reportCommentFlags)
-        .innerJoin(flagStatuses, eq(reportCommentFlags.statusId, flagStatuses.id))
+        .innerJoin(
+          flagStatuses,
+          eq(reportCommentFlags.statusId, flagStatuses.id),
+        )
         .innerJoin(
           reportComments,
           eq(reportCommentFlags.commentId, reportComments.id),
         )
         .innerJoin(reports, eq(reportComments.reportId, reports.id))
         .where(where)
-        .orderBy(desc(reportCommentFlags.createdAt), desc(reportCommentFlags.id))
+        .orderBy(
+          desc(reportCommentFlags.createdAt),
+          desc(reportCommentFlags.id),
+        )
         .limit(query.limit)
         .offset(offsetFor(query)),
 
       db
         .select({ count: sql<string>`count(*)` })
         .from(reportCommentFlags)
-        .innerJoin(flagStatuses, eq(reportCommentFlags.statusId, flagStatuses.id))
+        .innerJoin(
+          flagStatuses,
+          eq(reportCommentFlags.statusId, flagStatuses.id),
+        )
         .innerJoin(
           reportComments,
           eq(reportCommentFlags.commentId, reportComments.id),
@@ -298,7 +324,10 @@ export class AdminCommentsService {
         // The isNull() re-check makes the write itself the race guard: two
         // moderators clicking Remove at once cannot both succeed.
         .where(
-          and(eq(reportComments.id, commentId), isNull(reportComments.deletedAt)),
+          and(
+            eq(reportComments.id, commentId),
+            isNull(reportComments.deletedAt),
+          ),
         );
 
       await this.auditService.record({

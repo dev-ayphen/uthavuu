@@ -2,7 +2,6 @@ import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { ExecutionContext } from '@nestjs/common';
 import { AdminGuard } from './admin.guard';
-import type { AdminService } from './admin.service';
 // Imported from admin-rbac, not admin.decorators: the decorators file pulls in
 // @thallesp/nestjs-better-auth, which is ESM-only and unloadable under this
 // repo's CommonJS Jest transform.
@@ -67,7 +66,7 @@ function makeGuard(
   } as unknown as Reflector;
 
   return {
-    guard: new AdminGuard(reflector, adminService as unknown as AdminService),
+    guard: new AdminGuard(reflector, adminService),
     lookups,
   };
 }

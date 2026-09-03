@@ -8,7 +8,8 @@ import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/m
 // docs/decisions/0008-local-disk-photo-storage.md. UPLOADS_DIR defaults to a
 // repo-relative folder so the same path works whether the API runs on the
 // host or in Docker (the compose volume mounts onto this exact path).
-export const UPLOADS_DIR = process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads');
+export const UPLOADS_DIR =
+  process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads');
 
 if (!existsSync(UPLOADS_DIR)) {
   mkdirSync(UPLOADS_DIR, { recursive: true });

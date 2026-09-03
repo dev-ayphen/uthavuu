@@ -5,7 +5,11 @@ import { uuidv7 } from 'uuidv7';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import { missionVolunteers, missions } from '../db/schema/missions-schema';
 import { MissionsService } from './missions.service';
 import { AlertsService } from '../alerts/alerts.service';
@@ -29,13 +33,34 @@ describe('MissionsService', () => {
     // millisecond timestamp, so ids generated back-to-back collide on any
     // fixed-offset substring. Use the whole id instead of a slice.
     await db.insert(user).values([
-      { id: reporterId, name: 'Test Reporter', email: `${reporterId}@test.local`, phoneNumber: `+91-${reporterId}` },
-      { id: volunteerAId, name: 'Volunteer A', email: `${volunteerAId}@test.local`, phoneNumber: `+91-${volunteerAId}` },
-      { id: volunteerBId, name: 'Volunteer B', email: `${volunteerBId}@test.local`, phoneNumber: `+91-${volunteerBId}` },
+      {
+        id: reporterId,
+        name: 'Test Reporter',
+        email: `${reporterId}@test.local`,
+        phoneNumber: `+91-${reporterId}`,
+      },
+      {
+        id: volunteerAId,
+        name: 'Volunteer A',
+        email: `${volunteerAId}@test.local`,
+        phoneNumber: `+91-${volunteerAId}`,
+      },
+      {
+        id: volunteerBId,
+        name: 'Volunteer B',
+        email: `${volunteerBId}@test.local`,
+        phoneNumber: `+91-${volunteerBId}`,
+      },
     ]);
 
-    const [category] = await db.select().from(reportCategories).where(eq(reportCategories.key, 'medicalHelp'));
-    const [openStatus] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, 'open'));
+    const [category] = await db
+      .select()
+      .from(reportCategories)
+      .where(eq(reportCategories.key, 'medicalHelp'));
+    const [openStatus] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, 'open'));
     categoryId = category.id;
     openStatusId = openStatus.id;
   });
@@ -65,7 +90,9 @@ describe('MissionsService', () => {
   });
 
   it('rejects a reporter accepting their own report', async () => {
-    await expect(service.accept(reportId, reporterId)).rejects.toThrow('You cannot accept your own report');
+    await expect(service.accept(reportId, reporterId)).rejects.toThrow(
+      'You cannot accept your own report',
+    );
   });
 
   it('lets a volunteer accept, then rejects a second acceptance once the cap is reached', async () => {
@@ -73,12 +100,16 @@ describe('MissionsService', () => {
     expect(roster.myStatus).toBe('joined');
     expect(roster.volunteers).toHaveLength(1);
 
-    await expect(service.accept(reportId, volunteerBId)).rejects.toThrow('Volunteer limit reached');
+    await expect(service.accept(reportId, volunteerBId)).rejects.toThrow(
+      'Volunteer limit reached',
+    );
   });
 
   it('rejects a duplicate accept from the same volunteer', async () => {
     await service.accept(reportId, volunteerAId);
-    await expect(service.accept(reportId, volunteerAId)).rejects.toThrow('You already accepted');
+    await expect(service.accept(reportId, volunteerAId)).rejects.toThrow(
+      'You already accepted',
+    );
   });
 
   it('confirm moves joined -> active', async () => {
@@ -88,7 +119,10 @@ describe('MissionsService', () => {
   });
 
   it('leave releases the slot so another volunteer can join', async () => {
-    await db.update(reports).set({ neededVolunteers: 1 }).where(eq(reports.id, reportId));
+    await db
+      .update(reports)
+      .set({ neededVolunteers: 1 })
+      .where(eq(reports.id, reportId));
     await service.accept(reportId, volunteerAId);
     await service.leave(reportId, volunteerAId);
 
@@ -109,7 +143,10 @@ describe('MissionsService', () => {
     await service.accept(reportId, volunteerAId);
 
     // Force the deadline into the past directly, simulating 15+ minutes elapsed.
-    const [mission] = await db.select().from(missions).where(eq(missions.reportId, reportId));
+    const [mission] = await db
+      .select()
+      .from(missions)
+      .where(eq(missions.reportId, reportId));
     await db
       .update(missionVolunteers)
       .set({ confirmDeadline: new Date(Date.now() - 60_000) })
@@ -130,7 +167,7 @@ describe('MissionsService', () => {
 
   it('denies chat access to a user who never accepted', async () => {
     await expect(service.listMessages(reportId, volunteerBId)).rejects.toThrow(
-      'You need to accept this request'
+      'You need to accept this request',
     );
   });
 
@@ -145,9 +182,9 @@ describe('MissionsService', () => {
     expect(asReporter[0].isMine).toBe(false);
 
     await service.leave(reportId, volunteerAId);
-    await expect(service.sendMessage(reportId, volunteerAId, 'still there?')).rejects.toThrow(
-      'You need to accept this request'
-    );
+    await expect(
+      service.sendMessage(reportId, volunteerAId, 'still there?'),
+    ).rejects.toThrow('You need to accept this request');
   });
 
   describe('complete()', () => {
@@ -155,7 +192,10 @@ describe('MissionsService', () => {
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
 
     beforeAll(() => {
-      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+      writeFileSync(
+        join(UPLOADS_DIR, fixtureFilename),
+        Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+      );
     });
 
     afterAll(() => {
@@ -164,17 +204,17 @@ describe('MissionsService', () => {
 
     it('rejects a volunteer who is only joined, not active', async () => {
       await service.accept(reportId, volunteerAId);
-      await expect(service.complete(reportId, volunteerAId, fixturePhotoUrl, 'done')).rejects.toThrow(
-        'You must be an active volunteer'
-      );
+      await expect(
+        service.complete(reportId, volunteerAId, fixturePhotoUrl, 'done'),
+      ).rejects.toThrow('You must be an active volunteer');
     });
 
     it('rejects the reporter completing their own report', async () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
-      await expect(service.complete(reportId, reporterId, fixturePhotoUrl, 'done')).rejects.toThrow(
-        'cannot complete your own report'
-      );
+      await expect(
+        service.complete(reportId, reporterId, fixturePhotoUrl, 'done'),
+      ).rejects.toThrow('cannot complete your own report');
     });
 
     it('rejects a photoUrl that was never actually uploaded', async () => {
@@ -185,8 +225,8 @@ describe('MissionsService', () => {
           reportId,
           volunteerAId,
           `${process.env.BETTER_AUTH_URL}/uploads/nonexistent-${uuidv7()}.jpg`,
-          'done'
-        )
+          'done',
+        ),
       ).rejects.toThrow('must be one uploaded through this app');
     });
 
@@ -194,15 +234,26 @@ describe('MissionsService', () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
 
-      const roster = await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'Delivered the packets.');
+      const roster = await service.complete(
+        reportId,
+        volunteerAId,
+        fixturePhotoUrl,
+        'Delivered the packets.',
+      );
       expect(roster.completion).toEqual({
         photoUrl: fixturePhotoUrl,
         note: 'Delivered the packets.',
-        verifiedAt: expect.any(String),
+        verifiedAt: expect.any(String) as string,
       });
 
-      const [updatedReport] = await db.select().from(reports).where(eq(reports.id, reportId));
-      const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, updatedReport.statusId));
+      const [updatedReport] = await db
+        .select()
+        .from(reports)
+        .where(eq(reports.id, reportId));
+      const [status] = await db
+        .select()
+        .from(reportStatuses)
+        .where(eq(reportStatuses.id, updatedReport.statusId));
       expect(status.key).toBe('completed');
       expect(updatedReport.closedAt).not.toBeNull();
     });
@@ -210,11 +261,16 @@ describe('MissionsService', () => {
     it('rejects completing an already-completed mission', async () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
-      await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'first completion');
-
-      await expect(service.complete(reportId, volunteerAId, fixturePhotoUrl, 'again')).rejects.toThrow(
-        'already been completed'
+      await service.complete(
+        reportId,
+        volunteerAId,
+        fixturePhotoUrl,
+        'first completion',
       );
+
+      await expect(
+        service.complete(reportId, volunteerAId, fixturePhotoUrl, 'again'),
+      ).rejects.toThrow('already been completed');
     });
 
     it('completes correctly after the same volunteer left and rejoined (stale released row must not shadow the current one)', async () => {
@@ -223,40 +279,49 @@ describe('MissionsService', () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
 
-      const roster = await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'Second attempt, done right.');
+      const roster = await service.complete(
+        reportId,
+        volunteerAId,
+        fixturePhotoUrl,
+        'Second attempt, done right.',
+      );
       expect(roster.completion).toEqual({
         photoUrl: fixturePhotoUrl,
         note: 'Second attempt, done right.',
-        verifiedAt: expect.any(String),
+        verifiedAt: expect.any(String) as string,
       });
     });
   });
 
   describe('updateProgress()', () => {
     it('rejects when no mission exists yet for the report at all', async () => {
-      await expect(service.updateProgress(reportId, volunteerAId, 'on_the_way')).rejects.toThrow(
-        'No mission exists yet'
-      );
+      await expect(
+        service.updateProgress(reportId, volunteerAId, 'on_the_way'),
+      ).rejects.toThrow('No mission exists yet');
     });
 
     it('rejects a user who is not a participant of an existing mission', async () => {
       await service.accept(reportId, volunteerAId);
-      await expect(service.updateProgress(reportId, volunteerBId, 'on_the_way')).rejects.toThrow(
-        'not part of this mission'
-      );
+      await expect(
+        service.updateProgress(reportId, volunteerBId, 'on_the_way'),
+      ).rejects.toThrow('not part of this mission');
     });
 
     it('rejects a volunteer who is only joined, not active', async () => {
       await service.accept(reportId, volunteerAId);
-      await expect(service.updateProgress(reportId, volunteerAId, 'on_the_way')).rejects.toThrow(
-        'Start Helping before updating your progress'
-      );
+      await expect(
+        service.updateProgress(reportId, volunteerAId, 'on_the_way'),
+      ).rejects.toThrow('Start Helping before updating your progress');
     });
 
     it('succeeds once active, and is visible in the roster to another participant', async () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
-      const roster = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+      const roster = await service.updateProgress(
+        reportId,
+        volunteerAId,
+        'on_the_way',
+      );
 
       expect(roster.myProgressStatus?.key).toBe('on_the_way');
       expect(roster.myProgressStatus?.onWayAt).toEqual(expect.any(String));
@@ -265,7 +330,9 @@ describe('MissionsService', () => {
       // Reporter's own view of the same roster sees the real status too —
       // this is the team-visibility requirement, not just a self-view.
       const asReporter = await service.getRoster(reportId, reporterId);
-      const mine = asReporter.volunteers.find((v) => v.volunteerId === volunteerAId);
+      const mine = asReporter.volunteers.find(
+        (v) => v.volunteerId === volunteerAId,
+      );
       expect(mine?.progressStatus?.key).toBe('on_the_way');
     });
 
@@ -273,11 +340,19 @@ describe('MissionsService', () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
 
-      const first = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+      const first = await service.updateProgress(
+        reportId,
+        volunteerAId,
+        'on_the_way',
+      );
       const onWayAt = first.myProgressStatus?.onWayAt;
 
       await service.updateProgress(reportId, volunteerAId, 'reached_location');
-      const corrected = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+      const corrected = await service.updateProgress(
+        reportId,
+        volunteerAId,
+        'on_the_way',
+      );
 
       expect(corrected.myProgressStatus?.key).toBe('on_the_way');
       expect(corrected.myProgressStatus?.onWayAt).toBe(onWayAt);
@@ -290,7 +365,11 @@ describe('MissionsService', () => {
       await service.accept(reportId, volunteerAId);
       await service.confirm(reportId, volunteerAId);
 
-      const roster = await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+      const roster = await service.updateProgress(
+        reportId,
+        volunteerAId,
+        'on_the_way',
+      );
       expect(roster.myProgressStatus?.key).toBe('on_the_way');
     });
   });
@@ -315,7 +394,10 @@ describe('MissionsService', () => {
     const fixturePhotoUrl = `${process.env.BETTER_AUTH_URL}/uploads/${fixtureFilename}`;
 
     beforeAll(() => {
-      writeFileSync(join(UPLOADS_DIR, fixtureFilename), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+      writeFileSync(
+        join(UPLOADS_DIR, fixtureFilename),
+        Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+      );
     });
 
     afterAll(() => {
@@ -328,7 +410,9 @@ describe('MissionsService', () => {
       await service.sendMessage(reportId, volunteerAId, 'before completion');
       await service.complete(reportId, volunteerAId, fixturePhotoUrl, 'done');
 
-      await expect(service.sendMessage(reportId, volunteerAId, 'after completion')).rejects.toThrow('read-only');
+      await expect(
+        service.sendMessage(reportId, volunteerAId, 'after completion'),
+      ).rejects.toThrow('read-only');
 
       const messages = await service.listMessages(reportId, volunteerAId);
       expect(messages).toHaveLength(1);

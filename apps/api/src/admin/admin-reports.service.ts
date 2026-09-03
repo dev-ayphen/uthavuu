@@ -1,5 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, gte, ilike, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  ilike,
+  isNull,
+  lte,
+  ne,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import {
@@ -66,7 +78,9 @@ export class AdminReportsService {
             : ne(effectiveStatusSql, 'deleted')
           : eq(effectiveStatusSql, query.status),
 
-      query.categoryKey ? eq(reportCategories.key, query.categoryKey) : undefined,
+      query.categoryKey
+        ? eq(reportCategories.key, query.categoryKey)
+        : undefined,
       query.reporterId ? eq(reports.reporterId, query.reporterId) : undefined,
       query.q
         ? or(
@@ -139,7 +153,10 @@ export class AdminReportsService {
         })
         .from(reports)
         .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-        .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+        .innerJoin(
+          reportCategories,
+          eq(reports.categoryId, reportCategories.id),
+        )
         // leftJoin: reporterId is SET NULL, so a report whose reporter deleted
         // their account must still be listed. innerJoin would hide exactly the
         // reports that outlive their author, which is the case the SET NULL
@@ -156,7 +173,10 @@ export class AdminReportsService {
         .select({ count: sql<string>`count(*)` })
         .from(reports)
         .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
-        .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
+        .innerJoin(
+          reportCategories,
+          eq(reports.categoryId, reportCategories.id),
+        )
         .leftJoin(user, eq(reports.reporterId, user.id))
         .where(where),
     ]);
@@ -228,7 +248,14 @@ export class AdminReportsService {
     // reason (reports.service.ts toResponse) — "Deleted User" and "Posted
     // anonymously" are different facts and must never be conflated.
     if (row.reporterId === null) {
-      return { id: null, deleted: true, anonymousToPublic: row.anonymous, name: null, avatarUrl: null, phoneNumber: null };
+      return {
+        id: null,
+        deleted: true,
+        anonymousToPublic: row.anonymous,
+        name: null,
+        avatarUrl: null,
+        phoneNumber: null,
+      };
     }
     return {
       id: row.reporterId,
@@ -285,78 +312,96 @@ export class AdminReportsService {
       });
     }
 
-    const [photos, volunteers, completion, commentCountRow, saveCountRow, deletedByRow] =
-      await Promise.all([
-        db
-          .select({ id: reportPhotos.id, url: reportPhotos.url, createdAt: reportPhotos.createdAt })
-          .from(reportPhotos)
-          .where(eq(reportPhotos.reportId, reportId))
-          .orderBy(asc(reportPhotos.createdAt)),
+    const [
+      photos,
+      volunteers,
+      completion,
+      commentCountRow,
+      saveCountRow,
+      deletedByRow,
+    ] = await Promise.all([
+      db
+        .select({
+          id: reportPhotos.id,
+          url: reportPhotos.url,
+          createdAt: reportPhotos.createdAt,
+        })
+        .from(reportPhotos)
+        .where(eq(reportPhotos.reportId, reportId))
+        .orderBy(asc(reportPhotos.createdAt)),
 
-        db
-          .select({
-            id: missionVolunteers.id,
-            volunteerId: missionVolunteers.volunteerId,
-            name: user.name,
-            avatarUrl: user.avatarUrl,
-            phoneNumber: user.phoneNumber,
-            statusKey: missionVolunteerStatuses.key,
-            statusLabel: missionVolunteerStatuses.label,
-            progressKey: progressStatuses.key,
-            joinedAt: missionVolunteers.joinedAt,
-            confirmDeadline: missionVolunteers.confirmDeadline,
-            confirmedAt: missionVolunteers.confirmedAt,
-            releasedAt: missionVolunteers.releasedAt,
-            releaseReason: missionVolunteers.releaseReason,
-          })
-          .from(missionVolunteers)
-          .innerJoin(missions, eq(missionVolunteers.missionId, missions.id))
-          .innerJoin(
-            missionVolunteerStatuses,
-            eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
-          )
-          .leftJoin(progressStatuses, eq(missionVolunteers.progressStatusId, progressStatuses.id))
-          .leftJoin(user, eq(missionVolunteers.volunteerId, user.id))
-          .where(eq(missions.reportId, reportId))
-          .orderBy(asc(missionVolunteers.joinedAt)),
+      db
+        .select({
+          id: missionVolunteers.id,
+          volunteerId: missionVolunteers.volunteerId,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          phoneNumber: user.phoneNumber,
+          statusKey: missionVolunteerStatuses.key,
+          statusLabel: missionVolunteerStatuses.label,
+          progressKey: progressStatuses.key,
+          joinedAt: missionVolunteers.joinedAt,
+          confirmDeadline: missionVolunteers.confirmDeadline,
+          confirmedAt: missionVolunteers.confirmedAt,
+          releasedAt: missionVolunteers.releasedAt,
+          releaseReason: missionVolunteers.releaseReason,
+        })
+        .from(missionVolunteers)
+        .innerJoin(missions, eq(missionVolunteers.missionId, missions.id))
+        .innerJoin(
+          missionVolunteerStatuses,
+          eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
+        )
+        .leftJoin(
+          progressStatuses,
+          eq(missionVolunteers.progressStatusId, progressStatuses.id),
+        )
+        .leftJoin(user, eq(missionVolunteers.volunteerId, user.id))
+        .where(eq(missions.reportId, reportId))
+        .orderBy(asc(missionVolunteers.joinedAt)),
 
-        db
-          .select({
-            id: missionCompletions.id,
-            photoUrl: missionCompletions.photoUrl,
-            note: missionCompletions.note,
-            submittedAt: missionCompletions.submittedAt,
-            verifiedAt: missionCompletions.verifiedAt,
-            statusKey: missionCompletionStatuses.key,
-            completedById: missionCompletions.completedById,
-            completedByName: user.name,
-          })
-          .from(missionCompletions)
-          .innerJoin(missions, eq(missionCompletions.missionId, missions.id))
-          .innerJoin(
-            missionCompletionStatuses,
-            eq(missionCompletions.statusId, missionCompletionStatuses.id),
-          )
-          .leftJoin(user, eq(missionCompletions.completedById, user.id))
-          .where(eq(missions.reportId, reportId)),
+      db
+        .select({
+          id: missionCompletions.id,
+          photoUrl: missionCompletions.photoUrl,
+          note: missionCompletions.note,
+          submittedAt: missionCompletions.submittedAt,
+          verifiedAt: missionCompletions.verifiedAt,
+          statusKey: missionCompletionStatuses.key,
+          completedById: missionCompletions.completedById,
+          completedByName: user.name,
+        })
+        .from(missionCompletions)
+        .innerJoin(missions, eq(missionCompletions.missionId, missions.id))
+        .innerJoin(
+          missionCompletionStatuses,
+          eq(missionCompletions.statusId, missionCompletionStatuses.id),
+        )
+        .leftJoin(user, eq(missionCompletions.completedById, user.id))
+        .where(eq(missions.reportId, reportId)),
 
-        db
-          .select({ count: sql<string>`count(*)` })
-          .from(reportComments)
-          .where(and(eq(reportComments.reportId, reportId), isNull(reportComments.deletedAt))),
+      db
+        .select({ count: sql<string>`count(*)` })
+        .from(reportComments)
+        .where(
+          and(
+            eq(reportComments.reportId, reportId),
+            isNull(reportComments.deletedAt),
+          ),
+        ),
 
-        db
-          .select({ count: sql<string>`count(*)` })
-          .from(reportSaves)
-          .where(eq(reportSaves.reportId, reportId)),
+      db
+        .select({ count: sql<string>`count(*)` })
+        .from(reportSaves)
+        .where(eq(reportSaves.reportId, reportId)),
 
-        row.deletedBy
-          ? db
-              .select({ id: user.id, name: user.name, email: user.email })
-              .from(user)
-              .where(eq(user.id, row.deletedBy))
-          : Promise.resolve([]),
-      ]);
+      row.deletedBy
+        ? db
+            .select({ id: user.id, name: user.name, email: user.email })
+            .from(user)
+            .where(eq(user.id, row.deletedBy))
+        : Promise.resolve([]),
+    ]);
 
     return {
       id: row.id,
@@ -411,7 +456,10 @@ export class AdminReportsService {
             submittedAt: completion[0].submittedAt.toISOString(),
             verifiedAt: completion[0].verifiedAt?.toISOString() ?? null,
             completedBy: completion[0].completedById
-              ? { id: completion[0].completedById, name: completion[0].completedByName }
+              ? {
+                  id: completion[0].completedById,
+                  name: completion[0].completedByName,
+                }
               : null,
           }
         : null,
@@ -420,7 +468,8 @@ export class AdminReportsService {
         comments: Number(commentCountRow[0]?.count ?? 0),
         saves: Number(saveCountRow[0]?.count ?? 0),
         volunteers: volunteers.length,
-        activeVolunteers: volunteers.filter((v) => v.statusKey === 'active').length,
+        activeVolunteers: volunteers.filter((v) => v.statusKey === 'active')
+          .length,
       },
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -428,7 +477,11 @@ export class AdminReportsService {
       closedAt: row.closedAt?.toISOString() ?? null,
       deletedAt: row.deletedAt?.toISOString() ?? null,
       deletedBy: deletedByRow[0]
-        ? { id: deletedByRow[0].id, name: deletedByRow[0].name, email: deletedByRow[0].email }
+        ? {
+            id: deletedByRow[0].id,
+            name: deletedByRow[0].name,
+            email: deletedByRow[0].email,
+          }
         : null,
     };
   }

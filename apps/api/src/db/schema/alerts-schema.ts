@@ -5,7 +5,14 @@
 // table would add ceremony without benefit. Known values live in
 // alerts.service.ts, not enforced at the DB layer.
 import { relations } from 'drizzle-orm';
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { user } from './auth-schema';
 import { reports } from './reports-schema';
 
@@ -30,11 +37,15 @@ export const alerts = pgTable(
     params: jsonb('params').notNull().default({}),
     // Deep-links the alert back to a request; null for alerts with no
     // single report to open (none exist yet, but the shape allows it).
-    reportId: uuid('report_id').references(() => reports.id, { onDelete: 'cascade' }),
+    reportId: uuid('report_id').references(() => reports.id, {
+      onDelete: 'cascade',
+    }),
     readAt: timestamp('read_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [index('alerts_user_id_idx').on(table.userId)]
+  (table) => [index('alerts_user_id_idx').on(table.userId)],
 );
 
 export const alertRelations = relations(alerts, ({ one }) => ({

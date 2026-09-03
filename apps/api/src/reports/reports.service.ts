@@ -1,11 +1,25 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
-import { reportCategories, reportPhotos, reportStatuses, reports } from '../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportPhotos,
+  reportStatuses,
+  reports,
+} from '../db/schema/reports-schema';
 import { reportSaves } from '../db/schema/saves-schema';
-import { missionVolunteerStatuses, missionVolunteers, missions } from '../db/schema/missions-schema';
+import {
+  missionVolunteerStatuses,
+  missionVolunteers,
+  missions,
+} from '../db/schema/missions-schema';
 import type { CreateReportDto } from './dto/create-report.dto';
 import type { UpdateReportDto } from './dto/update-report.dto';
 import type { ListReportsDto } from './dto/list-reports.dto';
@@ -13,7 +27,10 @@ import type { ReportsSummaryDto } from './dto/reports-summary.dto';
 import type { CommunityStatsDto } from './dto/community-stats.dto';
 import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
-import { requireVisibleReport, throwForMissingReport } from './report-visibility';
+import {
+  requireVisibleReport,
+  throwForMissingReport,
+} from './report-visibility';
 import { getPlatformConfig } from '../config/platform-settings';
 import { assertStoredUploads } from '../uploads/stored-upload';
 
@@ -40,7 +57,7 @@ type StatusRow = typeof reportStatuses.$inferSelect;
 export class ReportsService {
   constructor(
     private readonly missionsService: MissionsService,
-    private readonly alertsService: AlertsService
+    private readonly alertsService: AlertsService,
   ) {}
 
   // US-1 AC2 — the client needs each category's default expiry to pre-fill
@@ -61,8 +78,14 @@ export class ReportsService {
   }
 
   private async getStatusIdByKey(key: string): Promise<string> {
-    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.key, key));
-    if (!status) throw new Error(`report_statuses row missing for key "${key}" — did db:seed run?`);
+    const [status] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.key, key));
+    if (!status)
+      throw new Error(
+        `report_statuses row missing for key "${key}" — did db:seed run?`,
+      );
     return status.id;
   }
 
@@ -82,7 +105,10 @@ export class ReportsService {
   }): Promise<void> {
     const config = await getPlatformConfig();
 
-    if (input.photoCount !== undefined && input.photoCount > config.maxPhotosPerReport) {
+    if (
+      input.photoCount !== undefined &&
+      input.photoCount > config.maxPhotosPerReport
+    ) {
       throw new BadRequestException({
         code: 'REPORT_PHOTO_LIMIT',
         message: `Up to ${config.maxPhotosPerReport} ${config.maxPhotosPerReport === 1 ? 'photo' : 'photos'} allowed`,
@@ -108,7 +134,8 @@ export class ReportsService {
     if (input.anonymous === true && !config.allowAnonymousReports) {
       throw new ForbiddenException({
         code: 'ANONYMOUS_REPORTS_DISABLED',
-        message: 'Anonymous requests are currently turned off for this platform.',
+        message:
+          'Anonymous requests are currently turned off for this platform.',
       });
     }
   }
@@ -143,7 +170,8 @@ export class ReportsService {
 
     if (!category) throw new BadRequestException('Unknown category');
     // BR-3: Disaster Relief exists in the table but citizens can't post to it.
-    if (!category.citizenSelectable) throw new BadRequestException('This category is not citizen-selectable');
+    if (!category.citizenSelectable)
+      throw new BadRequestException('This category is not citizen-selectable');
 
     // Platform -> App Settings, enforced at RUNTIME rather than in the DTO.
     // CreateReportSchema's .max(4)/.max(20) are built once at import time, so
@@ -160,7 +188,10 @@ export class ReportsService {
     this.assertPhotosAreOurUploads(input.photoUrls);
 
     // BR-2: the reporter may shorten the category's default expiry, never extend it.
-    const expiryMinutes = Math.min(input.expiryMinutes ?? category.defaultExpiryMinutes, category.defaultExpiryMinutes);
+    const expiryMinutes = Math.min(
+      input.expiryMinutes ?? category.defaultExpiryMinutes,
+      category.defaultExpiryMinutes,
+    );
     const expiryAt = new Date(Date.now() + expiryMinutes * 60_000);
     const openStatusId = await this.getStatusIdByKey('open');
 
@@ -185,7 +216,12 @@ export class ReportsService {
       .returning();
 
     await db.insert(reportPhotos).values(
-      input.photoUrls.map((url) => ({ id: uuidv7(), reportId, url, capturedLive: true }))
+      input.photoUrls.map((url) => ({
+        id: uuidv7(),
+        reportId,
+        url,
+        capturedLive: true,
+      })),
     );
 
     return this.findOne(created.id, reporterId);
@@ -193,7 +229,12 @@ export class ReportsService {
 
   async findOne(reportId: string, requestingUserId: string) {
     const [row] = await db
-      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
+      .select({
+        report: reports,
+        category: reportCategories,
+        status: reportStatuses,
+        reporter: user,
+      })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
@@ -207,14 +248,26 @@ export class ReportsService {
     // ReportRemovedException for the disclosure trade-off.
     if (!row) await throwForMissingReport(reportId);
 
-    const photos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
-    const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(reportId, requestingUserId);
-    const hasAnyActiveVolunteer = await this.missionsService.hasAnyActiveVolunteer(reportId);
+    const photos = await db
+      .select()
+      .from(reportPhotos)
+      .where(eq(reportPhotos.reportId, reportId));
+    const hasActiveVolunteerAccess = await this.missionsService.hasActiveAccess(
+      reportId,
+      requestingUserId,
+    );
+    const hasAnyActiveVolunteer =
+      await this.missionsService.hasAnyActiveVolunteer(reportId);
 
     const mySaveRows = await db
       .select()
       .from(reportSaves)
-      .where(and(eq(reportSaves.reportId, reportId), eq(reportSaves.userId, requestingUserId)));
+      .where(
+        and(
+          eq(reportSaves.reportId, reportId),
+          eq(reportSaves.userId, requestingUserId),
+        ),
+      );
 
     return this.toResponse(
       row.report,
@@ -225,7 +278,7 @@ export class ReportsService {
       requestingUserId,
       hasActiveVolunteerAccess,
       mySaveRows.length > 0,
-      hasAnyActiveVolunteer
+      hasAnyActiveVolunteer,
     );
   }
 
@@ -234,7 +287,12 @@ export class ReportsService {
   // report_saves instead of a category/radius filter.
   async listSaved(requestingUserId: string) {
     const rows = await db
-      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
+      .select({
+        report: reports,
+        category: reportCategories,
+        status: reportStatuses,
+        reporter: user,
+      })
       .from(reportSaves)
       .innerJoin(reports, eq(reportSaves.reportId, reports.id))
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
@@ -245,13 +303,21 @@ export class ReportsService {
       // full toResponse() per row, coordinates included. Same rule as
       // listMine() directly below: a hidden report leaves the reporter's own
       // list, so it must leave the saver's too.
-      .where(and(eq(reportSaves.userId, requestingUserId), isNull(reports.deletedAt)))
+      .where(
+        and(
+          eq(reportSaves.userId, requestingUserId),
+          isNull(reports.deletedAt),
+        ),
+      )
       .orderBy(desc(reportSaves.createdAt));
 
     if (rows.length === 0) return [];
 
     const reportIds = rows.map((r) => r.report.id);
-    const photoRows = await db.select().from(reportPhotos).where(inArray(reportPhotos.reportId, reportIds));
+    const photoRows = await db
+      .select()
+      .from(reportPhotos)
+      .where(inArray(reportPhotos.reportId, reportIds));
     const photosByReportId = new Map<string, string[]>();
     for (const photo of photoRows) {
       const existing = photosByReportId.get(photo.reportId) ?? [];
@@ -268,10 +334,13 @@ export class ReportsService {
           photosByReportId.get(row.report.id) ?? [],
           row.reporter,
           requestingUserId,
-          await this.missionsService.hasActiveAccess(row.report.id, requestingUserId),
-          true // every row here is, by definition, one this user saved
+          await this.missionsService.hasActiveAccess(
+            row.report.id,
+            requestingUserId,
+          ),
+          true, // every row here is, by definition, one this user saved
         ),
-      }))
+      })),
     );
   }
 
@@ -282,18 +351,31 @@ export class ReportsService {
   // with no separate "Deleted" tab.
   async listMine(requestingUserId: string) {
     const rows = await db
-      .select({ report: reports, category: reportCategories, status: reportStatuses, reporter: user })
+      .select({
+        report: reports,
+        category: reportCategories,
+        status: reportStatuses,
+        reporter: user,
+      })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
       .leftJoin(user, eq(reports.reporterId, user.id))
-      .where(and(eq(reports.reporterId, requestingUserId), isNull(reports.deletedAt)))
+      .where(
+        and(
+          eq(reports.reporterId, requestingUserId),
+          isNull(reports.deletedAt),
+        ),
+      )
       .orderBy(desc(reports.createdAt));
 
     if (rows.length === 0) return [];
 
     const reportIds = rows.map((r) => r.report.id);
-    const photoRows = await db.select().from(reportPhotos).where(inArray(reportPhotos.reportId, reportIds));
+    const photoRows = await db
+      .select()
+      .from(reportPhotos)
+      .where(inArray(reportPhotos.reportId, reportIds));
     const photosByReportId = new Map<string, string[]>();
     for (const photo of photoRows) {
       const existing = photosByReportId.get(photo.reportId) ?? [];
@@ -303,7 +385,8 @@ export class ReportsService {
 
     return Promise.all(
       rows.map(async (row) => {
-        const activeVolunteerIds = await this.missionsService.listActiveVolunteerIds(row.report.id);
+        const activeVolunteerIds =
+          await this.missionsService.listActiveVolunteerIds(row.report.id);
         return {
           ...this.toResponse(
             row.report,
@@ -314,14 +397,14 @@ export class ReportsService {
             requestingUserId,
             true, // it's always the reporter's own report here
             false,
-            activeVolunteerIds.length > 0
+            activeVolunteerIds.length > 0,
           ),
           // Matches the mobile Report type's assignedVolunteersCount — how
           // many volunteers are currently joined/active on this report's
           // mission, for the "2 / 4 volunteers joined" line in My Reports.
           assignedVolunteersCount: activeVolunteerIds.length,
         };
-      })
+      }),
     );
   }
 
@@ -340,7 +423,13 @@ export class ReportsService {
       })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
-      .where(and(eq(reports.statusId, openStatusId), isNull(reports.deletedAt), sql`${dist} <= ${input.radiusKm}`))
+      .where(
+        and(
+          eq(reports.statusId, openStatusId),
+          isNull(reports.deletedAt),
+          sql`${dist} <= ${input.radiusKm}`,
+        ),
+      )
       .groupBy(reportCategories.key);
 
     const byKey = new Map(rows.map((r) => [r.categoryKey, r]));
@@ -369,20 +458,25 @@ export class ReportsService {
       .from(missionVolunteers)
       .innerJoin(missions, eq(missionVolunteers.missionId, missions.id))
       .innerJoin(reports, eq(missions.reportId, reports.id))
-      .innerJoin(missionVolunteerStatuses, eq(missionVolunteers.statusId, missionVolunteerStatuses.id))
+      .innerJoin(
+        missionVolunteerStatuses,
+        eq(missionVolunteers.statusId, missionVolunteerStatuses.id),
+      )
       .where(
         and(
           eq(missionVolunteerStatuses.key, 'active'),
           eq(reports.statusId, openStatusId),
           isNull(reports.deletedAt),
-          sql`${dist} <= ${input.radiusKm}`
-        )
+          sql`${dist} <= ${input.radiusKm}`,
+        ),
       );
 
     const [helpedRow] = await db
       .select({ count: sql<string>`count(*)` })
       .from(reports)
-      .where(and(eq(reports.statusId, completedStatusId), isNull(reports.deletedAt)));
+      .where(
+        and(eq(reports.statusId, completedStatusId), isNull(reports.deletedAt)),
+      );
 
     return {
       activeVolunteers: Number(activeVolunteersRow?.count ?? 0),
@@ -419,15 +513,18 @@ export class ReportsService {
           eq(reports.categoryId, category.id),
           eq(reports.statusId, openStatusId),
           isNull(reports.deletedAt),
-          sql`${dist} <= ${input.radiusKm}`
-        )
+          sql`${dist} <= ${input.radiusKm}`,
+        ),
       )
       .orderBy(dist);
 
     if (rows.length === 0) return [];
 
     const reportIds = rows.map((r) => r.report.id);
-    const photoRows = await db.select().from(reportPhotos).where(inArray(reportPhotos.reportId, reportIds));
+    const photoRows = await db
+      .select()
+      .from(reportPhotos)
+      .where(inArray(reportPhotos.reportId, reportIds));
     const photosByReportId = new Map<string, string[]>();
     for (const photo of photoRows) {
       const existing = photosByReportId.get(photo.reportId) ?? [];
@@ -444,12 +541,15 @@ export class ReportsService {
           photosByReportId.get(row.report.id) ?? [],
           row.reporter,
           requestingUserId,
-          await this.missionsService.hasActiveAccess(row.report.id, requestingUserId),
+          await this.missionsService.hasActiveAccess(
+            row.report.id,
+            requestingUserId,
+          ),
           false,
-          await this.missionsService.hasAnyActiveVolunteer(row.report.id)
+          await this.missionsService.hasAnyActiveVolunteer(row.report.id),
         ),
         distanceKm: Math.round(Number(row.distanceKm) * 10) / 10,
-      }))
+      })),
     );
   }
 
@@ -458,11 +558,18 @@ export class ReportsService {
   // location must never have it silently move or change shape under them.
   // requireOwnedOpenReport() alone (open + owner) isn't enough here, unlike
   // close()/addPhoto(), which deliberately stay open to volunteers-joined.
-  async update(reportId: string, requestingUserId: string, input: UpdateReportDto) {
-    const existing = await this.requireOwnedOpenReport(reportId, requestingUserId);
+  async update(
+    reportId: string,
+    requestingUserId: string,
+    input: UpdateReportDto,
+  ) {
+    const existing = await this.requireOwnedOpenReport(
+      reportId,
+      requestingUserId,
+    );
     if (await this.missionsService.hasAnyActiveVolunteer(reportId)) {
       throw new ForbiddenException(
-        "This request can't be edited once a volunteer has joined — cancel it instead if you need to change something"
+        "This request can't be edited once a volunteer has joined — cancel it instead if you need to change something",
       );
     }
 
@@ -479,11 +586,17 @@ export class ReportsService {
       .update(reports)
       .set({
         ...(input.title !== undefined && { title: input.title }),
-        ...(input.description !== undefined && { description: input.description }),
+        ...(input.description !== undefined && {
+          description: input.description,
+        }),
         ...(input.landmark !== undefined && { landmark: input.landmark }),
-        ...(input.neededVolunteers !== undefined && { neededVolunteers: input.neededVolunteers }),
+        ...(input.neededVolunteers !== undefined && {
+          neededVolunteers: input.neededVolunteers,
+        }),
         ...(input.anonymous !== undefined && { anonymous: input.anonymous }),
-        ...(input.phoneVisible !== undefined && { phoneVisible: input.phoneVisible }),
+        ...(input.phoneVisible !== undefined && {
+          phoneVisible: input.phoneVisible,
+        }),
       })
       .where(eq(reports.id, existing.id));
 
@@ -491,9 +604,14 @@ export class ReportsService {
       // Full replace — the mobile edit form always sends the complete set
       // it wants, not a delta.
       await db.delete(reportPhotos).where(eq(reportPhotos.reportId, reportId));
-      await db
-        .insert(reportPhotos)
-        .values(input.photoUrls.map((url) => ({ id: uuidv7(), reportId, url, capturedLive: true })));
+      await db.insert(reportPhotos).values(
+        input.photoUrls.map((url) => ({
+          id: uuidv7(),
+          reportId,
+          url,
+          capturedLive: true,
+        })),
+      );
     }
 
     return this.findOne(reportId, requestingUserId);
@@ -502,14 +620,19 @@ export class ReportsService {
   async addPhoto(reportId: string, requestingUserId: string, url: string) {
     await this.requireOwnedOpenReport(reportId, requestingUserId);
 
-    const existingPhotos = await db.select().from(reportPhotos).where(eq(reportPhotos.reportId, reportId));
+    const existingPhotos = await db
+      .select()
+      .from(reportPhotos)
+      .where(eq(reportPhotos.reportId, reportId));
     // Was a hardcoded 4. Now the configured maximum — the value an operator
     // lowers on Platform -> App Settings has to bind here too, or "max photos
     // per report" would be a setting that only applies to the first save.
     await this.assertReportLimits({ photoCount: existingPhotos.length + 1 });
     this.assertPhotosAreOurUploads([url]);
 
-    await db.insert(reportPhotos).values({ id: uuidv7(), reportId, url, capturedLive: true });
+    await db
+      .insert(reportPhotos)
+      .values({ id: uuidv7(), reportId, url, capturedLive: true });
 
     return this.findOne(reportId, requestingUserId);
   }
@@ -521,8 +644,12 @@ export class ReportsService {
   // update(), this stays available with volunteers already joined — it
   // just notifies them instead of blocking the reporter.
   async close(reportId: string, requestingUserId: string) {
-    const existing = await this.requireOwnedOpenReport(reportId, requestingUserId);
-    const activeVolunteerIds = await this.missionsService.listActiveVolunteerIds(reportId);
+    const existing = await this.requireOwnedOpenReport(
+      reportId,
+      requestingUserId,
+    );
+    const activeVolunteerIds =
+      await this.missionsService.listActiveVolunteerIds(reportId);
     const closedStatusId = await this.getStatusIdByKey('closed');
 
     await db
@@ -536,9 +663,9 @@ export class ReportsService {
           volunteerId,
           'report_cancelled',
           { volunteerName: null, reportTitle: existing.title },
-          reportId
-        )
-      )
+          reportId,
+        ),
+      ),
     );
 
     return this.findOne(reportId, requestingUserId);
@@ -552,11 +679,17 @@ export class ReportsService {
   // requireOwnedOpenReport() + hasAnyActiveVolunteer() rather than a new
   // guard. Not idempotent on purpose (AC5): a second delete 404s, since
   // requireOwnedOpenReport() already filters out soft-deleted rows.
-  async delete(reportId: string, requestingUserId: string): Promise<{ id: string; deleted: true }> {
-    const existing = await this.requireOwnedOpenReport(reportId, requestingUserId);
+  async delete(
+    reportId: string,
+    requestingUserId: string,
+  ): Promise<{ id: string; deleted: true }> {
+    const existing = await this.requireOwnedOpenReport(
+      reportId,
+      requestingUserId,
+    );
     if (await this.missionsService.hasAnyActiveVolunteer(reportId)) {
       throw new ForbiddenException(
-        'Delete is unavailable because volunteers have already joined this request.'
+        'Delete is unavailable because volunteers have already joined this request.',
       );
     }
 
@@ -576,7 +709,9 @@ export class ReportsService {
     await db
       .insert(reportSaves)
       .values({ id: uuidv7(), reportId, userId: requestingUserId })
-      .onConflictDoNothing({ target: [reportSaves.reportId, reportSaves.userId] });
+      .onConflictDoNothing({
+        target: [reportSaves.reportId, reportSaves.userId],
+      });
 
     return this.findOne(reportId, requestingUserId);
   }
@@ -584,23 +719,36 @@ export class ReportsService {
   async unsave(reportId: string, requestingUserId: string) {
     await db
       .delete(reportSaves)
-      .where(and(eq(reportSaves.reportId, reportId), eq(reportSaves.userId, requestingUserId)));
+      .where(
+        and(
+          eq(reportSaves.reportId, reportId),
+          eq(reportSaves.userId, requestingUserId),
+        ),
+      );
 
     return this.findOne(reportId, requestingUserId);
   }
 
   // Shared guard for the three write paths that only the reporter may use,
   // and only while the report is still open (BR-6).
-  private async requireOwnedOpenReport(reportId: string, requestingUserId: string): Promise<ReportRow> {
+  private async requireOwnedOpenReport(
+    reportId: string,
+    requestingUserId: string,
+  ): Promise<ReportRow> {
     const [existing] = await db
       .select()
       .from(reports)
       .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
     if (!existing) throw new NotFoundException('Report not found');
-    if (existing.reporterId !== requestingUserId) throw new ForbiddenException('Not your report');
+    if (existing.reporterId !== requestingUserId)
+      throw new ForbiddenException('Not your report');
 
-    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, existing.statusId));
-    if (status?.key !== 'open') throw new BadRequestException('Report is no longer open');
+    const [status] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.id, existing.statusId));
+    if (status?.key !== 'open')
+      throw new BadRequestException('Report is no longer open');
 
     return existing;
   }
@@ -614,8 +762,12 @@ export class ReportsService {
     // moderated report is exactly the shape of bug this change exists to close.
     const existing = await requireVisibleReport(reportId);
 
-    const [status] = await db.select().from(reportStatuses).where(eq(reportStatuses.id, existing.statusId));
-    if (status?.key !== 'completed') throw new ForbiddenException('This report is not completed yet');
+    const [status] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.id, existing.statusId));
+    if (status?.key !== 'completed')
+      throw new ForbiddenException('This report is not completed yet');
 
     return existing;
   }
@@ -634,13 +786,17 @@ export class ReportsService {
     requestingUserId: string,
     hasActiveVolunteerAccess: boolean,
     savedByMe = false,
-    hasAnyActiveVolunteer = false
+    hasAnyActiveVolunteer = false,
   ) {
     const isOwner = report.reporterId === requestingUserId;
     const reporterDeleted = report.reporterId === null;
     return {
       id: report.id,
-      category: { key: category.key, label: category.label, emoji: category.emoji },
+      category: {
+        key: category.key,
+        label: category.label,
+        emoji: category.emoji,
+      },
       status: status.key,
       title: report.title,
       description: report.description,
@@ -669,7 +825,8 @@ export class ReportsService {
       // the reporter opted in — never from phoneVisible alone. A deleted
       // reporter has no phone number left to show, regardless of who's asking.
       reporterPhone:
-        reporterDeleted || !(isOwner || (hasActiveVolunteerAccess && report.phoneVisible))
+        reporterDeleted ||
+        !(isOwner || (hasActiveVolunteerAccess && report.phoneVisible))
           ? null
           : reporter!.phoneNumber,
       savedByMe,

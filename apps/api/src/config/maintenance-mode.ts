@@ -1,5 +1,6 @@
-// The decision half of the two kill switches. Pure, synchronous, and
-// dependency-free on purpose — see the WHY IT RETURNS A DECISION note in
+// The decision half of the two kill switches. Pure, synchronous, and free of
+// NestJS on purpose — its only import is @uthavu/libs-common, which is nothing
+// but constants — see the WHY IT RETURNS A DECISION note in
 // account-status/login-block.ts, which this file deliberately mirrors.
 //
 // The riskiest thing about a maintenance switch is not that it fails to block
@@ -10,8 +11,21 @@
 // without a NestJS execution context — maintenance-mode.spec.ts asserts the
 // exemption directly.
 
-/** The two kill switches, in precedence order. */
-export type WriteBlockCode = 'MAINTENANCE_MODE' | 'READ_ONLY_MODE';
+import {
+  MAINTENANCE_MODE,
+  READ_ONLY_MODE,
+  type PlatformBlockCode,
+} from '@uthavu/libs-common';
+
+/**
+ * The two kill switches, in precedence order.
+ *
+ * Aliased rather than redeclared: mobile branches on these exact strings, so the
+ * spelling is contract and lives in @uthavu/libs-common. The local name stays
+ * because "write block" is what this file is about — the client calls the same
+ * thing a "platform block".
+ */
+export type WriteBlockCode = PlatformBlockCode;
 
 export interface WriteBlock {
   code: WriteBlockCode;
@@ -110,11 +124,11 @@ export function decideWriteBlock(input: WriteBlockInput): WriteBlock | null {
   if (!needsWriteBlockCheck(input)) return null;
 
   if (input.settings.maintenanceMode) {
-    return { code: 'MAINTENANCE_MODE', message: MAINTENANCE_MODE_MESSAGE };
+    return { code: MAINTENANCE_MODE, message: MAINTENANCE_MODE_MESSAGE };
   }
 
   if (input.settings.readOnlyMode) {
-    return { code: 'READ_ONLY_MODE', message: READ_ONLY_MODE_MESSAGE };
+    return { code: READ_ONLY_MODE, message: READ_ONLY_MODE_MESSAGE };
   }
 
   return null;

@@ -21,11 +21,10 @@ export const ListFlaggedCommentsSchema = PaginationSchema.extend({
   reportId: z.string().uuid().optional(),
   from: DateBound.optional(),
   to: DateBound.optional(),
-})
-  .refine((q) => !q.from || !q.to || q.from <= q.to, {
-    message: '`from` must not be after `to`',
-    path: ['from'],
-  });
+}).refine((q) => !q.from || !q.to || q.from <= q.to, {
+  message: '`from` must not be after `to`',
+  path: ['from'],
+});
 
 export class ListFlaggedCommentsDto extends createZodDto(
   ListFlaggedCommentsSchema,

@@ -4,7 +4,10 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { uuidv7 } from 'uuidv7';
 import type { db as Db } from '../../db';
-import { reportCategories, reportStatuses } from '../../db/schema/reports-schema';
+import {
+  reportCategories,
+  reportStatuses,
+} from '../../db/schema/reports-schema';
 import {
   missionCompletionStatuses,
   missionVolunteerStatuses,
@@ -18,7 +21,11 @@ import {
   ticketStatuses,
 } from '../../db/schema/tickets-schema';
 import { userStatuses } from '../../db/schema/user-status-schema';
-import { adminPermissions, adminRolePermissions, adminRoles } from '../../db/schema/admin-schema';
+import {
+  adminPermissions,
+  adminRolePermissions,
+  adminRoles,
+} from '../../db/schema/admin-schema';
 import {
   adminAuditActions,
   adminAuditTargetTypes,
@@ -27,7 +34,11 @@ import {
   ADMIN_AUDIT_ACTIONS,
   ADMIN_AUDIT_TARGET_TYPES,
 } from '../admin-audit-catalogue';
-import { ADMIN_PERMISSIONS, ADMIN_ROLES, ADMIN_ROLE_PERMISSIONS } from '../admin-rbac';
+import {
+  ADMIN_PERMISSIONS,
+  ADMIN_ROLES,
+  ADMIN_ROLE_PERMISSIONS,
+} from '../admin-rbac';
 
 /**
  * Shared setup for the admin specs.
@@ -112,9 +123,27 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
     Object.fromEntries(rows.map((r) => [r.key, uuidv7()]));
 
   const categories = [
-    { key: 'medicalHelp', label: 'Medical Help', emoji: '❤️', defaultExpiryMinutes: 360, citizenSelectable: true },
-    { key: 'animalRescue', label: 'Animal Rescue', emoji: '🐶', defaultExpiryMinutes: 720, citizenSelectable: true },
-    { key: 'disasterRelief', label: 'Disaster Relief', emoji: '🚨', defaultExpiryMinutes: 1440, citizenSelectable: false },
+    {
+      key: 'medicalHelp',
+      label: 'Medical Help',
+      emoji: '❤️',
+      defaultExpiryMinutes: 360,
+      citizenSelectable: true,
+    },
+    {
+      key: 'animalRescue',
+      label: 'Animal Rescue',
+      emoji: '🐶',
+      defaultExpiryMinutes: 720,
+      citizenSelectable: true,
+    },
+    {
+      key: 'disasterRelief',
+      label: 'Disaster Relief',
+      emoji: '🚨',
+      defaultExpiryMinutes: 1440,
+      citizenSelectable: false,
+    },
   ] as const;
   const reportStatusRows = [
     { key: 'open', label: 'Open' },
@@ -192,31 +221,49 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
     .values(categories.map((c) => ({ id: categoryIds[c.key], ...c })));
   await db
     .insert(reportStatuses)
-    .values(reportStatusRows.map((s) => ({ id: reportStatusIds[s.key], ...s })));
+    .values(
+      reportStatusRows.map((s) => ({ id: reportStatusIds[s.key], ...s })),
+    );
   await db
     .insert(missionVolunteerStatuses)
-    .values(volunteerStatusRows.map((s) => ({ id: volunteerStatusIds[s.key], ...s })));
+    .values(
+      volunteerStatusRows.map((s) => ({ id: volunteerStatusIds[s.key], ...s })),
+    );
   await db
     .insert(progressStatuses)
-    .values(progressStatusRows.map((s) => ({ id: progressStatusIds[s.key], ...s })));
-  await db
-    .insert(missionCompletionStatuses)
-    .values(completionStatusRows.map((s) => ({ id: completionStatusIds[s.key], ...s })));
+    .values(
+      progressStatusRows.map((s) => ({ id: progressStatusIds[s.key], ...s })),
+    );
+  await db.insert(missionCompletionStatuses).values(
+    completionStatusRows.map((s) => ({
+      id: completionStatusIds[s.key],
+      ...s,
+    })),
+  );
   await db
     .insert(flagStatuses)
     .values(flagStatusRows.map((s) => ({ id: flagStatusIds[s.key], ...s })));
   await db
     .insert(ticketCategories)
-    .values(ticketCategoryRows.map((c) => ({ id: ticketCategoryIds[c.key], ...c })));
+    .values(
+      ticketCategoryRows.map((c) => ({ id: ticketCategoryIds[c.key], ...c })),
+    );
   await db
     .insert(ticketStatuses)
-    .values(ticketStatusRows.map((s) => ({ id: ticketStatusIds[s.key], ...s })));
+    .values(
+      ticketStatusRows.map((s) => ({ id: ticketStatusIds[s.key], ...s })),
+    );
   await db
     .insert(ticketPriorities)
-    .values(ticketPriorityRows.map((p) => ({ id: ticketPriorityIds[p.key], ...p })));
-  await db
-    .insert(ticketMessageSenderTypes)
-    .values(ticketSenderTypeRows.map((t) => ({ id: ticketSenderTypeIds[t.key], ...t })));
+    .values(
+      ticketPriorityRows.map((p) => ({ id: ticketPriorityIds[p.key], ...p })),
+    );
+  await db.insert(ticketMessageSenderTypes).values(
+    ticketSenderTypeRows.map((t) => ({
+      id: ticketSenderTypeIds[t.key],
+      ...t,
+    })),
+  );
   await db
     .insert(userStatuses)
     .values(userStatusRows.map((s) => ({ id: userStatusIds[s.key], ...s })));
@@ -235,16 +282,21 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
   const permissionIds = Object.fromEntries(
     ADMIN_PERMISSIONS.map((p) => [p.key, uuidv7()]),
   );
-  await db
-    .insert(adminPermissions)
-    .values(ADMIN_PERMISSIONS.map((p) => ({ id: permissionIds[p.key], key: p.key, label: p.label })));
+  await db.insert(adminPermissions).values(
+    ADMIN_PERMISSIONS.map((p) => ({
+      id: permissionIds[p.key],
+      key: p.key,
+      label: p.label,
+    })),
+  );
   await db.insert(adminRolePermissions).values(
-    Object.entries(ADMIN_ROLE_PERMISSIONS).flatMap(([roleKey, permissionKeys]) =>
-      permissionKeys.map((permissionKey) => ({
-        id: uuidv7(),
-        roleId: adminRoleIds[roleKey],
-        permissionId: permissionIds[permissionKey],
-      })),
+    Object.entries(ADMIN_ROLE_PERMISSIONS).flatMap(
+      ([roleKey, permissionKeys]) =>
+        permissionKeys.map((permissionKey) => ({
+          id: uuidv7(),
+          roleId: adminRoleIds[roleKey],
+          permissionId: permissionIds[permissionKey],
+        })),
     ),
   );
 
@@ -265,14 +317,16 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
 }
 
 /** An AdminIdentity for a spec, with whatever permissions the case needs. */
-export function fakeAdmin(overrides: Partial<{
-  userId: string;
-  name: string;
-  email: string;
-  roleKey: string;
-  roleLabel: string;
-  permissions: string[];
-}> = {}) {
+export function fakeAdmin(
+  overrides: Partial<{
+    userId: string;
+    name: string;
+    email: string;
+    roleKey: string;
+    roleLabel: string;
+    permissions: string[];
+  }> = {},
+) {
   return {
     userId: overrides.userId ?? uuidv7(),
     name: overrides.name ?? 'Spec Admin',

@@ -5,7 +5,7 @@
 // regenerate this file, redo that one edit (search "doublePrecision" below) —
 // and redo `inviteCode`'s `.unique()` too, since a plain regenerate would
 // emit it as a bare non-unique text column.
-import { relations } from "drizzle-orm";
+import { relations } from 'drizzle-orm';
 import {
   pgTable,
   text,
@@ -15,110 +15,110 @@ import {
   doublePrecision,
   index,
   uniqueIndex,
-} from "drizzle-orm/pg-core";
+} from 'drizzle-orm/pg-core';
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  image: text('image'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at')
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
-  phoneNumber: text("phone_number").unique(),
-  phoneNumberVerified: boolean("phone_number_verified"),
-  city: text("city"),
-  district: text("district"),
-  lastLat: doublePrecision("last_lat"),
-  lastLng: doublePrecision("last_lng"),
-  preferredRadius: integer("preferred_radius").default(5),
-  profileCompletedAt: timestamp("profile_completed_at"),
-  contactEmail: text("contact_email"),
-  language: text("language"),
-  profession: text("profession"),
-  organization: text("organization"),
-  showProfession: boolean("show_profession").default(true),
-  avatarUrl: text("avatar_url"),
+  phoneNumber: text('phone_number').unique(),
+  phoneNumberVerified: boolean('phone_number_verified'),
+  city: text('city'),
+  district: text('district'),
+  lastLat: doublePrecision('last_lat'),
+  lastLng: doublePrecision('last_lng'),
+  preferredRadius: integer('preferred_radius').default(5),
+  profileCompletedAt: timestamp('profile_completed_at'),
+  contactEmail: text('contact_email'),
+  language: text('language'),
+  profession: text('profession'),
+  organization: text('organization'),
+  showProfession: boolean('show_profession').default(true),
+  avatarUrl: text('avatar_url'),
   // 'en' | 'ta' — see the locale note in ../../auth/auth.ts. Not a lookup-table
   // FK: the valid values are whichever locales the message catalog ships, which
   // is a code fact, not a data one.
-  locale: text("locale"),
+  locale: text('locale'),
   // Hand-added to match auth.ts's additionalFields.inviteCode — see that
   // file's comment. Unique so two users can never collide on a shared code.
-  inviteCode: text("invite_code").unique(),
+  inviteCode: text('invite_code').unique(),
   // Hand-added to match auth.ts's additionalFields.defaultAnonymous /
   // defaultPhoneVisible.
-  defaultAnonymous: boolean("default_anonymous").default(false),
-  defaultPhoneVisible: boolean("default_phone_visible").default(false),
+  defaultAnonymous: boolean('default_anonymous').default(false),
+  defaultPhoneVisible: boolean('default_phone_visible').default(false),
 });
 
 export const session = pgTable(
-  "session",
+  'session',
   {
-    id: text("id").primaryKey(),
-    expiresAt: timestamp("expires_at").notNull(),
-    token: text("token").notNull().unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    id: text('id').primaryKey(),
+    expiresAt: timestamp('expires_at').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id")
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: 'cascade' }),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
+  (table) => [index('session_userId_idx').on(table.userId)],
 );
 
 export const account = pgTable(
-  "account",
+  'account',
   {
-    id: text("id").primaryKey(),
-    issuer: text("issuer").notNull(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
+    id: text('id').primaryKey(),
+    issuer: text('issuer').notNull(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at"),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+      .references(() => user.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at'),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
   (table) => [
-    uniqueIndex("account_issuer_accountId_uidx").on(
+    uniqueIndex('account_issuer_accountId_uidx').on(
       table.issuer,
       table.accountId,
     ),
-    index("account_userId_idx").on(table.userId),
+    index('account_userId_idx').on(table.userId),
   ],
 );
 
 export const verification = pgTable(
-  "verification",
+  'verification',
   {
-    id: text("id").primaryKey(),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
 export const userRelations = relations(user, ({ many }) => ({

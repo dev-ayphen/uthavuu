@@ -18,8 +18,10 @@ export class DevConsolePushProvider implements PushProvider {
 
   // Not `async`: there is nothing to await, and an async method with no await
   // trips @typescript-eslint/require-await.
-  sendToTokens(tokens: string[], message: PushMessage): Promise<PushSendResult> {
-    /* eslint-disable no-console */
+  sendToTokens(
+    tokens: string[],
+    message: PushMessage,
+  ): Promise<PushSendResult> {
     console.log(`\n🔔 DEV PUSH — no real FCM send (FCM not configured)`);
     console.log(`   Title:  ${message.title}`);
     console.log(`   Body:   ${message.body}`);
@@ -29,7 +31,6 @@ export class DevConsolePushProvider implements PushProvider {
     console.log(
       `   Tokens: ${tokens.length}${tokens.length > 0 ? ` [${tokens.map(maskPushToken).join(', ')}]` : ''}\n`,
     );
-    /* eslint-enable no-console */
 
     // Reports every token as delivered and none as dead. Nothing was actually
     // sent, so inventing failures here would train the cleanup path on fiction.

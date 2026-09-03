@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { auth } from '../auth/auth';
 import { ReportsService } from './reports.service';
@@ -14,12 +23,18 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Post()
-  create(@Session() session: UserSession<typeof auth>, @Body() body: CreateReportDto) {
+  create(
+    @Session() session: UserSession<typeof auth>,
+    @Body() body: CreateReportDto,
+  ) {
     return this.reportsService.create(session.user.id, body);
   }
 
   @Get()
-  list(@Session() session: UserSession<typeof auth>, @Query() query: ListReportsDto) {
+  list(
+    @Session() session: UserSession<typeof auth>,
+    @Query() query: ListReportsDto,
+  ) {
     return this.reportsService.list(query, session.user.id);
   }
 
@@ -40,7 +55,10 @@ export class ReportsController {
   }
 
   @Get(':id')
-  findOne(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  findOne(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.reportsService.findOne(id, session.user.id);
   }
 
@@ -48,7 +66,7 @@ export class ReportsController {
   update(
     @Session() session: UserSession<typeof auth>,
     @Param('id') id: string,
-    @Body() body: UpdateReportDto
+    @Body() body: UpdateReportDto,
   ) {
     return this.reportsService.update(id, session.user.id, body);
   }
@@ -57,7 +75,7 @@ export class ReportsController {
   addPhoto(
     @Session() session: UserSession<typeof auth>,
     @Param('id') id: string,
-    @Body() body: AddPhotoDto
+    @Body() body: AddPhotoDto,
   ) {
     return this.reportsService.addPhoto(id, session.user.id, body.url);
   }
@@ -68,7 +86,10 @@ export class ReportsController {
   }
 
   @Delete(':id')
-  delete(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  delete(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.reportsService.delete(id, session.user.id);
   }
 
@@ -78,7 +99,10 @@ export class ReportsController {
   }
 
   @Delete(':id/save')
-  unsave(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  unsave(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id') id: string,
+  ) {
     return this.reportsService.unsave(id, session.user.id);
   }
 }
