@@ -27,7 +27,7 @@ import { getMe, updateRadius as updateRadiusApi } from '@uthavu/libs-mobile/api/
 import { getCommunityStats, getReportsSummary } from '@uthavu/libs-mobile/api/reports';
 import { getMyMissions } from '@uthavu/libs-mobile/api/missions';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
-import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
+import { useCategories } from '../../hooks/useCategories';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Divider from '@uthavu/libs-mobile/components/Divider';
 import Card from '@uthavu/libs-mobile/components/Card';
@@ -53,6 +53,7 @@ function greetingKeyForHour(hour: number): string {
 // call), and category navigation.
 export default function DashboardScreen() {
   const { colors } = useTheme();
+  const { categories } = useCategories();
   const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -334,12 +335,17 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <View style={styles.categoriesBadgePill}>
-            <Text style={styles.categoriesBadgeText}>8 Categories</Text>
+            {/* Counted, not asserted. This said "8 Categories" while the grid
+                rendered whatever the server sent — so an admin adding a ninth
+                produced a grid of 9 under a label reading 8. */}
+            <Text style={styles.categoriesBadgeText}>
+              {categories.length} {categories.length === 1 ? 'Category' : 'Categories'}
+            </Text>
           </View>
         </View>
 
         <View style={styles.grid}>
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const counts = countsByKey.get(cat.id);
             return (
               <Card

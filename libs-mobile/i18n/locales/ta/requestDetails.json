@@ -13,7 +13,6 @@
   "savedStoriesTitle": "Saved Stories",
   "savedStoriesEmptyTitle": "No saved stories yet",
   "savedStoriesEmptySubtitle": "Tap Save on an Impact Story to keep it here.",
-
   "volunteersTitle": "தொண்டர்கள்",
   "countLabel": "{{activeCount}} / {{count}} இணைந்தனர்",
   "progressAccessibilityLabel_one": "தேவையான {{count}} தொண்டரில் {{activeCount}} பேர் இணைந்தனர்",
@@ -33,14 +32,12 @@
   "leaveConfirmMessage": "உங்கள் தொண்டர் இடம் காலியாகும், மற்றொரு தொண்டர் இணையலாம்.",
   "leaveConfirmAction": "வெளியேறு",
   "couldNotCompleteThat": "அதை முடிக்க முடியவில்லை",
-
   "missionChatTitle": "மிஷன் சாட்",
   "emptyMessages": "இதுவரை செய்திகள் இல்லை — வணக்கம் சொல்லுங்கள்.",
   "messagePlaceholder": "செய்தி…",
   "send": "அனுப்பு",
   "chatLockedNote": "இந்த பணி முடிந்துவிட்டது — சாட் படிக்க மட்டுமே.",
   "messageNotSentTitle": "செய்தி அனுப்பப்படவில்லை",
-
   "communityCommentsTitle": "சமூக கருத்துகள்",
   "communityCommentsSubtitle": "பொது — இந்த கோரிக்கையைப் பார்க்கும் அனைவருக்கும் தெரியும்.",
   "reporterBadge": "புகார் அளித்தவர்",
@@ -60,7 +57,6 @@
   "flagThanksTitle": "நன்றி",
   "flagThanksMessage": "நாங்கள் இதை பரிசீலிப்போம்.",
   "flagFailedTitle": "புகாரளிக்க முடியவில்லை",
-
   "completeMissionTitle": "பணியை முடி",
   "retakePhotoAccessibilityLabel": "நிறைவு புகைப்படத்தை மீண்டும் எடு",
   "takePhotoAccessibilityLabel": "நிறைவு புகைப்படம் எடு",
@@ -72,7 +68,6 @@
   "noteAccessibilityLabel": "நிறைவு குறிப்பு",
   "notCompletedTitle": "முடிக்கப்படவில்லை",
   "submitCompletionError": "நிறைவை சமர்ப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
-
   "volunteerJourneyTitle": "Volunteer Journey",
   "journeyJoinedBannerTitle": "Volunteer Joined",
   "journeyJoinedBannerSubtitle": "Post remains open for backup volunteers.",
@@ -87,5 +82,6 @@
   "journeyProgressTitle": "Update Your Progress",
   "journeyProgressOnWay": "On the Way",
   "journeyProgressReached": "Reached Location",
-  "journeyProgressHelping": "Helping Now"
+  "journeyProgressHelping": "Helping Now",
+  "journeyCallReporter": "தெரிவித்தவரை அழைக்கவும்"
 }

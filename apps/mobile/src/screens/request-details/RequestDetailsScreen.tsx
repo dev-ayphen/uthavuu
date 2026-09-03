@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, RefreshControl, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, MapPin, MoreVertical, Pencil, Share2, Trash2, XCircle } from 'lucide-react-native';
+import { Camera, FileX, MapPin, MoreVertical, Pencil, Share2, Trash2, XCircle } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, ICON_SIZE, RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { cancelReport, deleteReport, getReport } from '@uthavu/libs-mobile/api/reports';
+import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import { getRoster } from '@uthavu/libs-mobile/api/missions';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
@@ -44,6 +45,7 @@ export default function RequestDetailsScreen({ route }: Props) {
     data: report,
     isLoading: reportLoading,
     isError: reportIsError,
+    error: reportError,
     isFetching: reportFetching,
     refetch: refetchReport,
   } = useQuery({
@@ -78,6 +80,24 @@ export default function RequestDetailsScreen({ route }: Props) {
   if (reportLoading || rosterLoading) {
     return <RequestDetailsSkeleton />;
   }
+  // A REMOVED report is not a failed request, and must not be dressed as one.
+  //
+  // The API goes to real trouble to distinguish REPORT_REMOVED from
+  // REPORT_NOT_FOUND (report-visibility.ts) precisely so a volunteer mid-mission
+  // can be told what happened. This screen discarded that and rendered the
+  // generic network state: a WiFi-off icon reading "Check your connection and
+  // try again", over a Retry button that could only ever fail again — for a
+  // report an admin had removed.
+  //
+  // Deliberately NOT "removed by a moderator": the same 404 covers a reporter
+  // deleting their own request and an account deletion cascading. The server's
+  // own wording is the honest superset, so it is what gets shown.
+  const removed =
+    reportError instanceof ApiError && reportError.code === 'REPORT_REMOVED';
+  if (removed) {
+    return <ErrorState icon={FileX} message={reportError.message} />;
+  }
+
   if ((reportIsError || rosterIsError) && (!report || !roster)) {
     return (
       <ErrorState

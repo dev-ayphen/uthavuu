@@ -16,6 +16,7 @@ import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 import { CountBadge, Divider, StatusBadge } from '@uthavu/libs-mobile/components';
+import { formatTimeRemaining } from '@uthavu/libs-mobile/lib/urgency';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -223,8 +224,15 @@ function ReportItemCard({
       <Divider spacing={SPACING.xs} />
 
       <View style={styles.cardFooter}>
+        {/* `report.status` is a lookup KEY, not display copy — rendering it
+            raw put a lowercase "expired" / "closed" on the card. The badge
+            above already names the state in words, so this line carries the
+            thing the badge cannot: how long is left. `formatTimeRemaining`
+            returns "Expired" once the deadline passes, so the open case stays
+            honest even in the moment between a refetch and the server agreeing.
+            Non-open reports have no countdown worth showing. */}
         <Text style={styles.expiryText}>
-          {report.status === 'open' ? 'Active' : report.status}
+          {report.status === 'open' ? formatTimeRemaining(report.expiryAt) : statusBadge.label}
         </Text>
         <TouchableOpacity style={styles.viewBtn} onPress={onView}>
           <Text style={styles.viewBtnText}>View</Text>

@@ -70,6 +70,10 @@
       "mission_completed": {
         "title": "பணி நிறைவடைந்தது",
         "body": "{{volunteerName}} “{{reportTitle}}” ஐ நிறைவு செய்துள்ளார்."
+      },
+      "report_cancelled": {
+        "title": "கோரிக்கை ரத்து செய்யப்பட்டது",
+        "body": "நீங்கள் இணைந்த கோரிக்கை (“{{reportTitle}}”) புகாரளித்தவரால் ரத்து செய்யப்பட்டது."
       }
     }
   },

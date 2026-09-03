@@ -22,7 +22,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import { CATEGORIES, type CategoryId } from '@uthavu/libs-mobile/data/categories';
+import { type CategoryId } from '@uthavu/libs-mobile/data/categories';
 import { listReportCategories, createReport } from '@uthavu/libs-mobile/api/reports';
 import { getMe, uploadImage } from '@uthavu/libs-mobile/api/users';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';

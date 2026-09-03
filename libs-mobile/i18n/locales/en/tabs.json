@@ -70,6 +70,10 @@
       "mission_completed": {
         "title": "Mission Completed",
         "body": "{{volunteerName}} marked “{{reportTitle}}” as complete."
+      },
+      "report_cancelled": {
+        "title": "Request Cancelled",
+        "body": "The request you joined (“{{reportTitle}}”) has been cancelled by the reporter."
       }
     }
   },

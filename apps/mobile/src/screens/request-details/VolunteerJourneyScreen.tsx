@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle2, Clock, MapPin, Navigation, UserCheck, XCircle } from 'lucide-react-native';
+import { CheckCircle2, Clock, MapPin, Navigation, Phone, UserCheck, XCircle } from 'lucide-react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -97,6 +97,16 @@ export default function VolunteerJourneyScreen({ route }: Props) {
   if (!report || !roster) {
     return <RequestDetailsSkeleton />;
   }
+
+  const onCallReporter = () => {
+    const phone = report?.reporterPhone;
+    if (!phone) return;
+    // `tel:` rather than a dialogue asking to copy the number: this is an
+    // emergency-help product, and the volunteer is already on their way.
+    // A handset with no dialler (a tablet) simply fails to open, which is why
+    // the rejection is swallowed rather than surfaced as an error.
+    Linking.openURL(`tel:${phone.replace(/\s+/g, '')}`).catch(() => {});
+  };
 
   const onNavigate = () => {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`);
@@ -195,8 +205,33 @@ export default function VolunteerJourneyScreen({ route }: Props) {
 
           <TouchableOpacity style={styles.navGoogleBtn} onPress={onNavigate} activeOpacity={0.8}>
             <Navigation size={18} color={colors.primaryGreen} />
-            <Text style={styles.navGoogleBtnText}>Navigate via Google Maps</Text>
+            <Text style={styles.navGoogleBtnText}>{t('journeyNavigateViaMaps')}</Text>
           </TouchableOpacity>
+
+          {/* THE PHONE REVEAL — the other half of "Accept unlocks the reporter's
+              contact", which until now had a server and no client.
+              `reporterPhone` was declared in the mobile Report type and read by
+              nothing: a reporter who ticked "share my number with volunteers"
+              shared it with nobody.
+
+              THE GATE IS THE SERVER'S, NOT THIS CONDITION. `reporterPhone` is
+              null unless the caller is the reporter, or an active volunteer AND
+              the reporter opted in (reports.service.ts toResponse). Rendering
+              on its presence means this button cannot show a number the API
+              declined to send — and cannot be made to by editing client state.
+              Do not add a `phoneVisible` check here; that would duplicate half
+              the rule and let the two drift. */}
+          {report.reporterPhone && (
+            <TouchableOpacity
+              style={styles.navGoogleBtn}
+              onPress={onCallReporter}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+            >
+              <Phone size={18} color={colors.primaryGreen} />
+              <Text style={styles.navGoogleBtnText}>{t('journeyCallReporter')}</Text>
+            </TouchableOpacity>
+          )}
 
           <Divider style={styles.divider} />
 

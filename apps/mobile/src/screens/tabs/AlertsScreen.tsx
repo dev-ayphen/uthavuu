@@ -21,14 +21,24 @@ type Navigation = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// Only the alert types that actually exist (AlertsService only ever emits
-// volunteer_accepted/volunteer_released/mission_completed — see
-// alert-templates.ts). No "Nearby"/"System" tab: this app has no
-// location-broadcast or system-notification alert type, so a tab for either
-// would always be empty — decorative, not a real filter.
-type FilterTab = 'All' | 'Requests' | 'Updates' | 'Nearby' | 'System';
+// Every tab here maps to alert types the server actually emits — the closed
+// union in alert-templates.ts plus BROADCAST_ALERT_TYPE:
+//
+//   Requests -> volunteer_accepted | volunteer_released | report_cancelled
+//   Updates  -> mission_completed
+//   System   -> broadcast
+//
+// There is no "Nearby" tab. It used to sit here alongside "System", and both
+// fell through to `return alerts` — so three of the five tabs rendered an
+// identical list and the two named ones were pure decoration. A tab is a
+// promise that the list narrows; one that cannot narrow is a lie about the
+// data. Nearby is gone rather than emptied because no nearby-request alert
+// type exists at all: nothing is fanned out to nearby users when a report is
+// created, so the tab could only ever have been empty. Add it back in the same
+// commit that adds the alert type, never before.
+type FilterTab = 'All' | 'Requests' | 'Updates' | 'System';
 
-const FILTER_TABS: FilterTab[] = ['All', 'Requests', 'Updates', 'Nearby', 'System'];
+const FILTER_TABS: FilterTab[] = ['All', 'Requests', 'Updates', 'System'];
 
 // Module-level array can't call useTranslation() — store the i18n key per
 // tab, resolve with t() at render time (same pattern used elsewhere in this
@@ -37,7 +47,6 @@ const FILTER_TAB_LABEL_KEYS: Record<FilterTab, string> = {
   All: 'alerts.tabAll',
   Requests: 'alerts.tabRequests',
   Updates: 'alerts.tabUpdates',
-  Nearby: 'alerts.tabNearby',
   System: 'alerts.tabSystem',
 };
 
@@ -84,13 +93,23 @@ export default function AlertsScreen() {
     if (!alerts) return [];
     if (selectedTab === 'All') return alerts;
     if (selectedTab === 'Requests') {
-      return alerts.filter((a) => a.type === 'volunteer_released' || a.type === 'volunteer_accepted');
+      // `report_cancelled` belongs here: it is about a request the user joined.
+      // Without it the alert appeared under All and nowhere else.
+      return alerts.filter(
+        (a) =>
+          a.type === 'volunteer_released' ||
+          a.type === 'volunteer_accepted' ||
+          a.type === 'report_cancelled'
+      );
     }
     if (selectedTab === 'Updates') {
       return alerts.filter((a) => a.type === 'mission_completed');
     }
-    // 'Nearby' and 'System' tabs return filtered fallback/subset or all
-    return alerts;
+    // System — platform announcements sent from the admin console. This is the
+    // only tab `broadcast` appears under, and before it existed the type showed
+    // up under All and nowhere else, which is what the two decorative tabs were
+    // hiding.
+    return alerts.filter((a) => a.type === 'broadcast');
   }, [alerts, selectedTab]);
 
   if (isLoading) {

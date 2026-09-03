@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import Spinner from '@uthavu/libs-mobile/components/Spinner';
 import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
+import { useCategories } from '../../../hooks/useCategories';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { DESCRIPTION_MIN_LENGTH, type ReportDraft } from '../reportDraft';
 
@@ -61,7 +61,8 @@ export default function ReportDetailsPage({
   const { t } = useTranslation('report');
   const [modalOpen, setModalOpen] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const cat = CATEGORIES.find((c) => c.id === categoryKey);
+  const { categories } = useCategories();
+  const cat = categories.find((c) => c.id === categoryKey);
   const acc = CAT_ACCENT[categoryKey] ?? { iconBg: colors.bgElevated };
 
   return (
@@ -91,7 +92,7 @@ export default function ReportDetailsPage({
                 <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <TouchableOpacity
                 key={c.id}
                 style={[styles.catOptionRow, c.id === categoryKey && styles.catOptionSelected]}

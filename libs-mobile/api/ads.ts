@@ -174,11 +174,15 @@ export function adQueryKey(placement: AdPlacement) {
  * needs a server-side filter and a decision about what it targets ON; until
  * then, sending the parameter only implies a capability the product lacks.
  *
- * TAKING THE FIRST ITEM IS THE WHOLE ROTATION POLICY, and that is deliberate.
- * The server decides the order; the client does not shuffle, weight or
- * randomize. Picking here would be an unmeasurable product decision made in the
- * wrong layer — and if rotation is ever wanted, the server is the only place
- * that can implement it consistently across sessions and devices.
+ * TAKING THE FIRST ITEM IS CORRECT BECAUSE THE SERVER ROTATES. The client does
+ * not shuffle, weight or randomize — picking here would be a product decision
+ * made in the wrong layer, and only the server can rotate consistently across
+ * sessions and devices. It now orders randomly (sponsors.service.ts), so taking
+ * the first spreads exposure across every active campaign in the placement.
+ *
+ * This pairing used to be a silent monopoly: the server ordered newest-first
+ * and this took the head, so one campaign showed 100% of the time and every
+ * other paid sponsor showed never. Neither half looked wrong on its own.
  *
  * A short list is skipped over rather than failing: if the first item is
  * missing an `id`, the second is tried. An empty list, an absent `items`, a

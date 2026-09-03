@@ -13,7 +13,6 @@
   "savedStoriesTitle": "Saved Stories",
   "savedStoriesEmptyTitle": "No saved stories yet",
   "savedStoriesEmptySubtitle": "Tap Save on an Impact Story to keep it here.",
-
   "volunteersTitle": "Volunteers",
   "countLabel": "{{activeCount}} / {{count}} joined",
   "progressAccessibilityLabel_one": "{{activeCount}} of {{count}} volunteer joined",
@@ -33,14 +32,12 @@
   "leaveConfirmMessage": "You will lose your volunteer slot and another volunteer can join.",
   "leaveConfirmAction": "Leave",
   "couldNotCompleteThat": "Could not complete that",
-
   "missionChatTitle": "Mission Chat",
   "emptyMessages": "No messages yet — say hello.",
   "messagePlaceholder": "Message…",
   "send": "Send",
   "chatLockedNote": "This mission is complete — chat is read-only.",
   "messageNotSentTitle": "Message not sent",
-
   "communityCommentsTitle": "Community Comments",
   "communityCommentsSubtitle": "Public — visible to anyone viewing this request.",
   "reporterBadge": "Reporter",
@@ -60,7 +57,6 @@
   "flagThanksTitle": "Thanks",
   "flagThanksMessage": "We'll review this.",
   "flagFailedTitle": "Could not flag this",
-
   "completeMissionTitle": "Complete Mission",
   "retakePhotoAccessibilityLabel": "Retake completion photo",
   "takePhotoAccessibilityLabel": "Take completion photo",
@@ -72,7 +68,6 @@
   "noteAccessibilityLabel": "Completion note",
   "notCompletedTitle": "Not completed",
   "submitCompletionError": "Could not submit completion. Try again.",
-
   "volunteerJourneyTitle": "Volunteer Journey",
   "journeyJoinedBannerTitle": "Volunteer Joined",
   "journeyJoinedBannerSubtitle": "Post remains open for backup volunteers.",
@@ -87,5 +82,6 @@
   "journeyProgressTitle": "Update Your Progress",
   "journeyProgressOnWay": "On the Way",
   "journeyProgressReached": "Reached Location",
-  "journeyProgressHelping": "Helping Now"
+  "journeyProgressHelping": "Helping Now",
+  "journeyCallReporter": "Call reporter"
 }
