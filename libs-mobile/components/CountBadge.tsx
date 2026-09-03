@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { RADIUS, SPACING, TONES, TYPE } from '../theme/tokens';
+import { BORDER_WIDTH, RADIUS, SPACING, TONES, TYPE } from '../theme/tokens';
 import type { Tone, ToneKey } from './StatusBadge';
 
 type Props = {
@@ -38,7 +38,7 @@ const createStyles = () =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: RADIUS.pill,
-      borderWidth: 1,
+      borderWidth: BORDER_WIDTH.thin,
       paddingHorizontal: SPACING.xs,
       paddingVertical: 2,
     },

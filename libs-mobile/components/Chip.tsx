@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
-import { RADIUS, SPACING, TYPE } from '../theme/tokens';
+import { BORDER_WIDTH, RADIUS, SPACING, TYPE } from '../theme/tokens';
 
 type Size = 'sm' | 'md';
 
@@ -105,7 +105,7 @@ const createStyles = (colors: ColorScheme) =>
       justifyContent: 'center',
       gap: SPACING.xxs,
       borderRadius: RADIUS.pill,
-      borderWidth: 1,
+      borderWidth: BORDER_WIDTH.thin,
       borderColor: colors.border,
       backgroundColor: colors.bgElevated,
     },

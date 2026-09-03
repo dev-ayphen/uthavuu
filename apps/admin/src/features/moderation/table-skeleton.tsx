@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui";
+import { FilterRow, Skeleton } from "@/components/ui";
 
 /**
  * What fills the `<Suspense>` boundary while `useSearchParams()` resolves.
@@ -20,12 +20,12 @@ export function ListPageSkeleton({
 }) {
   return (
     <div className="space-y-4" aria-busy>
-      <div className="flex flex-wrap items-center gap-2">
+      <FilterRow>
         <Skeleton className="h-9 w-full sm:w-64" />
         {Array.from({ length: filters }).map((_, index) => (
           <Skeleton key={index} className="h-8 w-32" />
         ))}
-      </div>
+      </FilterRow>
 
       <div className="overflow-hidden rounded-card border border-border bg-surface shadow-card">
         <div className="flex gap-4 border-b border-border bg-surface-2 px-4 py-2.5">

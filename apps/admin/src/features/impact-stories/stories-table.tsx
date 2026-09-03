@@ -9,7 +9,7 @@ import {
   ListPagination,
   type DataTableColumn,
 } from "@/components/data";
-import { Skeleton } from "@/components/ui";
+import { FilterRow, Skeleton } from "@/components/ui";
 import { MODERATION_TABLE } from "@/features/moderation/table-surface";
 import { impactStoryDetailHref } from "./routes";
 import { StoryFilters } from "./story-filters";
@@ -201,12 +201,12 @@ export function StoriesTableSkeleton() {
       {/* Mirrors StoryFilters: the search box, then Category / From / To.
           Omitting it would let the table jump up by a row's height the moment
           the search params resolve. */}
-      <div className="flex flex-wrap items-center gap-2">
+      <FilterRow>
         <Skeleton className="h-9 w-full sm:w-64" />
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-8 w-36" />
         <Skeleton className="h-8 w-36" />
-      </div>
+      </FilterRow>
 
       <DataTable
         view={{ kind: "loading" }}

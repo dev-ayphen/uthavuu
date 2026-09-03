@@ -12,7 +12,7 @@ import { Search, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '../theme/colors';
 import { useTheme } from '../theme/ThemeProvider';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '../theme/tokens';
+import { BORDER_WIDTH, ICON_SIZE, RADIUS, SPACING, TYPE } from '../theme/tokens';
 
 type Shape = 'rounded' | 'pill';
 
@@ -104,7 +104,7 @@ const createStyles = (colors: ColorScheme) =>
       height: SEARCH_HEIGHT,
       paddingHorizontal: SPACING.sm,
       borderRadius: RADIUS.lg,
-      borderWidth: 1,
+      borderWidth: BORDER_WIDTH.thin,
       borderColor: colors.border,
       backgroundColor: colors.bgElevated,
     },

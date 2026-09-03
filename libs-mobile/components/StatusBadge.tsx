@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { RADIUS, SPACING, TONES, TYPE } from '../theme/tokens';
+import { BORDER_WIDTH, RADIUS, SPACING, TONES, TYPE } from '../theme/tokens';
 
 // A tone is the fg/fill/border triplet the whole app already uses to colour a
 // status surface. Callers pass either a key from the TONES scale (the common
@@ -86,7 +86,7 @@ const createStyles = () =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: SPACING.xxs,
-      borderWidth: 1,
+      borderWidth: BORDER_WIDTH.thin,
       borderRadius: RADIUS.pill,
     },
     alignStart: { alignSelf: 'flex-start' },
