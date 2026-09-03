@@ -136,7 +136,7 @@ export default function VolunteerJourneyScreen({ route }: Props) {
             </View>
             <View style={styles.bannerBody}>
               <View style={styles.bannerHeaderTitleRow}>
-                <Text style={[styles.bannerTitle, { color: '#15803D' }]}>Mission Completed</Text>
+                <Text style={[styles.bannerTitle, { color: '#15803D' }]}>{t('journeyCompletedTitle')}</Text>
                 <View style={styles.completedCheckTag}>
                   <Text style={styles.completedCheckTagText}>✓</Text>
                 </View>
@@ -152,16 +152,16 @@ export default function VolunteerJourneyScreen({ route }: Props) {
           <View style={styles.bannerCard}>
             <View style={styles.dot} />
             <View style={styles.bannerBody}>
-              <Text style={styles.bannerTitle}>Volunteer Joined</Text>
-              <Text style={styles.bannerSubtitle}>You joined this request. Confirm within 15 minutes.</Text>
+              <Text style={styles.bannerTitle}>{t('journeyJoinedBannerTitle')}</Text>
+              <Text style={styles.bannerSubtitle}>{t('journeyJoinedSubtitle')}</Text>
             </View>
           </View>
         ) : roster.myStatus === 'active' ? (
           <View style={[styles.bannerCard, styles.bannerActive]}>
             <View style={[styles.dot, { backgroundColor: colors.primaryGreen }]} />
             <View style={styles.bannerBody}>
-              <Text style={[styles.bannerTitle, { color: colors.primaryGreen }]}>🟢 You Are Helping</Text>
-              <Text style={styles.bannerSubtitle}>Mission Active — coordinate with your team below.</Text>
+              <Text style={[styles.bannerTitle, { color: colors.primaryGreen }]}>{t('journeyHelpingTitle')}</Text>
+              <Text style={styles.bannerSubtitle}>{t('journeyHelpingSubtitle')}</Text>
             </View>
           </View>
         ) : null}
@@ -178,7 +178,7 @@ export default function VolunteerJourneyScreen({ route }: Props) {
                 <Text style={styles.timerValue}>{formatTimeRemaining(roster.myConfirmDeadline)}</Text>
               )}
             </View>
-            <Text style={styles.timerBody}>You have 15 minutes to confirm and start helping.</Text>
+            <Text style={styles.timerBody}>{t('journeyTimerBody')}</Text>
             <Button
               label={t('startHelping')}
               onPress={() => confirmMutation.mutate()}
@@ -314,7 +314,7 @@ export default function VolunteerJourneyScreen({ route }: Props) {
         {/* ⑦ Mission Completion Notes (if completed) */}
         {isCompleted && roster.completion && (
           <View style={styles.completionNoteBox}>
-            <Text style={styles.completionNoteTitle}>Completion Report</Text>
+            <Text style={styles.completionNoteTitle}>{t('completionReportTitle')}</Text>
             <Text style={styles.completionNoteText}>"{roster.completion.note}"</Text>
           </View>
         )}

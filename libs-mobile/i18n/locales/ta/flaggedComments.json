@@ -1,19 +1,19 @@
 {
-  "title": "Flagged Comments",
-  "emptyTitle": "Nothing flagged yet",
-  "emptySubtitle": "Comments you flag for review will show up here.",
-  "rowLabel": "{{title}}, flagged for {{reason}}",
+  "title": "கொடியிடப்பட்ட கருத்துகள்",
+  "emptyTitle": "இதுவரை எதுவும் கொடியிடப்படவில்லை",
+  "emptySubtitle": "நீங்கள் மறுஆய்வுக்குக் கொடியிடும் கருத்துகள் இங்கே தோன்றும்.",
+  "rowLabel": "{{title}}, {{reason}} காரணமாகக் கொடியிடப்பட்டது",
   "reason": {
-    "spam": "Spam",
-    "abuse": "Abuse",
-    "false_information": "False information",
-    "duplicate": "Duplicate",
-    "other": "Other"
+    "spam": "ஸ்பேம்",
+    "abuse": "தவறான நடத்தை",
+    "false_information": "தவறான தகவல்",
+    "duplicate": "நகல்",
+    "other": "மற்றவை"
   },
   "status": {
-    "submitted": "Submitted",
-    "under_review": "Under Review",
-    "action_taken": "Action Taken",
-    "dismissed": "Dismissed"
+    "submitted": "சமர்ப்பிக்கப்பட்டது",
+    "under_review": "மறுஆய்வில் உள்ளது",
+    "action_taken": "நடவடிக்கை எடுக்கப்பட்டது",
+    "dismissed": "நிராகரிக்கப்பட்டது"
   }
 }

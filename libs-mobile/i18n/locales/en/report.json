@@ -64,7 +64,6 @@
     "locationLabel": "Location",
     "detecting": "Detecting location…",
     "unavailable": "Location unavailable",
-    "gpsAccuracy": "GPS Accuracy: High (5m)",
     "landmarkPlaceholder": "Landmark or street details (Optional)",
     "expiryLabel": "Expected help window",
     "expiryDefault": "Default: Open for {{duration}}. Override below if needed.",
@@ -79,7 +78,8 @@
     "phoneVisibleOn": "Phone number visible to volunteers",
     "phoneVisibleOff": "Phone hidden — volunteers contact via in-app chat only.",
     "ngoLabel": "Share with local NGOs",
-    "confirmLabel": "I confirm that this information is accurate."
+    "confirmLabel": "I confirm that this information is accurate.",
+    "expiryMaxHint": "Up to {{hours}}h for this category."
   },
   "photo": {
     "title": "Add a photo",
@@ -107,5 +107,23 @@
     "postingWithName": "Posting with your name",
     "phoneShared": "Phone shared with the volunteer who accepts",
     "phonePrivate": "Phone number stays private"
+  },
+  "detailsStep": {
+    "categoryLabel": "Category",
+    "selectCategory": "Select Category",
+    "photosLabel": "Photos",
+    "descriptionLabel": "What's happening?",
+    "descriptionPlaceholder": "Describe what help is needed…",
+    "descriptionShort": "{{count}} more characters needed — give volunteers enough to act on.",
+    "titleLabel": "Short Title",
+    "titlePlaceholder": "e.g. Injured dog near bus stop",
+    "volunteersNeededLabel": "Volunteers Needed"
+  },
+  "flowExtra": {
+    "tryAgain": "Try Again",
+    "postedTitle": "Request Posted ✅",
+    "postedMessage": "Your request is now live for nearby volunteers and community members.",
+    "viewRequest": "View Request",
+    "goHome": "Go to Home"
   }
 }

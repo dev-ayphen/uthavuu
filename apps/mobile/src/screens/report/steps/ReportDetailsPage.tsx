@@ -69,7 +69,7 @@ export default function ReportDetailsPage({
     <View style={styles.root}>
 
       {/* ── Category Selector Dropdown Field ── */}
-      <Text style={styles.sectionLabel}>Category <Text style={styles.required}>*</Text></Text>
+      <Text style={styles.sectionLabel}>{t('detailsStep.categoryLabel')} <Text style={styles.required}>*</Text></Text>
       <TouchableOpacity
         style={styles.categoryDropdown}
         onPress={() => setModalOpen(true)}
@@ -87,7 +87,7 @@ export default function ReportDetailsPage({
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalOpen(false)}>
           <View style={styles.sheetContainer}>
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Select Category</Text>
+              <Text style={styles.sheetTitle}>{t('detailsStep.selectCategory')}</Text>
               <TouchableOpacity onPress={() => setModalOpen(false)}>
                 <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -113,7 +113,7 @@ export default function ReportDetailsPage({
 
       {/* ── Media slots, one per photo the platform allows ── */}
       <Text style={styles.sectionLabel}>
-        Photos <Text style={styles.required}>*</Text>
+        {t('detailsStep.photosLabel')} <Text style={styles.required}>*</Text>
       </Text>
 
       <View style={styles.mediaBox3}>
@@ -157,13 +157,13 @@ export default function ReportDetailsPage({
 
       {/* ── Description ── */}
       <Text style={styles.sectionLabel}>
-        What's happening? <Text style={styles.required}>*</Text>
+        {t('detailsStep.descriptionLabel')} <Text style={styles.required}>*</Text>
       </Text>
       <TextInput
         style={styles.textArea}
         value={draft.description}
         onChangeText={onChangeDescription}
-        placeholder="Describe what help is needed..."
+        placeholder={t('detailsStep.descriptionPlaceholder')}
         placeholderTextColor={colors.textSecondary}
         autoCapitalize="sentences"
         multiline
@@ -171,25 +171,26 @@ export default function ReportDetailsPage({
       />
       {draft.description.trim().length > 0 && draft.description.trim().length < DESCRIPTION_MIN_LENGTH && (
         <Text style={styles.photoError}>
-          {DESCRIPTION_MIN_LENGTH - draft.description.trim().length} more characters needed — give
-          volunteers enough to act on.
+          {t('detailsStep.descriptionShort', {
+            count: DESCRIPTION_MIN_LENGTH - draft.description.trim().length,
+          })}
         </Text>
       )}
 
       {/* ── Title (optional short summary) ── */}
-      <Text style={styles.sectionLabel}>Short Title <Text style={styles.required}>*</Text></Text>
+      <Text style={styles.sectionLabel}>{t('detailsStep.titleLabel')} <Text style={styles.required}>*</Text></Text>
       <TextInput
         style={styles.input}
         value={draft.title}
         onChangeText={onChangeTitle}
-        placeholder="e.g. Injured dog near bus stop"
+        placeholder={t('detailsStep.titlePlaceholder')}
         placeholderTextColor={colors.textSecondary}
         autoCapitalize="sentences"
         returnKeyType="done"
       />
 
       {/* ── Volunteers Needed Stepper & Quick Selector ── */}
-      <Text style={styles.sectionLabel}>Volunteers Needed</Text>
+      <Text style={styles.sectionLabel}>{t('detailsStep.volunteersNeededLabel')}</Text>
       <View style={styles.stepperContainer}>
         {/* Quick presets 1..5 */}
         <View style={styles.volunteerRow}>

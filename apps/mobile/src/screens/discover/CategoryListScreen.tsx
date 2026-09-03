@@ -21,11 +21,25 @@ import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 import { useConfig } from '../../hooks/useConfig';
 import SponsorAd from '../../components/SponsorAd';
 
+// Module-level maps can't call useTranslation() — store the key and resolve
+// with t() at render time, matching AlertsScreen's FILTER_TAB_LABEL_KEYS.
+const STATUS_LABEL_KEYS = {
+  All: 'categoryList.statusAll',
+  'Open Only': 'categoryList.statusOpenOnly',
+  Urgent: 'categoryList.statusUrgent',
+} as const;
+
+const SORT_LABEL_KEYS = {
+  Nearby: 'categoryList.sortNearby',
+  Newest: 'categoryList.sortNewest',
+  'Most Urgent': 'categoryList.sortMostUrgent',
+} as const;
+
 type Props = NativeStackScreenProps<RootStackParamList, 'CategoryList'>;
 
 export default function CategoryListScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
-  const { t } = useTranslation(['tabs', 'common']);
+  const { t } = useTranslation(['tabs', 'common', 'requestDetails']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const config = useConfig();
@@ -124,7 +138,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
           <Search size={18} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
-            placeholder={`Search ${categoryMeta?.title.toLowerCase()} requests...`}
+            placeholder={t('categoryList.searchPlaceholder', { category: categoryMeta?.title.toLowerCase() })}
             placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -133,7 +147,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setFilterModalOpen(true)}
-          accessibilityLabel="Filter and sort"
+          accessibilityLabel={t('categoryList.filterAndSortLabel')}
         >
           <SlidersHorizontal size={18} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -209,9 +223,9 @@ export default function CategoryListScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => setFilterModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sheetContainer}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Filter Requests</Text>
+            <Text style={styles.sheetTitle}>{t('categoryList.filterSheetTitle')}</Text>
 
-            <Text style={styles.filterSectionTitle}>📍 Distance</Text>
+            <Text style={styles.filterSectionTitle}>{t('categoryList.distanceSection')}</Text>
             <View style={styles.distanceOptionsRow}>
               {[1, 3, 5, 10].map((km) => {
                 const isSelected = selectedDistance === km;
@@ -221,13 +235,13 @@ export default function CategoryListScreen({ navigation, route }: Props) {
                     style={[styles.distancePill, isSelected && styles.distancePillActive]}
                     onPress={() => setSelectedDistance(km)}
                   >
-                    <Text style={[styles.distancePillText, isSelected && styles.distancePillTextActive]}>{km} km</Text>
+                    <Text style={[styles.distancePillText, isSelected && styles.distancePillTextActive]}>{t('categoryList.kmOption', { km })}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <Text style={styles.filterSectionTitle}>Status</Text>
+            <Text style={styles.filterSectionTitle}>{t('categoryList.statusSection')}</Text>
             {(['All', 'Open Only', 'Urgent'] as const).map((status) => (
               <TouchableOpacity
                 key={status}
@@ -237,11 +251,11 @@ export default function CategoryListScreen({ navigation, route }: Props) {
                 <View style={[styles.radioOuter, statusFilter === status && styles.radioOuterActive]}>
                   {statusFilter === status && <View style={styles.radioInner} />}
                 </View>
-                <Text style={styles.radioText}>{status}</Text>
+                <Text style={styles.radioText}>{t(STATUS_LABEL_KEYS[status])}</Text>
               </TouchableOpacity>
             ))}
 
-            <Text style={styles.filterSectionTitle}>Sort By</Text>
+            <Text style={styles.filterSectionTitle}>{t('categoryList.sortSection')}</Text>
             {(['Nearby', 'Newest', 'Most Urgent'] as const).map((sort) => (
               <TouchableOpacity
                 key={sort}
@@ -251,16 +265,16 @@ export default function CategoryListScreen({ navigation, route }: Props) {
                 <View style={[styles.radioOuter, sortBy === sort && styles.radioOuterActive]}>
                   {sortBy === sort && <View style={styles.radioInner} />}
                 </View>
-                <Text style={styles.radioText}>{sort}</Text>
+                <Text style={styles.radioText}>{t(SORT_LABEL_KEYS[sort])}</Text>
               </TouchableOpacity>
             ))}
 
             <View style={styles.filterModalButtonRow}>
               <TouchableOpacity style={styles.resetBtn} onPress={resetFilters}>
-                <Text style={styles.resetBtnText}>Reset</Text>
+                <Text style={styles.resetBtnText}>{t('dashboard.reset')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.applyBtn} onPress={() => setFilterModalOpen(false)}>
-                <Text style={styles.applyBtnText}>Apply Filters</Text>
+                <Text style={styles.applyBtnText}>{t('categoryList.applyFilters')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -272,7 +286,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => setCategoryPickerOpen(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sheetContainer}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Select Category</Text>
+            <Text style={styles.sheetTitle}>{t('categoryList.selectCategory')}</Text>
             <ScrollView contentContainerStyle={styles.categoryPickerList} showsVerticalScrollIndicator={false}>
               {categories.map((cat) => {
                 const isSelected = cat.id === categoryKey;
@@ -393,10 +407,10 @@ function ReportRow({
       <View style={styles.cardActionsRow}>
         <TouchableOpacity style={styles.actionPillBtn} onPress={onShare}>
           <Share2 size={14} color={colors.primaryGreen} />
-          <Text style={styles.actionPillTextGreen}>Share</Text>
+          <Text style={styles.actionPillTextGreen}>{t('requestDetails:share')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.viewDetailsBtn} onPress={onPress}>
-          <Text style={styles.viewDetailsText}>View Details ›</Text>
+          <Text style={styles.viewDetailsText}>{t('categoryList.viewDetails')}</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>

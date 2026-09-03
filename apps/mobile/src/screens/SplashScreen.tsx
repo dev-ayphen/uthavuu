@@ -7,6 +7,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { hasSession, hasSeenOnboarding, clearAllForTesting } from '@uthavu/libs-mobile/lib/session';
+import { getMe } from '@uthavu/libs-mobile/api/users';
+import { isProfileIncomplete } from '@uthavu/libs-mobile/api/auth';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
@@ -54,6 +56,29 @@ export default function SplashScreen({ navigation }: Props) {
           navigation.replace('RequestDetails', { reportId });
           return;
         }
+        /*
+         * A stored token is not the same thing as a finished signup. Better
+         * Auth mints a session at OTP verification, before Permissions and
+         * ProfileSetup have run — so someone who abandoned signup at that point
+         * has a valid token, no location, and was being dropped straight onto
+         * the Home tab. There they got a feed that could not query, permanently.
+         * OtpScreen already gates on this; the resume path did not.
+         *
+         * A failed lookup falls through to MainTabs rather than trapping an
+         * offline user on the permissions screen: being unable to reach the API
+         * is not evidence that the profile is incomplete.
+         */
+        try {
+          const me = await getMe();
+          if (cancelled) return;
+          if (isProfileIncomplete(me)) {
+            navigation.replace('Permissions');
+            return;
+          }
+        } catch {
+          // Offline or API down — route as before.
+        }
+        if (cancelled) return;
         navigation.replace('MainTabs');
       } else if (onboardingSeen) {
         navigation.replace('Login');
@@ -71,7 +96,10 @@ export default function SplashScreen({ navigation }: Props) {
   // Dev-only: long-press the brand mark to clear session + onboarding-seen and
   // force Onboarding. iOS Keychain (what expo-secure-store uses) often survives
   // a plain app reinstall, so this is the only reliable reset during testing.
-  // __DEV__ means this is stripped from any production build.
+  // __DEV__ means this is stripped from any production build — which is also
+  // why the two strings below are deliberately NOT in the catalogue: no user
+  // ever sees them, and translating a developer tool costs a real translator's
+  // time for nothing. Leave them in English.
   const onLongPressReset = __DEV__
     ? async () => {
         setResetting(true);

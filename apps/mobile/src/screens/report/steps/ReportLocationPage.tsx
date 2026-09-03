@@ -17,6 +17,15 @@ import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import type { ReportCategory } from '@uthavu/libs-mobile/api/reports';
 import { formatExpiryMinutes } from '../reportDraft';
 
+// Presets are filtered against the chosen category's ceiling at render time,
+// so this is the menu of candidates, not the menu shown.
+const EXPIRY_PRESET_HOURS = [1, 2, 4, 6, 12, 24];
+
+// The manual field's fallback cap when no category is chosen yet. Matches the
+// value the field has always used; the category ceiling replaces it as soon as
+// there is one.
+const EXPIRY_HOURS_CAP_WITHOUT_CATEGORY = 720;
+
 type Props = {
   locating: boolean;
   locationLabel: string;
@@ -28,7 +37,6 @@ type Props = {
   // docs/webadmin/07-platform-settings.md §5A.3 is about.
   allowAnonymous: boolean;
   phoneVisible: boolean;
-  shareWithNGOs: boolean;
   confirmed?: boolean;
   category: ReportCategory | undefined;
   onChangeLandmark: (v: string) => void;
@@ -46,7 +54,6 @@ export default function ReportLocationPage({
   anonymous,
   allowAnonymous,
   phoneVisible,
-  shareWithNGOs,
   confirmed = false,
   category,
   onChangeLandmark,
@@ -59,6 +66,13 @@ export default function ReportLocationPage({
   const { colors } = useTheme();
   const { t } = useTranslation('report');
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // The largest value the server will actually honour for this category. Whole
+  // hours, and never below 1 — a category with a sub-hour default still has to
+  // offer something selectable.
+  const maxExpiryHours = category
+    ? Math.max(1, Math.floor(category.defaultExpiryMinutes / 60))
+    : EXPIRY_HOURS_CAP_WITHOUT_CATEGORY;
 
   return (
     <View style={styles.root}>
@@ -81,7 +95,6 @@ export default function ReportLocationPage({
               <Text style={styles.locationLabel} numberOfLines={1}>
                 {locationLabel || t('locationStep.unavailable')}
               </Text>
-              <Text style={styles.locationAccuracy}>{t('locationStep.gpsAccuracy')}</Text>
             </View>
           </>
         )}
@@ -103,9 +116,21 @@ export default function ReportLocationPage({
           : t('locationStep.expiryNoCategory')}
       </Text>
 
-      {/* Quick preset chips */}
+      {/*
+       * The server applies Math.min(expiryMinutes, category.defaultExpiryMinutes)
+       * — expiry may only SHORTEN the category default, never extend it
+       * (reports.service.ts). The UI used to ignore that: presets went to 24h
+       * and the manual field accepted 720 with a placeholder reading "e.g. 48",
+       * so a reporter on a 6-hour category could ask for 48 and be silently
+       * given 6, with no error and nothing to tell them it had happened.
+       *
+       * Offering only what the server will honour is better than validating
+       * after the fact: there is no rejection to explain if the value can't be
+       * entered. With no category chosen yet there is no ceiling to apply, so
+       * the old 720-hour cap stands until one is.
+       */}
       <View style={styles.expiryChipRow}>
-        {[1, 2, 4, 6, 12, 24].map((h) => {
+        {EXPIRY_PRESET_HOURS.filter((h) => h <= maxExpiryHours).map((h) => {
           const active = customExpiryHours === h;
           return (
             <TouchableOpacity
@@ -129,7 +154,7 @@ export default function ReportLocationPage({
           value={customExpiryHours != null ? String(customExpiryHours) : ''}
           onChangeText={(v) => {
             const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
-            onChangeCustomExpiryHours(isNaN(num) ? null : Math.max(1, Math.min(720, num)));
+            onChangeCustomExpiryHours(isNaN(num) ? null : Math.max(1, Math.min(maxExpiryHours, num)));
           }}
           keyboardType="number-pad"
           maxLength={3}
@@ -139,6 +164,11 @@ export default function ReportLocationPage({
         />
         <Text style={styles.expiryUnit}>{t('locationStep.expiryUnit')}</Text>
       </View>
+      {category && (
+        <Text style={styles.expiryMaxHint}>
+          {t('locationStep.expiryMaxHint', { hours: maxExpiryHours })}
+        </Text>
+      )}
 
       {/* ── Privacy & Notifications ── */}
       <Text style={styles.sectionTitle}>{t('locationStep.privacyTitle')}</Text>
@@ -181,20 +211,19 @@ export default function ReportLocationPage({
           />
         </View>
 
-        <Divider inset={SPACING.md} />
 
-        {/* Share with NGOs (UI-only, always off) */}
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleBody}>
-            <Text style={styles.toggleLabel}>{t('locationStep.ngoLabel')}</Text>
-          </View>
-          <Switch
-            value={shareWithNGOs}
-            onValueChange={() => {}}
-            trackColor={{ false: colors.border, true: colors.primaryGreen }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
+        {/*
+         * NO "Share with local NGOs" TOGGLE. One used to sit here with
+         * `onValueChange={() => {}}` and a hardwired `false`, so it could not
+         * be moved and nothing was ever sent — there is no NGO field in
+         * CreateReportInput, no column, and no endpoint. It was a
+         * privacy-shaped control that did nothing, which is precisely what the
+         * comment on `allowAnonymous` above forbids: a switch that can't do
+         * anything is worse than an absent one, because a reporter deciding
+         * what to disclose reads it as a setting they have chosen.
+         *
+         * Bring it back with the feature, not before.
+         */}
       </View>
 
       {/* ── Confirmation Checkbox ── */}
@@ -234,7 +263,6 @@ const createStyles = (colors: ColorScheme) =>
     },
     locationBody: { flex: 1 },
     locationLabel: { ...TYPE.subheadStrong, color: colors.textPrimary },
-    locationAccuracy: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
     locationText: { ...TYPE.body, color: colors.textSecondary, flex: 1 },
 
     helpWindowCaption: { ...TYPE.caption, color: colors.textSecondary, marginBottom: SPACING.xs, marginTop: -SPACING.xxs },
@@ -281,6 +309,7 @@ const createStyles = (colors: ColorScheme) =>
       color: colors.primaryGreen,
     },
     expiryUnit: { ...TYPE.footnote, color: colors.textSecondary },
+    expiryMaxHint: { ...TYPE.caption, color: colors.textSecondary, marginTop: SPACING.xs },
 
     sectionTitle: { ...TYPE.subheadStrong, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.xs },
 

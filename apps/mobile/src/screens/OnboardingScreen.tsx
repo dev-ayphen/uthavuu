@@ -94,7 +94,7 @@ export default function OnboardingScreen({ navigation }: Props) {
             style={styles.skipBtn}
             onPress={finish}
             accessibilityRole="button"
-            accessibilityLabel="Skip onboarding"
+            accessibilityLabel={t('skipOnboardingLabel')}
           >
             <Text style={styles.skipText}>{t('skip') || 'Skip'}</Text>
           </TouchableOpacity>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Minus, Plus } from 'lucide-react-native';
 import type { ColorScheme } from '../theme/colors';
@@ -17,6 +18,7 @@ type Props = {
 // small bounded count needs editing.
 export default function Stepper({ value, min, max, onChange }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('common');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
@@ -26,7 +28,7 @@ export default function Stepper({ value, min, max, onChange }: Props) {
         onPress={() => value > min && onChange(value - 1)}
         disabled={value <= min}
         accessibilityRole="button"
-        accessibilityLabel="Decrease"
+        accessibilityLabel={t('decrease')}
       >
         <Minus size={ICON_SIZE.sm} color={value <= min ? colors.disabled : colors.textPrimary} />
       </TouchableOpacity>
@@ -36,7 +38,7 @@ export default function Stepper({ value, min, max, onChange }: Props) {
         onPress={() => value < max && onChange(value + 1)}
         disabled={value >= max}
         accessibilityRole="button"
-        accessibilityLabel="Increase"
+        accessibilityLabel={t('increase')}
       >
         <Plus size={ICON_SIZE.sm} color={value >= max ? colors.disabled : colors.textPrimary} />
       </TouchableOpacity>

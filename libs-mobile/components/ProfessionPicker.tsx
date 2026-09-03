@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Check, X } from 'lucide-react-native';
 import type { ColorScheme } from '../theme/colors';
@@ -18,6 +19,7 @@ type Props = {
 // layout logic needs to know the internals of.
 export default function ProfessionPicker({ visible, selectedId, onSelect, onClose }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['tabs', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
@@ -25,12 +27,12 @@ export default function ProfessionPicker({ visible, selectedId, onSelect, onClos
       <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity activeOpacity={1} style={styles.sheet}>
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Profession</Text>
+            <Text style={styles.sheetTitle}>{t('tabs:editProfile.professionLabel')}</Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel={t('common:close')}
             >
               <X size={ICON_SIZE.sm} color={colors.textSecondary} />
             </TouchableOpacity>

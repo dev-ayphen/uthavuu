@@ -1,13 +1,13 @@
 {
-  "title": "Delete Account",
-  "warningTitle": "This can't be undone",
-  "warningBody": "Deleting your account permanently removes it from Uthavu. There's no way to recover it afterward.",
-  "loseReports": "All reports you've posted",
-  "loseMissions": "Your mission history as a volunteer",
-  "loseImpactStories": "Impact stories you're part of",
-  "loseTickets": "Your support tickets",
-  "loseAccountData": "Your profile and account data",
-  "confirmLabel": "Type {{phrase}} to confirm",
-  "deleteButton": "Permanently Delete My Account",
-  "deleteFailed": "Could not delete your account. Try again."
+  "title": "கணக்கை நீக்கு",
+  "warningTitle": "இதைத் திரும்பப் பெற முடியாது",
+  "warningBody": "உங்கள் கணக்கை நீக்கினால் அது உதவுவிலிருந்து நிரந்தரமாக அகற்றப்படும். அதை மீட்டெடுக்க வழி இல்லை.",
+  "loseReports": "நீங்கள் வெளியிட்ட அனைத்துக் கோரிக்கைகளும்",
+  "loseMissions": "தன்னார்வலராக உங்கள் பணி வரலாறு",
+  "loseImpactStories": "நீங்கள் பங்கேற்ற தாக்கக் கதைகள்",
+  "loseTickets": "உங்கள் ஆதரவு கோரிக்கைகள்",
+  "loseAccountData": "உங்கள் சுயவிவரம் மற்றும் கணக்குத் தரவு",
+  "confirmLabel": "உறுதிப்படுத்த {{phrase}} என்று தட்டச்சு செய்யவும்",
+  "deleteButton": "எனது கணக்கை நிரந்தரமாக நீக்கு",
+  "deleteFailed": "உங்கள் கணக்கை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
 }

@@ -30,7 +30,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'RequestDetails'>;
 
 export default function RequestDetailsScreen({ route }: Props) {
   const { colors } = useTheme();
-  const { t } = useTranslation('requestDetails');
+  const { t } = useTranslation(['requestDetails', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { reportId } = route.params;
@@ -118,10 +118,7 @@ export default function RequestDetailsScreen({ route }: Props) {
   const onEditPress = () => {
     setMenuOpen(false);
     if (!report.editable) {
-      Alert.alert(
-        'Editing Unavailable',
-        'Editing is unavailable because volunteers have already joined this request.'
-      );
+      Alert.alert(t('ownerEditLockedTitle'), t('ownerEditLockedMessage'));
       return;
     }
     navigation.navigate('EditReport', { reportId });
@@ -130,21 +127,21 @@ export default function RequestDetailsScreen({ route }: Props) {
   const onCancelPress = () => {
     setMenuOpen(false);
     Alert.alert(
-      'Cancel Request?',
-      'Volunteers will be notified that help is no longer required.',
+      t('ownerCancelTitle'),
+      t('ownerCancelMessage'),
       [
-        { text: 'Keep Active', style: 'cancel' },
+        { text: t('ownerCancelKeep'), style: 'cancel' },
         {
-          text: 'Cancel Request',
+          text: t('ownerCancelConfirm'),
           style: 'destructive',
           onPress: async () => {
             try {
               await cancelReport(reportId);
               queryClient.invalidateQueries({ queryKey: ['report', reportId] });
               queryClient.invalidateQueries({ queryKey: ['myReports'] });
-              Alert.alert('Request Cancelled', 'This request has been cancelled.');
+              Alert.alert(t('ownerCancelledTitle'), t('ownerCancelledMessage'));
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Could not cancel request.');
+              Alert.alert(t('common:errorTitle'), e?.message || t('ownerCancelFailed'));
             }
           },
         },
@@ -155,20 +152,17 @@ export default function RequestDetailsScreen({ route }: Props) {
   const onDeletePress = () => {
     setMenuOpen(false);
     if (!report.editable) {
-      Alert.alert(
-        'Delete Unavailable',
-        'Delete is unavailable because volunteers have already joined. Please use Cancel Request instead.'
-      );
+      Alert.alert(t('ownerDeleteLockedTitle'), t('ownerDeleteLockedMessage'));
       return;
     }
 
     Alert.alert(
-      'Delete Request?',
-      'This action will remove the request from your active reports.',
+      t('ownerDeleteTitle'),
+      t('ownerDeleteMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('ownerDeleteConfirm'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -176,7 +170,7 @@ export default function RequestDetailsScreen({ route }: Props) {
               queryClient.invalidateQueries({ queryKey: ['myReports'] });
               navigation.goBack();
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Could not delete report.');
+              Alert.alert(t('common:errorTitle'), e?.message || t('ownerDeleteFailed'));
             }
           },
         },
@@ -211,7 +205,7 @@ export default function RequestDetailsScreen({ route }: Props) {
           <TouchableOpacity
             style={styles.menuTriggerBtn}
             onPress={onShare}
-            accessibilityLabel="Share Story"
+            accessibilityLabel={t('shareStoryLabel')}
           >
             <Share2 size={18} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -223,7 +217,7 @@ export default function RequestDetailsScreen({ route }: Props) {
             <TouchableOpacity
               style={styles.menuTriggerBtn}
               onPress={() => setMenuOpen(true)}
-              accessibilityLabel="Report Options"
+              accessibilityLabel={t('reportOptionsLabel')}
             >
               <MoreVertical size={20} color={colors.textPrimary} />
             </TouchableOpacity>
@@ -313,18 +307,18 @@ export default function RequestDetailsScreen({ route }: Props) {
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setMenuOpen(false)}>
           <View style={styles.menuSheet}>
-            <Text style={styles.menuSheetTitle}>Report Management</Text>
+            <Text style={styles.menuSheetTitle}>{t('ownerMenuTitle')}</Text>
 
             <TouchableOpacity style={styles.menuOptionRow} onPress={onEditPress} activeOpacity={report.editable ? 0.6 : 1}>
               <Pencil size={18} color={report.editable ? colors.textPrimary : colors.textSecondary} />
               <View style={styles.menuOptionTextWrap}>
                 <Text style={[styles.menuOptionTitle, !report.editable && styles.menuOptionTitleDisabled]}>
-                  Edit Report
+                  {t('ownerMenuEdit')}
                 </Text>
                 <Text style={styles.menuOptionSub}>
                   {report.editable
-                    ? 'Modify title, description, or volunteer count'
-                    : 'Unavailable — a volunteer has already joined'}
+                    ? t('ownerMenuEditSub')
+                    : t('ownerMenuEditSubLocked')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -334,8 +328,8 @@ export default function RequestDetailsScreen({ route }: Props) {
             <TouchableOpacity style={styles.menuOptionRow} onPress={onCancelPress}>
               <XCircle size={18} color={COLORS.warning} />
               <View style={styles.menuOptionTextWrap}>
-                <Text style={[styles.menuOptionTitle, { color: COLORS.warning }]}>Cancel Report</Text>
-                <Text style={styles.menuOptionSub}>Help is no longer required</Text>
+                <Text style={[styles.menuOptionTitle, { color: COLORS.warning }]}>{t('ownerMenuCancel')}</Text>
+                <Text style={styles.menuOptionSub}>{t('ownerMenuCancelSub')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -350,12 +344,12 @@ export default function RequestDetailsScreen({ route }: Props) {
                     report.editable ? { color: colors.danger } : styles.menuOptionTitleDisabled,
                   ]}
                 >
-                  Delete Report
+                  {t('ownerMenuDelete')}
                 </Text>
                 <Text style={styles.menuOptionSub}>
                   {report.editable
-                    ? 'Remove this request completely'
-                    : 'Unavailable — use Cancel Request instead'}
+                    ? t('ownerMenuDeleteSub')
+                    : t('ownerMenuDeleteSubLocked')}
                 </Text>
               </View>
             </TouchableOpacity>

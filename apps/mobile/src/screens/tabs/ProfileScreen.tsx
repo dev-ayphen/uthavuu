@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Constants from 'expo-constants';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -131,7 +132,7 @@ export default function ProfileScreen() {
               <Text style={styles.name} numberOfLines={1}>{me?.name || t('profile.defaultName')}</Text>
             </View>
             <Text style={styles.location} numberOfLines={1}>
-              {me?.city === me?.district || !me?.district ? me?.city ?? 'Location not set' : `${me?.city}, ${me?.district}`}
+              {me?.city === me?.district || !me?.district ? me?.city ?? t('profile.locationNotSet') : `${me?.city}, ${me?.district}`}
             </Text>
           </View>
           <TouchableOpacity
@@ -180,16 +181,16 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.myReportsPill} onPress={() => navigation.navigate('MyReports')}>
           <FileText size={16} color={colors.primaryGreen} />
-          <Text style={styles.myReportsPillText}>My Reports</Text>
+          <Text style={styles.myReportsPillText}>{t('profile.myReportsPill')}</Text>
           <ChevronRight size={14} color={colors.primaryGreen} />
         </TouchableOpacity>
       </View>
 
       {/* My Impact Stories Section */}
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>My Impact Stories</Text>
+        <Text style={styles.sectionTitle}>{t('profile.impactStoriesHeading')}</Text>
         <TouchableOpacity style={styles.viewAllRow} onPress={() => navigation.navigate('MyImpactStories')}>
-          <Text style={styles.viewAllText}>View All</Text>
+          <Text style={styles.viewAllText}>{t('profile.viewAll')}</Text>
           <ChevronRight size={14} color={colors.primaryGreen} />
         </TouchableOpacity>
       </View>
@@ -236,7 +237,7 @@ export default function ProfileScreen() {
       ) : (
         <View style={styles.impactCard}>
           <View style={styles.impactRow}>
-            <Text style={styles.impactSub}>No impact stories yet — completed missions will show up here.</Text>
+            <Text style={styles.impactSub}>{t('profile.noImpactStories')}</Text>
           </View>
         </View>
       )}
@@ -285,8 +286,10 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       {/* Version footer */}
-      <Text style={styles.footerVersion}>Version 1.0.4</Text>
-      <Text style={styles.footerSub}>Made with ❤️ for the community.</Text>
+      <Text style={styles.footerVersion}>
+        {t('profile.versionLabel', { version: Constants.expoConfig?.version ?? '—' })}
+      </Text>
+      <Text style={styles.footerSub}>{t('profile.madeWithLove')}</Text>
     </ScrollView>
   );
 }

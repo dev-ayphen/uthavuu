@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { WifiOff, type LucideIcon } from 'lucide-react-native';
 import type { ColorScheme } from '../theme/colors';
@@ -23,28 +24,31 @@ type Props = {
   icon?: LucideIcon;
 };
 
-const DEFAULT_MESSAGE = "Couldn't load this. Check your connection and try again.";
-
 // One full-section error view for the whole app — a screen renders this in
 // place of its content when a query has genuinely failed (not just loading),
 // so a real network/API failure has a way out instead of a skeleton that
 // never resolves.
 export default function ErrorState({
-  message = DEFAULT_MESSAGE,
+  message,
   onRetry,
   retrying,
   icon: Icon = WifiOff,
 }: Props) {
   const { colors } = useTheme();
+  // The default lives here rather than in a module constant because a constant
+  // is evaluated once at import, before i18n has a language — it would freeze
+  // whatever locale happened to be active first. Callers may still pass their
+  // own already-translated `message`.
+  const { t } = useTranslation('common');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
       <Icon size={ICON_SIZE.xl} color={colors.textSecondary} strokeWidth={1.5} />
-      <Text style={styles.message}>{message}</Text>
+      <Text style={styles.message}>{message ?? t('noInternet')}</Text>
       {onRetry ? (
         <Button
-          label="Retry"
+          label={t('retry')}
           variant="secondary"
           onPress={onRetry}
           loading={retrying}

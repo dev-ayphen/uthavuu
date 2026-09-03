@@ -1,7 +1,7 @@
 {
-  "title": "My Impact Stories",
-  "emptyTitle": "No impact stories yet",
-  "emptySubtitle": "Completed requests you posted or helped with will appear here.",
-  "viewStory": "View Story",
+  "title": "எனது தாக்கக் கதைகள்",
+  "emptyTitle": "இதுவரை தாக்கக் கதைகள் இல்லை",
+  "emptySubtitle": "நீங்கள் வெளியிட்ட அல்லது உதவிய நிறைவு செய்யப்பட்ட கோரிக்கைகள் இங்கே தோன்றும்.",
+  "viewStory": "கதையைப் பார்",
   "rowLabel": "{{title}}, {{category}}"
 }

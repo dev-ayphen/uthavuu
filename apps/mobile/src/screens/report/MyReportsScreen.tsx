@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, FileText, MapPin, Users } from 'lucide-react-native';
@@ -25,11 +26,28 @@ type Nav = CompositeNavigationProp<
 
 type TabType = 'active' | 'completed' | 'cancelled' | 'expired';
 
+// Module-level key maps — a tab's label can't come from capitalising its enum
+// value, because that only ever produces English.
+const TAB_LABEL_KEYS: Record<TabType, string> = {
+  active: 'myReports.tabActive',
+  completed: 'myReports.tabCompleted',
+  cancelled: 'myReports.tabCancelled',
+  expired: 'myReports.tabExpired',
+};
+
+const EMPTY_TITLE_KEYS: Record<TabType, string> = {
+  active: 'myReports.emptyActiveTitle',
+  completed: 'myReports.emptyCompletedTitle',
+  cancelled: 'myReports.emptyCancelledTitle',
+  expired: 'myReports.emptyExpiredTitle',
+};
+
 export default function MyReportsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Nav>();
+  const { t } = useTranslation('tabs');
   const [activeTab, setActiveTab] = useState<TabType>('active');
 
   const { data: reports, isLoading, isError, isFetching, refetch } = useQuery({
@@ -68,7 +86,7 @@ export default function MyReportsScreen() {
       <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
         <View style={styles.headerRow}>
           <BackButton />
-          <Text style={styles.headerTitle}>My Reports</Text>
+          <Text style={styles.headerTitle}>{t('myReports.title')}</Text>
         </View>
         <View style={styles.list}>
           {[0, 1, 2].map((i) => (
@@ -91,7 +109,7 @@ export default function MyReportsScreen() {
       {/* Top Navigation */}
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>My Reports</Text>
+        <Text style={styles.headerTitle}>{t('myReports.title')}</Text>
         <CountBadge
           count={reports?.length ?? 0}
           tone={{ fg: colors.primaryGreen, fill: colors.primaryGreenLight, border: colors.primaryGreen }}
@@ -109,7 +127,7 @@ export default function MyReportsScreen() {
         >
           {(['active', 'completed', 'cancelled', 'expired'] as TabType[]).map((tab) => {
             const isSelected = activeTab === tab;
-            const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+            const label = t(TAB_LABEL_KEYS[tab]);
             const count = counts[tab];
             return (
               <TouchableOpacity
@@ -142,11 +160,11 @@ export default function MyReportsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <FileText size={40} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.emptyTitle}>No {activeTab} reports</Text>
+            <Text style={styles.emptyTitle}>{t(EMPTY_TITLE_KEYS[activeTab])}</Text>
             <Text style={styles.emptySubtitle}>
               {activeTab === 'active'
-                ? "You haven't posted any active help requests."
-                : `No ${activeTab} reports found in your history.`}
+                ? t('myReports.emptyActiveSubtitle')
+                : t('myReports.emptyHistorySubtitle')}
             </Text>
           </View>
         }
@@ -174,20 +192,23 @@ function ReportItemCard({
   styles: ReturnType<typeof createStyles>;
   onView: () => void;
 }) {
+  const { t } = useTranslation('tabs');
   const statusBadge = useMemo(() => {
     switch (report.status) {
       case 'completed':
-        return { label: 'Completed', tone: TONES.success };
+        return { label: t('myReports.badgeCompleted'), tone: TONES.success };
       case 'closed':
-        return { label: 'Cancelled', tone: TONES.normal };
+        return { label: t('myReports.badgeCancelled'), tone: TONES.normal };
       case 'expired':
-        return { label: 'Expired', tone: TONES.normal };
+        return { label: t('myReports.badgeExpired'), tone: TONES.normal };
       default:
         return report.assignedVolunteersCount && report.assignedVolunteersCount > 0
-          ? { label: 'Active Mission', tone: TONES.soon }
-          : { label: 'Status: Open', tone: TONES.info };
+          ? { label: t('myReports.badgeActiveMission'), tone: TONES.soon }
+          : { label: t('myReports.badgeOpen'), tone: TONES.info };
     }
-  }, [report.status, report.assignedVolunteersCount]);
+    // `t` is a dependency now that the labels come from the catalogue —
+    // without it the badge keeps the previous language after a switch.
+  }, [report.status, report.assignedVolunteersCount, t]);
 
   const joinedCount = report.assignedVolunteersCount ?? 0;
   const neededCount = report.neededVolunteers ?? 1;
@@ -235,7 +256,7 @@ function ReportItemCard({
           {report.status === 'open' ? formatTimeRemaining(report.expiryAt) : statusBadge.label}
         </Text>
         <TouchableOpacity style={styles.viewBtn} onPress={onView}>
-          <Text style={styles.viewBtnText}>View</Text>
+          <Text style={styles.viewBtnText}>{t('myReports.viewAction')}</Text>
           <ArrowRight size={13} color={colors.primaryGreen} />
         </TouchableOpacity>
       </View>

@@ -308,7 +308,7 @@ function ImpactStoryCard({
         <View style={styles.storyFooterRow}>
           <Text style={styles.storyHelperLabel}>You helped · {formatRelativeTime(mission.joinedAt)}</Text>
           <View style={styles.storyViewBtn}>
-            <Text style={styles.storyViewBtnText}>View Story</Text>
+            <Text style={styles.storyViewBtnText}>{t('myHelps.viewStory')}</Text>
             <ArrowRight size={12} color="#FFFFFF" />
           </View>
         </View>

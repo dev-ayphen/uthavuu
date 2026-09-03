@@ -28,6 +28,7 @@ import { getCommunityStats, getReportsSummary } from '@uthavu/libs-mobile/api/re
 import { getMyMissions } from '@uthavu/libs-mobile/api/missions';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
 import { useCategories } from '../../hooks/useCategories';
+import { useCurrentLocation } from '../../hooks/useCurrentLocation';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Divider from '@uthavu/libs-mobile/components/Divider';
 import Card from '@uthavu/libs-mobile/components/Card';
@@ -87,11 +88,35 @@ export default function DashboardScreen() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
+  const gps = useCurrentLocation();
   const radius = me?.preferredRadius ?? config.defaultRadiusKm;
   const displayCity = exploring ? exploring.city : me?.city ?? 'your area';
   const displayDistrict = exploring ? exploring.district : me?.district ?? '';
-  const effectiveLat = exploring ? exploring.lat : me?.lastLat;
-  const effectiveLng = exploring ? exploring.lng : me?.lastLng;
+  /*
+   * Precedence: a location the user explicitly chose to explore, then a live
+   * GPS fix, then the coordinate stored at signup.
+   *
+   * The stored one used to be the ONLY source, and nothing in the app ever
+   * rewrote it — so this feed answered "who needs help near you?" with wherever
+   * the user stood when they created their account. The live fix is preferred
+   * whenever there is one; the stored value remains the fallback because a
+   * stale real location is still better than none.
+   */
+  const effectiveLat = exploring ? exploring.lat : gps.coords?.lat ?? me?.lastLat;
+  const effectiveLng = exploring ? exploring.lng : gps.coords?.lng ?? me?.lastLng;
+
+  // Distinguishes "nothing is happening near you" from "we do not know where
+  // you are". Both used to render as zeros.
+  const hasLocation = effectiveLat != null && effectiveLng != null;
+
+  /*
+   * With no location these four counts are not zero, they are unknown — the
+   * queries never ran. Rendering "0 Need Help" in that state told the user
+   * nobody nearby needed help, which is the one thing this screen must never
+   * say wrongly. An em dash is the same convention the admin console uses for
+   * a figure it cannot measure.
+   */
+  const statValue = (n: number) => (hasLocation ? String(n) : '—');
 
   const {
     data: summary,
@@ -210,7 +235,7 @@ export default function DashboardScreen() {
             style={styles.locationControl}
             onPress={() => setExploreModalOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Change location"
+            accessibilityLabel={t('dashboard.changeLocationLabel')}
           >
             {exploring ? (
               <Globe size={13} color={COLORS.info} />
@@ -243,36 +268,36 @@ export default function DashboardScreen() {
             {summaryLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
             ) : (
-              <Text style={styles.headerStatValue}>{needHelpCount}</Text>
+              <Text style={styles.headerStatValue}>{statValue(needHelpCount)}</Text>
             )}
-            <Text style={styles.headerStatLabel}>Need Help</Text>
+            <Text style={styles.headerStatLabel}>{t('dashboard.statNeedHelp')}</Text>
           </View>
           <Divider orientation="vertical" tone="onTint" />
           <View style={styles.headerStatCell}>
             {summaryLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
             ) : (
-              <Text style={styles.headerStatValue}>{urgentCount}</Text>
+              <Text style={styles.headerStatValue}>{statValue(urgentCount)}</Text>
             )}
-            <Text style={styles.headerStatLabel}>Urgent</Text>
+            <Text style={styles.headerStatLabel}>{t('dashboard.statUrgent')}</Text>
           </View>
           <Divider orientation="vertical" tone="onTint" />
           <View style={styles.headerStatCell}>
             {communityStatsLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
             ) : (
-              <Text style={styles.headerStatValue}>{communityStats?.activeVolunteers ?? 0}</Text>
+              <Text style={styles.headerStatValue}>{statValue(communityStats?.activeVolunteers ?? 0)}</Text>
             )}
-            <Text style={styles.headerStatLabel}>Active Vols.</Text>
+            <Text style={styles.headerStatLabel}>{t('dashboard.statActiveVolunteers')}</Text>
           </View>
           <Divider orientation="vertical" tone="onTint" />
           <View style={styles.headerStatCell}>
             {communityStatsLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
             ) : (
-              <Text style={styles.headerStatValue}>{communityStats?.helped ?? 0}</Text>
+              <Text style={styles.headerStatValue}>{statValue(communityStats?.helped ?? 0)}</Text>
             )}
-            <Text style={styles.headerStatLabel}>Helped</Text>
+            <Text style={styles.headerStatLabel}>{t('dashboard.statHelped')}</Text>
           </View>
         </View>
       </View>
@@ -291,12 +316,12 @@ export default function DashboardScreen() {
             style={styles.activeMissionBanner}
             onPress={() => navigation.navigate('VolunteerJourney', { reportId: activeMission.reportId })}
             accessibilityRole="button"
-            accessibilityLabel={`Active mission: ${activeMission.title}`}
+            accessibilityLabel={t('dashboard.activeMissionLabel', { title: activeMission.title })}
           >
             <View style={styles.activeMissionHeader}>
-              <Text style={styles.activeMissionTag}>ACTIVE MISSION IN PROGRESS</Text>
+              <Text style={styles.activeMissionTag}>{t('dashboard.activeMissionTag')}</Text>
               <View style={styles.liveBadge}>
-                <Text style={styles.liveBadgeText}>LIVE</Text>
+                <Text style={styles.liveBadgeText}>{t('dashboard.liveBadge')}</Text>
               </View>
             </View>
 
@@ -306,7 +331,7 @@ export default function DashboardScreen() {
                 {activeMission.category.emoji} {activeMission.title}
               </Text>
             </View>
-            <Text style={styles.activeMissionSub}>Mission active · Tap to view and update</Text>
+            <Text style={styles.activeMissionSub}>{t('dashboard.activeMissionSub')}</Text>
           </TouchableOpacity>
         )}
 
@@ -344,6 +369,47 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {/*
+         * No location, no grid. With `effectiveLat` null the two feed queries
+         * are `enabled: false`, and a disabled React Query reports
+         * isLoading === false — so this screen rendered a confident "0 Need
+         * Help / 0 Urgent", every tile read "0 Active", and tapping one did
+         * nothing because the handler short-circuits on null. It was
+         * indistinguishable from "nobody near you needs help", which on this
+         * product is the most harmful thing it could have said.
+         *
+         * It is reachable in normal use: SplashScreen sends any stored token
+         * straight to the tabs without checking profileCompletedAt, so a signup
+         * abandoned after OTP lands here permanently.
+         */}
+        {!hasLocation ? (
+          <View style={styles.locationNeededCard}>
+            <MapPin size={28} color={colors.textSecondary} strokeWidth={1.5} />
+            <Text style={styles.locationNeededTitle}>{t('dashboard.locationNeededTitle')}</Text>
+            <Text style={styles.locationNeededBody}>
+              {gps.status === 'unavailable'
+                ? t('dashboard.locationUnavailableBody')
+                : t('dashboard.locationNeededBody')}
+            </Text>
+            <TouchableOpacity
+              style={styles.locationNeededBtn}
+              onPress={() => void gps.refresh({ prompt: true, force: true })}
+              disabled={gps.status === 'locating'}
+              accessibilityRole="button"
+            >
+              <Text style={styles.locationNeededBtnText}>
+                {gps.status === 'locating'
+                  ? t('common:loading')
+                  : t('dashboard.locationNeededAction')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setExploreModalOpen(true)} accessibilityRole="button">
+              <Text style={styles.locationNeededAlt}>
+                {t('dashboard.exploreAnotherLocationButton')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
         <View style={styles.grid}>
           {categories.map((cat) => {
             const counts = countsByKey.get(cat.id);
@@ -383,12 +449,13 @@ export default function DashboardScreen() {
                   <Text style={styles.cardActiveSub}>{counts?.activeCount ?? 0} Active</Text>
                 )}
                 <View style={styles.cardViewRow}>
-                  <Text style={styles.cardViewText}>View →</Text>
+                  <Text style={styles.cardViewText}>{t('dashboard.viewArrow')}</Text>
                 </View>
               </Card>
             );
           })}
         </View>
+        )}
 
         {/* Sponsor slot — LAST child of the feed, deliberately. It sits below the
             active-mission banner and below every category tile, so a paid card
@@ -402,9 +469,11 @@ export default function DashboardScreen() {
         <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => setRadiusModalOpen(false)}>
           <TouchableOpacity activeOpacity={1} style={styles.sheet}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Nearby Search Radius</Text>
+            <Text style={styles.sheetTitle}>{t('dashboard.radiusSheetTitle')}</Text>
             <Text style={styles.sheetSub}>
-              Showing help requests around{exploring ? ` ${exploring.city}` : ' your current location'}.
+              {exploring
+                ? t('dashboard.radiusSheetSubCity', { city: exploring.city })
+                : t('dashboard.radiusSheetSubHere')}
             </Text>
             <View style={styles.radiusRow}>
               {RADIUS_OPTIONS.map((km) => (
@@ -435,7 +504,7 @@ export default function DashboardScreen() {
           <TouchableOpacity activeOpacity={1} style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeaderRow}>
-              <Text style={styles.sheetTitle}>Explore Location</Text>
+              <Text style={styles.sheetTitle}>{t('dashboard.exploreLocationTitle')}</Text>
               <TouchableOpacity onPress={() => setExploreModalOpen(false)} style={styles.sheetCloseBtn}>
                 <X size={16} color={colors.textSecondary} strokeWidth={2.5} />
               </TouchableOpacity>
@@ -446,7 +515,7 @@ export default function DashboardScreen() {
               <Search size={16} color={colors.textSecondary} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search city, area or locality"
+                placeholder={t('dashboard.searchLocationPlaceholder')}
                 placeholderTextColor={colors.textSecondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -468,24 +537,29 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 style={styles.currentLocRow}
                 onPress={() => {
+                  // Actually re-read GPS. This used to only clear the explore
+                  // override, which dropped the user back onto the same stale
+                  // signup coordinate — a control named "use my current
+                  // location" that never asked the device where it was.
                   setExploring(null);
                   setExploreModalOpen(false);
+                  void gps.refresh({ prompt: true, force: true });
                 }}
               >
                 <View style={styles.currentLocIconBox}>
                   <Navigation size={15} color={colors.primaryGreen} />
                 </View>
                 <View style={styles.currentLocTextBlock}>
-                  <Text style={styles.currentLocLabel}>Use my current location</Text>
+                  <Text style={styles.currentLocLabel}>{t('dashboard.useMyCurrentLocation')}</Text>
                   <Text style={styles.currentLocSub}>
-                    {me?.city ?? 'Your GPS location'}{me?.district && me.district !== me.city ? `, ${me.district}` : ''}
+                    {me?.city ?? t('dashboard.yourGpsLocation')}{me?.district && me.district !== me.city ? `, ${me.district}` : ''}
                   </Text>
                 </View>
               </TouchableOpacity>
             )}
 
             {/* Popular locations */}
-            <Text style={styles.popularLabel}>Popular Locations</Text>
+            <Text style={styles.popularLabel}>{t('dashboard.popularLocations')}</Text>
             {[
               { city: 'Chennai', district: 'Chennai', lat: 13.0827, lng: 80.2707 },
               { city: 'Madurai', district: 'Madurai', lat: 9.9252, lng: 78.1198 },
@@ -689,6 +763,23 @@ const createStyles = (colors: ColorScheme) =>
       marginBottom: SPACING.sm,
     },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+    locationNeededCard: {
+      alignItems: 'center',
+      gap: SPACING.xs,
+      paddingVertical: SPACING.xl,
+      paddingHorizontal: SPACING.lg,
+    },
+    locationNeededTitle: { ...TYPE.bodyStrong, color: colors.textPrimary, textAlign: 'center' },
+    locationNeededBody: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center' },
+    locationNeededBtn: {
+      marginTop: SPACING.sm,
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.sm,
+      borderRadius: RADIUS.pill,
+      backgroundColor: colors.primaryGreen,
+    },
+    locationNeededBtnText: { ...TYPE.footnote, color: '#FFFFFF', fontWeight: '700' },
+    locationNeededAlt: { ...TYPE.footnote, color: colors.primaryGreen, marginTop: SPACING.xs },
     sponsorAd: { marginTop: SPACING.lg },
     card: { width: '47%', padding: SPACING.md, borderRadius: RADIUS.xxl },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },

@@ -1,6 +1,7 @@
 import { StyleSheet, TouchableOpacity, type StyleProp, type ViewStyle } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../theme/ThemeProvider';
 import { ICON_SIZE, TOUCH_TARGET } from '../theme/tokens';
 
@@ -18,13 +19,14 @@ type Props = {
 export default function BackButton({ onPress, color, style }: Props) {
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { t } = useTranslation('common');
 
   return (
     <TouchableOpacity
       style={[styles.hitBox, style]}
       onPress={onPress ?? (() => navigation.goBack())}
       accessibilityRole="button"
-      accessibilityLabel="Go back"
+      accessibilityLabel={t('goBack')}
     >
       <ChevronLeft size={ICON_SIZE.lg} color={color ?? colors.textPrimary} />
     </TouchableOpacity>

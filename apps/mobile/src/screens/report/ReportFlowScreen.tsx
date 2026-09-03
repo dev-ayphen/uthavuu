@@ -294,7 +294,6 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             anonymous={anonymous}
             allowAnonymous={config.allowAnonymousReports}
             phoneVisible={draft.phoneVisible}
-            shareWithNGOs={false}
             confirmed={confirmed}
             category={category}
             customExpiryHours={draft.customExpiryHours}
@@ -310,7 +309,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
           <View style={styles.locationErrorBox}>
             <Text style={styles.locationErrorText}>{locationError}</Text>
             <TouchableOpacity onPress={fetchLocation}>
-              <Text style={styles.locationRetryText}>Try Again</Text>
+              <Text style={styles.locationRetryText}>{t('flowExtra.tryAgain')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -322,7 +321,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
       {page === 0 && (
         <View style={styles.footer}>
           <Button
-            label="Next: Location & Privacy →"
+            label={t('flow.nextLocationPrivacy')}
             onPress={onNext}
             disabled={!canProceedDetails}
           />
@@ -346,13 +345,13 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             <View style={styles.successIconBadge}>
               <CheckCircle2 size={36} color={colors.primaryGreen} />
             </View>
-            <Text style={styles.successTitle}>Request Posted ✅</Text>
+            <Text style={styles.successTitle}>{t('flowExtra.postedTitle')}</Text>
             <Text style={styles.successSub}>
-              Your request is now live for nearby volunteers and community members.
+              {t('flowExtra.postedMessage')}
             </Text>
             <View style={styles.successBtnStack}>
               <Button
-                label="View Request"
+                label={t('flowExtra.viewRequest')}
                 onPress={() => {
                   const id = createdReportId;
                   setCreatedReportId(null);
@@ -363,7 +362,7 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
                 style={styles.homeBtn}
                 onPress={() => { setCreatedReportId(null); navigation.navigate('MainTabs'); }}
               >
-                <Text style={styles.homeBtnText}>Go to Home</Text>
+                <Text style={styles.homeBtnText}>{t('flowExtra.goHome')}</Text>
               </TouchableOpacity>
             </View>
           </View>

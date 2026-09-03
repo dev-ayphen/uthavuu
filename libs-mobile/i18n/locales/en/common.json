@@ -40,5 +40,13 @@
   "dismiss": "Dismiss",
   "noFilterMatches": "Nothing under these filters",
   "noFilterMatchesHint": "Try a different word, or clear the filters.",
-  "clearFilters": "Clear filters"
+  "clearFilters": "Clear filters",
+  "expiredLabel": "Expired",
+  "minutesLeft_one": "{{count}}m left",
+  "minutesLeft_other": "{{count}}m left",
+  "hoursLeft_one": "{{count}}h left",
+  "hoursLeft_other": "{{count}}h left",
+  "daysLeft_one": "{{count}}d left",
+  "daysLeft_other": "{{count}}d left",
+  "errorTitle": "Error"
 }
