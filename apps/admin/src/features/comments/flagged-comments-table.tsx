@@ -7,21 +7,20 @@ import {
   ClearFiltersButton,
   DataTable,
   DateCell,
-  filterTint,
   ListPagination,
   offsetListAdapter,
   RemovedContentCell,
+  ResultAnnouncer,
   useListQuery,
   useListState,
   type DataTableColumn,
   type FilterDef,
   type ListConfig,
 } from "@/components/data";
-import { InlineField, Select } from "@/components/ui";
+import { FilterRow, FilterSelect } from "@/components/ui";
 import { reportDetailHref } from "@/features/moderation/routes";
 import { MODERATION_TABLE } from "@/features/moderation/table-surface";
 import { apiFetch } from "@/lib/api-client";
-import { cn } from "@/lib/cn";
 import { CommentActions } from "./comment-actions";
 import { FlagStatusBadge, ResolveFlagAction } from "./flag-actions";
 import type { AdminFlaggedCommentRow } from "./types";
@@ -226,34 +225,21 @@ function FlagFilters({ total }: { total: number | null }) {
   const { params, setFilter, isFilterActive } = useListState();
   const filter = FILTERS[0];
   if (!filter) return null;
-  const value = params.filters[filter.id] ?? "";
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <InlineField label={filter.label}>
-        {(id) => (
-          <Select
-            id={id}
-            size="sm"
-            value={value}
-            onChange={(event) => setFilter(filter.id, event.target.value)}
-            className={cn("w-auto", filterTint(isFilterActive(filter.id)))}
-          >
-            <option value="">{filter.allLabel}</option>
-            {filter.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        )}
-      </InlineField>
+    <FilterRow>
+      <FilterSelect
+        label={filter.label}
+        allLabel={filter.allLabel}
+        options={filter.options}
+        value={params.filters[filter.id] ?? ""}
+        active={isFilterActive(filter.id)}
+        onChange={(value) => setFilter(filter.id, value)}
+      />
 
       <ClearFiltersButton />
 
-      <p aria-live="polite" className="sr-only">
-        {total === null ? "" : `${total} ${total === 1 ? "flag" : "flags"}`}
-      </p>
-    </div>
+      <ResultAnnouncer count={total} noun="flag" />
+    </FilterRow>
   );
 }

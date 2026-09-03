@@ -12,6 +12,12 @@ docs/viewer.html
 .env
 .env.local
 .env.*.local
+# `.env` alone matches only that exact name — an `.env.bak` or a dated
+# `.env.stale-backup-*` left by a tooling run is NOT ignored by it, and is one
+# `git add -A` away from being committed. Cover the backup shapes explicitly.
+.env.bak
+.env.*.bak
+.env.*backup*
 
 # Local-disk upload storage — temporary until real cloud storage is connected,
 # see docs/decisions/0008-local-disk-photo-storage.md

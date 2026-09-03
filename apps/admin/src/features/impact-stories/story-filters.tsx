@@ -62,6 +62,6 @@ export function StoryFilters({ resultCount }: { resultCount: number | null }) {
       <ClearFiltersButton />
 
       <ResultAnnouncer count={resultCount} noun="story" pluralNoun="stories" />
-    </div>
+    </FilterRow>
   );
 }

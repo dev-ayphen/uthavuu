@@ -348,6 +348,21 @@ erDiagram
    `updated_at` / `deleted_at` to the table. Every mutating admin route writes one, in the same
    transaction as the change
    ([ADR 0012](../decisions/0012-admin-audit-log-before-the-first-mutating-endpoint.md)).
+10. **Every stored photo URL is one this API actually served.** Three columns hold one —
+    `report_photos.url`, `mission_completions.photo_url`, `user.avatar_url` — and all three arrive
+    as a client-supplied string. A new writer must call `assertStoredUpload()`
+    (`apps/api/src/uploads/stored-upload.ts`), which requires a declared origin, a path under
+    `/uploads/`, a filename with no traversal, and **the file to exist on disk**.
+
+    > **Enforced in the service layer only. There is no DB constraint, and the DTOs do not enforce
+    > it either** — `photoUrls`/`avatarUrl` run `z.string().url()`, which is a syntax check that
+    > `http://evil.com/x.png` passes. That gap *was* the bug
+    > ([`../_audit/issues.md`](../_audit/issues.md) issue 27): the predicate existed inside
+    > `MissionsService` and `reports` simply never called it, so any authenticated client could
+    > store a URL that every citizen's phone then fetched. The service layer is the boundary because
+    > the check needs the filesystem and the environment; a DTO refinement would duplicate it, and a
+    > CHECK constraint cannot express "this file exists". **A new path that writes one of these
+    > three columns without calling the assert is unguarded — nothing below it will catch that.**
 
 ---
 

@@ -54,7 +54,7 @@ above so the next doc pass knows to expect it.
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | **TWO HOLDERS, QUEUED.** (1) support lane holds **0023** (`support_ticket_messages`). (2) broadcasts lane holds **0024** — must verify the journal head immediately before `db:generate` and must not run it until 0023 has landed. No third `db:generate` until both release. | Head **0022** (`charming_wonder_man`), 23 applied. |
+| migration series | — **RELEASED 2026-09-02.** The 0025 claim (sponsor campaigns/creatives/impressions/clicks) is **withdrawn, not deferred**: the contract was frozen the same day as `GET /sponsors` with no tracking, and mobile + admin were both realigned to it. Building those four tables would have contradicted a live decision. | Head **0024** (`broadcasts`), 25 applied. |
 | pnpm-lock.yaml | — | — |
 | App Profile / shared lib | — | — |
 

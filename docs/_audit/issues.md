@@ -776,12 +776,12 @@ of truth for the allowed photo host" as well as to this one.
 let each client resolve it against its own API base. The console's resolver already accepts that
 form. It needs a coordinated mobile change plus a backfill of `report_photos.url`,
 `mission_completions.photo_url` and `user.avatar_url`, so it was not started here. See also issue 27,
-which this fix does **not** close.
+which this fix did **not** close (it has since been closed on its own).
 
-## HIGH — 27. `POST /reports` stores whatever photo URL the client sends, unvalidated
+## RESOLVED (2026-09-02) — 27. `POST /reports` stored whatever photo URL the client sent, unvalidated
 
-*Found while fixing issue 26, which closes the other half of the same hole. Not fixed — it lives in
-`apps/api/src/reports/`, outside that pass's scope.*
+*Found while fixing issue 26, which closed the other half of the same hole. Fixed in a follow-up
+pass — `apps/api/src/uploads/stored-upload.ts` and its three callers.*
 
 Issue 26 stopped the API from *generating* a hostile photo URL. It does nothing about the client
 handing one over directly, which is the shorter path to the same row:
@@ -814,9 +814,50 @@ Same blast radius as 26 and the same asymmetry: the console re-homes the path an
 mobile renders the string and is not. `mission_completions.photo_url` and `user.avatar_url` reach the
 database the same way and want the same check.
 
-**Fix:** validate on the way in — a stored URL must be one this API serves. The check is the same
-predicate three DTOs need, so it belongs in one shared Zod refinement: parse the URL, require the
-origin to be `UPLOADS_PUBLIC_URL`/a declared origin **and** the path to start with `/uploads/`.
-Doing this at the same time as the relative-URL migration in issue 26 would be cheaper than doing
-either twice — a relative `/uploads/<file>` makes the refinement a pure path check with no origin
-question at all.
+**Fixed: one predicate, in the uploads module, called by every writer.**
+`apps/api/src/uploads/stored-upload.ts` — `isStoredUpload()` / `assertStoredUpload()`. A URL is
+accepted only if all of the following hold:
+
+1. it parses, and its scheme is `http`/`https` (a `javascript:`/`data:` URL parses fine and is not
+   something we serve);
+2. it carries no query string or fragment — `buildUploadUrl` never emits either, so anything that
+   does was not built by us;
+3. its host is one of the origins **this deployment declares**, resolved by
+   `declaredUploadOrigins()` in `upload-url.ts` — `UPLOADS_PUBLIC_URL`, `BETTER_AUTH_URL`,
+   `EXPO_PUBLIC_API_URL`. This is the same set `buildUploadUrl` decides from, which is the whole
+   point: the generator and the validator can no longer drift apart. The scheme is deliberately not
+   pinned to the declared origin's, because a TLS-terminating proxy legitimately turns `http` into
+   `https` on the way out;
+4. the path is under that origin's `/uploads/`, and the filename contains no `/`, `\`, `..` or NUL
+   — checked after percent-decoding, since `new URL` collapses a literal `..` but leaves `%2e%2e`
+   intact — and resolves to a path inside `UPLOADS_DIR`;
+5. **the file is really on disk.** A syntactically perfect URL for a file nobody uploaded is still a
+   fabrication, and this is the step that stops a client inventing
+   `<declared-origin>/uploads/anything.jpg`.
+
+Rejection is `400 INVALID_UPLOAD_URL`. Neither the message nor the log line contains the rejected
+URL — it is attacker-chosen text, and echoing it would put it in the response the attacker reads and
+in whatever aggregates the logs. The log names the *reason* instead (`undeclared-origin`,
+`no-such-file`, …), once per distinct reason, so a misconfiguration is still discoverable.
+
+**Called from all four writers**, which is the part that was missing rather than the predicate:
+`ReportsService.create()`, `.update()` (the full-replace edit) and `.addPhoto()` via a shared
+`assertPhotosAreOurUploads()`; `MissionsService.complete()`; and `UsersService.completeProfile()` —
+`user.avatar_url` had the identical hole and a wider blast radius, since an avatar renders wherever
+a person appears, not just on one report.
+
+**The `BETTER_AUTH_URL` hard-coding is gone, which fixes two live bugs at the same time.**
+`MissionsService.isGenuineUpload()` was deleted, not copied: `complete()` now calls the shared
+function (passing its own wording, which mobile pins). So a completion photo uploaded from a phone
+over the LAN is accepted for the first time, and setting `UPLOADS_PUBLIC_URL` no longer breaks every
+mission completion — the trap `apps/api/.env.example` warned about, now removed from that file too.
+
+**Tests:** 25 in `apps/api/src/uploads/stored-upload.spec.ts` (the predicate, including both
+traversal forms, the host-prefix trick, the port, and that `evil.com` never reaches a response or a
+log) and 17 in `apps/api/src/reports/report-photo-origin.spec.ts`, which walks a URL in through
+every door on its own database — create, edit, addPhoto, mission completion — and asserts nothing is
+written when one is refused.
+
+**Still open from issue 26**, unchanged by this: storing a **relative** `/uploads/<file>` and letting
+each client resolve it. It would make this check a pure path question with no origin in it at all,
+but it needs a coordinated mobile change plus a backfill of all three columns.
