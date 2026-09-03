@@ -119,7 +119,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
              push real, possibly urgent help requests below the fold, which the
              help-flow rule forbids. Renders nothing unless a campaign exists;
              the contentContainer's own gap means a null render leaves no space. */
-          ListFooterComponent={<SponsorAd placement="CATEGORY_LIST" category={categoryKey} />}
+          ListFooterComponent={<SponsorAd placement="category_list" category={categoryKey} />}
           renderItem={({ item }) => (
             <ReportRow
               report={item}

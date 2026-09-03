@@ -19,6 +19,7 @@ import {
 } from '@uthavu/libs-mobile/api/missions';
 import { formatTimeRemaining } from '@uthavu/libs-mobile/lib/urgency';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
+import { Divider } from '@uthavu/libs-mobile/components';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
 import Button from '@uthavu/libs-mobile/components/Button';
@@ -197,7 +198,7 @@ export default function VolunteerJourneyScreen({ route }: Props) {
             <Text style={styles.navGoogleBtnText}>Navigate via Google Maps</Text>
           </TouchableOpacity>
 
-          <View style={styles.divider} />
+          <Divider style={styles.divider} />
 
           {/* ④ Mission Team */}
           <View style={styles.teamHeaderRow}>
@@ -446,7 +447,8 @@ const createStyles = (colors: ColorScheme) =>
       ...TYPE.bodyStrong,
       color: colors.textPrimary,
     },
-    divider: { height: 1, backgroundColor: colors.border, marginBottom: SPACING.md },
+    // Only the asymmetric margin remains local; the rule itself is <Divider>.
+    divider: { marginBottom: SPACING.md },
 
     teamHeaderRow: { marginBottom: SPACING.sm },
     teamLabel: { ...TYPE.subheadStrong, color: colors.textPrimary },

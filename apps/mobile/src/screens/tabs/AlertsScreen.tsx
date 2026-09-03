@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BellOff, CheckCheck } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
@@ -14,9 +14,7 @@ import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getAlerts, markAllAlertsRead, type Alert } from '@uthavu/libs-mobile/api/alerts';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
-import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
-import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
-import ScreenHeader from '@uthavu/libs-mobile/components/ScreenHeader';
+import { Dot, ErrorState, ScreenHeader, Skeleton, TabBar } from '@uthavu/libs-mobile/components';
 
 type Navigation = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -124,30 +122,12 @@ export default function AlertsScreen() {
       />
 
       {/* Horizontal Tabs Scroll */}
-      <View style={styles.tabsWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsContainer}
-        >
-          {FILTER_TABS.map((tab) => {
-            const isSelected = selectedTab === tab;
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tabPill, isSelected && styles.tabPillActive]}
-                onPress={() => setSelectedTab(tab)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
-                  {t(FILTER_TAB_LABEL_KEYS[tab])}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <TabBar
+        scrollable
+        items={FILTER_TABS.map((tab) => ({ key: tab, label: t(FILTER_TAB_LABEL_KEYS[tab]) }))}
+        selected={selectedTab}
+        onSelect={setSelectedTab}
+      />
 
       {/* Main List */}
       <FlatList
@@ -198,7 +178,7 @@ function AlertRow({
   const rowContent = (
     <View style={styles.cardInner}>
       <View style={styles.cardHeader}>
-        <View style={[styles.unreadDot, alert.read && styles.unreadDotHidden]} />
+        <Dot visible={!alert.read} />
         <Text style={styles.rowTitle}>{title}</Text>
         <Text style={styles.rowTime}>{formatRelativeTime(alert.createdAt)}</Text>
       </View>
@@ -246,35 +226,6 @@ function AlertRowSkeleton({ styles }: { styles: ReturnType<typeof createStyles> 
 const createStyles = (colors: ColorScheme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    tabsWrapper: {
-      marginBottom: SPACING.sm,
-    },
-    tabsContainer: {
-      paddingHorizontal: SIZES.padding,
-      gap: SPACING.xs,
-    },
-    tabPill: {
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.xs,
-      borderRadius: RADIUS.pill,
-      backgroundColor: colors.bgElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    // Mirrors MyHelpsScreen's tabPillActive treatment — same segmented-tab
-    // pattern, kept visually consistent across the two screens that use it.
-    tabPillActive: {
-      backgroundColor: colors.bg,
-      borderColor: colors.border,
-    },
-    tabText: {
-      ...TYPE.footnote,
-      color: colors.textSecondary,
-    },
-    tabTextActive: {
-      color: colors.textPrimary,
-      fontWeight: '700',
-    },
     list: {
       paddingHorizontal: SIZES.padding,
       paddingBottom: SPACING.xxxl,
@@ -299,17 +250,6 @@ const createStyles = (colors: ColorScheme) =>
       alignItems: 'center',
       gap: SPACING.xxs,
       marginBottom: SPACING.xxs,
-    },
-    // No dot-size token this small exists — derived from SPACING.xxs rather
-    // than a bare literal so it still traces to the spacing scale.
-    unreadDot: {
-      width: SPACING.xxs * 2,
-      height: SPACING.xxs * 2,
-      borderRadius: SPACING.xxs,
-      backgroundColor: colors.primaryGreen,
-    },
-    unreadDotHidden: {
-      backgroundColor: 'transparent',
     },
     rowTitle: {
       ...TYPE.headlineStrong,

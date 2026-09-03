@@ -53,6 +53,24 @@ export const COLORS = {
   infoStrong: '#0369A1',
   infoBg: '#E0F2FE',
   infoBorder: '#BAE6FD',
+
+  // A divider drawn on a solid/tinted surface (the Dashboard's dark header),
+  // where `colors.border` would be invisible.
+  dividerOnTint: 'rgba(255, 255, 255, 0.15)',
+
+  // "No fill" — the RN/CSS keyword, named so a component never spells it inline.
+  // Deliberately NOT the same thing as `TONES.overlay.border`, which also happens
+  // to evaluate to 'transparent' but means "the overlay tone declines a border";
+  // that value could be given a real color tomorrow without this one changing.
+  // This one means "invisible, but still occupying its space" — the hidden state
+  // of an element that must not reflow its row when it disappears.
+  transparent: 'transparent',
+
+  // The dim behind every modal surface. Deliberately NOT theme-dependent: it
+  // darkens whatever is behind it in both light and dark mode, the same way
+  // every platform's own modal scrim does. Nine hand-rolled sheets had drifted
+  // to two different alphas (0.6 and 0.65) for this same layer.
+  scrim: 'rgba(15, 23, 42, 0.65)',
 } as const;
 
 // Category accent colors — docs/features/report-a-request.md's 8 citizen-selectable
@@ -76,6 +94,15 @@ export const TONES = {
   critical: { fg: '#B91C1C', fill: '#FEF2F2', border: '#FECACA' },
   expired: { fg: '#94A3B8', fill: '#F8FAFC', border: '#E2E8F0' },
   adminManaged: { fg: '#64748B', fill: '#F1F5F9', border: '#E2E8F0' },
+  // `success` and `info` were the two tones this scale was missing, and their
+  // absence is what drove five screens to inline their own triplets — four
+  // different "success greens" and two identical "info blues" copy-pasted
+  // between MyReports and MyHelps. These are those values, promoted.
+  success: { fg: '#15803D', fill: '#DCFCE7', border: '#BBF7D0' },
+  info: { fg: '#0369A1', fill: '#E0F2FE', border: '#BAE6FD' },
+  // A label over a photo: the only tone whose foreground is light, because it
+  // sits on a dark scrim rather than a tinted fill.
+  overlay: { fg: '#FFFFFF', fill: 'rgba(15, 23, 42, 0.75)', border: 'transparent' },
 } as const;
 
 export const SIZES = {
@@ -124,6 +151,14 @@ export const ICON_SIZE = {
   xl: 28,
 } as const;
 
+// Border widths. The app had no such scale — `1` appears ~120 times across 40
+// files and is the de-facto hairline; `thick` is the ticket timeline's rail
+// dot. Both are the exact values already in use.
+export const BORDER_WIDTH = {
+  thin: 1,
+  thick: 1.5,
+} as const;
+
 // Minimum tappable area for any icon-only control — Apple HIG calls for 44x44pt,
 // Material Design calls for 48x48dp; 44 is the safe floor for both platforms.
 // A control's *visible* icon/box can be smaller (see ICON_SIZE) as long as the
@@ -141,6 +176,11 @@ export const TOUCH_TARGET = {
 // preserve that drift as separate tokens, it's normalized into this same scale.
 export const TYPE = {
   microLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 } as const,
+  // The uppercase category marker above a grouped settings card. Distinct from
+  // microLabel only in tracking (0.8 vs 0.5) — that wider tracking is what the
+  // Settings screen has always rendered, so it's a token rather than an
+  // inline override.
+  overline: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 } as const,
   caption: { fontSize: 11, fontWeight: '400' } as const,
   captionStrong: { fontSize: 11, fontWeight: '600' } as const,
   footnote: { fontSize: 12, fontWeight: '600' } as const,

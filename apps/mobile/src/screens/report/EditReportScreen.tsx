@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { RADIUS, SIZES, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getReport, updateReport } from '@uthavu/libs-mobile/api/reports';
+import { TextField } from '@uthavu/libs-mobile/components';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Button from '@uthavu/libs-mobile/components/Button';
 import RequestDetailsSkeleton from '../request-details/RequestDetailsSkeleton';
@@ -17,6 +19,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditReport'>;
 
 export default function EditReportScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['report', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { reportId } = route.params;
@@ -41,14 +44,15 @@ export default function EditReportScreen({ navigation, route }: Props) {
 
       // Rule 16: Once someone joins, edit is locked
       if (report.assignedVolunteersCount && report.assignedVolunteersCount > 0) {
-        Alert.alert(
-          'Editing Unavailable',
-          'Editing is unavailable because volunteers have already joined this request.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+        Alert.alert(t('edit.lockedTitle'), t('edit.lockedMessage'), [
+          { text: t('common:ok'), onPress: () => navigation.goBack() },
+        ]);
       }
     }
-  }, [report, navigation]);
+    // `t` is deliberately not a dependency: it changes identity when the user
+    // switches language, and re-running this would re-fire the alert (and reset
+    // the form) on a language switch rather than only when the report loads.
+  }, [report, navigation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -61,12 +65,12 @@ export default function EditReportScreen({ navigation, route }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['report', reportId] });
       queryClient.invalidateQueries({ queryKey: ['myReports'] });
-      Alert.alert('Report Updated', '✅ Report updated successfully.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert(t('edit.updatedTitle'), t('edit.updatedMessage'), [
+        { text: t('common:ok'), onPress: () => navigation.goBack() },
       ]);
     },
     onError: (err: any) => {
-      Alert.alert('Update Failed', err?.message || 'Could not update report. Try again.');
+      Alert.alert(t('edit.updateFailedTitle'), err?.message || t('edit.updateFailedMessage'));
     },
   });
 
@@ -76,11 +80,17 @@ export default function EditReportScreen({ navigation, route }: Props) {
   const isLocked = Boolean(report.assignedVolunteersCount && report.assignedVolunteersCount > 0);
   const isValid = title.trim().length > 0 && description.trim().length > 0;
 
+  // TextField's `form` size dims a non-editable field to opacity 0.6; the inline
+  // TextInputs these three replaced did not dim. Cancelled here so the locked
+  // state renders exactly as it did before — drop this once we've decided which
+  // of the two treatments the design system wants.
+  const lockedInputStyle = isLocked ? styles.inputNotDimmed : undefined;
+
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.headerRow, { paddingTop: insets.top + SPACING.xs }]}>
         <BackButton />
-        <Text style={styles.headerTitle}>Edit Report</Text>
+        <Text style={styles.headerTitle}>{t('edit.title')}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -90,47 +100,49 @@ export default function EditReportScreen({ navigation, route }: Props) {
           <Text style={styles.categoryEmoji}>{report.category.emoji}</Text>
           <View style={styles.categoryBody}>
             <Text style={styles.categoryTitle}>{report.category.label}</Text>
-            <Text style={styles.categorySub}>Category cannot be changed after creation.</Text>
+            <Text style={styles.categorySub}>{t('edit.categoryLocked')}</Text>
           </View>
         </View>
 
         {/* Title */}
-        <Text style={styles.label}>Report Title</Text>
-        <TextInput
-          style={styles.input}
+        <TextField
+          style={styles.field}
+          inputStyle={lockedInputStyle}
+          size="form"
+          label={t('edit.titleLabel')}
           value={title}
           onChangeText={setTitle}
-          placeholder="Title"
-          placeholderTextColor={colors.textSecondary}
+          placeholder={t('edit.titlePlaceholder')}
           editable={!isLocked}
         />
 
         {/* Description */}
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
+        <TextField
+          style={styles.field}
+          inputStyle={lockedInputStyle}
+          size="form"
+          label={t('edit.descriptionLabel')}
           value={description}
           onChangeText={setDescription}
-          placeholder="Description"
-          placeholderTextColor={colors.textSecondary}
+          placeholder={t('edit.descriptionPlaceholder')}
           multiline
-          textAlignVertical="top"
           editable={!isLocked}
         />
 
         {/* Landmark */}
-        <Text style={styles.label}>Landmark / Street Details</Text>
-        <TextInput
-          style={styles.input}
+        <TextField
+          style={styles.field}
+          inputStyle={lockedInputStyle}
+          size="form"
+          label={t('edit.landmarkLabel')}
           value={landmark}
           onChangeText={setLandmark}
-          placeholder="Landmark (Optional)"
-          placeholderTextColor={colors.textSecondary}
+          placeholder={t('edit.landmarkPlaceholder')}
           editable={!isLocked}
         />
 
         {/* Volunteer Count */}
-        <Text style={styles.label}>Needed Volunteers</Text>
+        <Text style={styles.label}>{t('edit.volunteersLabel')}</Text>
         <View style={styles.urgencyRow}>
           {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => {
             const active = neededVolunteers === n;
@@ -150,7 +162,7 @@ export default function EditReportScreen({ navigation, route }: Props) {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
         <Button
-          label="Save Changes"
+          label={t('edit.save')}
           onPress={() => updateMutation.mutate()}
           loading={updateMutation.isPending}
           disabled={!isValid || isLocked}
@@ -186,18 +198,11 @@ const createStyles = (colors: ColorScheme) =>
     categoryBody: { flex: 1 },
     categoryTitle: { ...TYPE.subheadStrong, color: colors.textPrimary },
     categorySub: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
+    // The gap that used to live on `label`'s marginTop, now that the label and
+    // its input are one TextField.
+    field: { marginTop: SPACING.sm },
+    inputNotDimmed: { opacity: 1 },
     label: { ...TYPE.subheadStrong, color: colors.textPrimary, marginBottom: SPACING.xs, marginTop: SPACING.sm },
-    input: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.lg,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      ...TYPE.body,
-      color: colors.textPrimary,
-      backgroundColor: colors.bgElevated,
-    },
-    textArea: { height: 90, textAlignVertical: 'top' },
     urgencyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
     urgencyChip: {
       paddingHorizontal: SPACING.md,

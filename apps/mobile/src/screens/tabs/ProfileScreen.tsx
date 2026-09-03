@@ -28,12 +28,32 @@ import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMe, getMyStats } from '@uthavu/libs-mobile/api/users';
+import { Divider, ListRow, SectionHeading } from '@uthavu/libs-mobile/components';
 import { listMyImpactStories } from '@uthavu/libs-mobile/api/impactStories';
 import { logout as logoutApi } from '@uthavu/libs-mobile/api/auth';
 import { clearToken } from '@uthavu/libs-mobile/lib/session';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+
+// The Profile menu's seven rows. `MENU_ICON_SIZE` is 18 — deliberately not
+// ICON_SIZE.sm (16) or .md (20): 18 is what these rows have always rendered,
+// and this table is the single place that value now lives.
+const MENU_ICON_SIZE = 18;
+
+const MENU_ITEMS: {
+  route: 'MissionJournal' | 'MyImpactStories' | 'FlaggedComments' | 'SavedStories' | 'SupportHome' | 'InviteFriends' | 'Settings';
+  labelKey: string;
+  icon: typeof BookOpen;
+}[] = [
+  { route: 'MissionJournal', labelKey: 'profile.menuMissionJournal', icon: BookOpen },
+  { route: 'MyImpactStories', labelKey: 'profile.menuMyImpactStories', icon: Sparkles },
+  { route: 'FlaggedComments', labelKey: 'profile.menuFlaggedComments', icon: Flag },
+  { route: 'SavedStories', labelKey: 'profile.menuSavedStories', icon: Bookmark },
+  { route: 'SupportHome', labelKey: 'profile.menuHelpSupport', icon: HelpCircle },
+  { route: 'InviteFriends', labelKey: 'profile.menuInviteFriends', icon: Users },
+  { route: 'Settings', labelKey: 'profile.menuSettings', icon: SettingsIcon },
+];
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -130,7 +150,7 @@ export default function ProfileScreen() {
             <Text style={styles.statValue}>{stats?.missionsCount ?? 32}</Text>
             <Text style={styles.statLabel}>Total Helps</Text>
           </View>
-          <View style={styles.statsDivider} />
+          <Divider orientation="vertical" length={22} />
           <View style={styles.statCell}>
             <Text style={styles.statValue}>96%</Text>
             <Text style={styles.statLabel}>Reliability</Text>
@@ -188,7 +208,7 @@ export default function ProfileScreen() {
                 </View>
                 <ChevronRight size={16} color={colors.textSecondary} />
               </TouchableOpacity>
-              {index < arr.length - 1 && <View style={styles.cardDivider} />}
+              {index < arr.length - 1 && <Divider inset={SPACING.sm} />}
             </View>
           ))}
         </View>
@@ -249,61 +269,23 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* Menu List */}
-      <Text style={styles.sectionTitle}>Menu</Text>
+      <SectionHeading title={t('profile.menuHeading')} />
       <View style={styles.menuCard}>
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MissionJournal')}>
-          <BookOpen size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Mission Journal (My Activity)</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('MyImpactStories')}>
-          <Sparkles size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>My Impact Stories</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('FlaggedComments')}>
-          <Flag size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Flagged Comments</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('SavedStories')}>
-          <Bookmark size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Saved Stories</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('SupportHome')}>
-          <HelpCircle size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Help & Support</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('InviteFriends')}>
-          <Users size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Invite Friends</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.cardDivider} />
-
-        <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('Settings')}>
-          <SettingsIcon size={18} color={colors.textSecondary} />
-          <Text style={styles.menuText}>Settings</Text>
-          <ChevronRight size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
+        {MENU_ITEMS.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <View key={item.route}>
+              <ListRow
+                label={t(item.labelKey)}
+                icon={<Icon size={MENU_ICON_SIZE} color={colors.textSecondary} />}
+                density="comfortable"
+                accessory="navigate"
+                onPress={() => navigation.navigate(item.route)}
+              />
+              {index < MENU_ITEMS.length - 1 && <Divider inset={SPACING.sm} />}
+            </View>
+          );
+        })}
       </View>
 
       {/* Logout Button */}
@@ -394,7 +376,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     statCell: { alignItems: 'center' },
     statValue: { ...TYPE.title, fontSize: 17, color: colors.textPrimary, fontWeight: '800' },
     statLabel: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
-    statsDivider: { width: 1, height: 22, backgroundColor: colors.border },
     myReportsPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -452,7 +433,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     impactBody: { flex: 1 },
     impactTitle: { ...TYPE.bodyStrong, fontSize: 13, color: colors.textPrimary },
     impactSub: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary, marginTop: 1 },
-    cardDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: SPACING.sm },
 
     badgeCountText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
     badgesContainer: {
@@ -492,13 +472,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
       borderColor: colors.border,
       marginBottom: SPACING.lg,
     },
-    menuRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: SPACING.md,
-      gap: SPACING.sm,
-    },
-    menuText: { flex: 1, ...TYPE.subheadStrong, fontSize: 14, color: colors.textPrimary },
 
     logoutPill: {
       flexDirection: 'row',

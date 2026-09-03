@@ -16,6 +16,7 @@ import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
 import EmptyState from '@uthavu/libs-mobile/components/EmptyState';
 import TabBar, { type TabBarItem } from '@uthavu/libs-mobile/components/TabBar';
+import { StatusBadge } from '@uthavu/libs-mobile/components';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MissionJournal'>;
 type JournalTab = 'all' | 'completed' | 'cancelled' | 'left';
@@ -163,9 +164,7 @@ function MissionCard({
         </View>
       )}
       <View style={styles.cardBody}>
-        <View style={[styles.statusBadge, { backgroundColor: badge.tone.fill, borderColor: badge.tone.border }]}>
-          <Text style={[styles.statusBadgeText, { color: badge.tone.fg }]}>{t(badge.label)}</Text>
-        </View>
+        <StatusBadge label={t(badge.label)} tone={badge.tone} style={styles.statusBadgeSpacing} />
         <Text style={styles.cardTitle} numberOfLines={2}>
           {mission.title}
         </Text>
@@ -198,15 +197,9 @@ const createStyles = (colors: ColorScheme) =>
     cardPhotoPlaceholder: { backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
     cardPhotoEmoji: { fontSize: ICON_SIZE.md },
     cardBody: { flex: 1, justifyContent: 'center', gap: 2 },
-    statusBadge: {
-      alignSelf: 'flex-start',
-      borderWidth: 1,
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: SPACING.xs,
-      paddingVertical: SPACING.xxs / 2,
-      marginBottom: SPACING.xxs / 2,
-    },
-    statusBadgeText: { ...TYPE.microLabel, fontWeight: '700' },
+    // Only the gap under the badge lives here now — the pill itself is
+    // StatusBadge, whose `sm` geometry is this badge's former padding verbatim.
+    statusBadgeSpacing: { marginBottom: SPACING.xxs / 2 },
     cardTitle: { ...TYPE.bodyStrong, color: colors.textPrimary },
     cardMetaText: { ...TYPE.caption, color: colors.textSecondary },
     cardTime: { ...TYPE.caption, color: colors.textSecondary },

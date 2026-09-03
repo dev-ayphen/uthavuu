@@ -18,6 +18,7 @@ import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
 import EmptyState from '@uthavu/libs-mobile/components/EmptyState';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import { StatusBadge } from '@uthavu/libs-mobile/components';
 
 type Navigation = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>,
@@ -108,18 +109,48 @@ export default function FlaggedCommentsScreen() {
                 {item.commentBody}
               </Text>
             </View>
-            <View style={styles.pillRow}>
-              <View style={styles.reasonPill}>
-                <Flag size={ICON_SIZE.xs} color={colors.danger} />
-                <Text style={styles.reasonText}>{reasonLabel(item.reason)}</Text>
-              </View>
-              <View style={[styles.statusPill, { backgroundColor: statusTone(item.status).fill, borderColor: statusTone(item.status).border }]}>
-                <Text style={[styles.statusText, { color: statusTone(item.status).fg }]}>{statusLabel(item.status)}</Text>
-              </View>
-            </View>
+            <PillRow
+              colors={colors}
+              styles={styles}
+              reason={reasonLabel(item.reason)}
+              status={statusLabel(item.status)}
+              tone={statusTone(item.status)}
+            />
           </TouchableOpacity>
         )}
       />
+    </View>
+  );
+}
+
+// The two pills under each flagged comment. Split out so `statusTone` is
+// called once per row and its triplet reused, rather than re-resolved for the
+// fill, the border, and the text separately.
+function PillRow({
+  colors,
+  styles,
+  reason,
+  status,
+  tone,
+}: {
+  colors: ColorScheme;
+  styles: ReturnType<typeof createStyles>;
+  reason: string;
+  status: string;
+  tone: { fg: string; fill: string; border: string };
+}) {
+  return (
+    <View style={styles.pillRow}>
+      <StatusBadge
+        label={reason}
+        // The reason pill is borderless: `borderWidth: 0` through `style`
+        // rather than a transparent border, which would still cost 1pt a side.
+        tone={{ fg: colors.danger, fill: colors.bg, border: 'transparent' }}
+        style={styles.reasonPillBox}
+        labelStyle={styles.pillLabel}
+        leading={<Flag size={ICON_SIZE.xs} color={colors.danger} />}
+      />
+      <StatusBadge label={status} tone={tone} labelStyle={styles.pillLabel} />
     </View>
   );
 }
@@ -150,23 +181,9 @@ const createStyles = (colors: ColorScheme) =>
     },
     commentBody: { ...TYPE.body, color: colors.textSecondary },
     pillRow: { flexDirection: 'row', gap: SPACING.xxs, marginTop: SPACING.xs },
-    reasonPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xxs,
-      alignSelf: 'flex-start',
-      paddingHorizontal: SPACING.xs,
-      paddingVertical: SPACING.xxs / 2,
-      borderRadius: RADIUS.pill,
-      backgroundColor: colors.bg,
-    },
-    reasonText: { ...TYPE.footnoteRegular, color: colors.danger },
-    statusPill: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: SPACING.xs,
-      paddingVertical: SPACING.xxs / 2,
-      borderRadius: RADIUS.pill,
-      borderWidth: 1,
-    },
-    statusText: { ...TYPE.footnoteRegular },
+    // Both pills sat on `footnoteRegular`, not the `microLabel` StatusBadge
+    // defaults to. `letterSpacing: 0` is load-bearing: labelStyle merges over
+    // the default label token, so microLabel's 0.5 would otherwise leak in.
+    pillLabel: { ...TYPE.footnoteRegular, letterSpacing: 0 },
+    reasonPillBox: { borderWidth: 0 },
   });

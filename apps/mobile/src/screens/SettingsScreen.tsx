@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Bell, Check, ChevronRight, FileText, Info, Languages, Laptop, Moon, Sun, Trash2 } from 'lucide-react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Bell, FileText, Info, Languages, Laptop, Moon, Sun, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getNotificationPermission,
@@ -16,10 +16,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppLocale } from '@uthavu/libs-mobile/i18n/useAppLocale';
 import type { AppLocale } from '@uthavu/libs-mobile/i18n';
 import { getMe, updateLocale, updatePrivacyDefaults } from '@uthavu/libs-mobile/api/users';
-import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import Button from '@uthavu/libs-mobile/components/Button';
-import BackButton from '@uthavu/libs-mobile/components/BackButton';
-import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
+import { ICON_SIZE, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import {
+  BackButton,
+  Button,
+  Card,
+  Divider,
+  ListRow,
+  SectionHeading,
+  ToggleRow,
+} from '@uthavu/libs-mobile/components';
 import { useConfig } from '../hooks/useConfig';
 
 const LEGAL_TOPICS: { topic: 'terms' | 'privacy' | 'guidelines'; labelKey: string }[] = [
@@ -79,83 +85,85 @@ export default function SettingsScreen({ navigation }: Props) {
       <BackButton style={styles.backButton} />
       <Text style={styles.title}>{t('settings.title')}</Text>
 
-      <Text style={styles.sectionLabel}>{t('settings.appearance')}</Text>
-      <View style={styles.card}>
+      <SectionHeading variant="overline" title={t('settings.appearance')} />
+      <Card variant="group">
         {THEME_OPTIONS.map((option, index) => {
           const selected = mode === option.mode;
           const Icon = option.icon;
           const label = t(option.labelKey);
           return (
-            <TouchableOpacity
-              key={option.mode}
-              style={[styles.row, index < THEME_OPTIONS.length - 1 && styles.rowDivider]}
-              onPress={() => setMode(option.mode)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-              accessibilityLabel={label}
-            >
-              <View style={styles.iconBox}>
-                <Icon size={ICON_SIZE.md} color={selected ? colors.primaryGreen : colors.textSecondary} />
-              </View>
-              <Text style={styles.rowText}>{label}</Text>
-              {selected && <Check size={ICON_SIZE.sm} color={colors.primaryGreen} strokeWidth={3} />}
-            </TouchableOpacity>
+            <View key={option.mode}>
+              <ListRow
+                label={label}
+                icon={
+                  <Icon size={ICON_SIZE.md} color={selected ? colors.primaryGreen : colors.textSecondary} />
+                }
+                iconBoxed
+                accessory="select"
+                selected={selected}
+                onPress={() => setMode(option.mode)}
+              />
+              {index < THEME_OPTIONS.length - 1 ? <Divider /> : null}
+            </View>
           );
         })}
-      </View>
+      </Card>
 
-      <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
-      <View style={styles.card}>
+      <SectionHeading variant="overline" title={t('settings.language')} />
+      <Card variant="group">
         {LANGUAGE_OPTIONS.map((option, index) => {
           const selected = locale === option.locale;
           return (
-            <TouchableOpacity
-              key={option.locale}
-              style={[styles.row, index < LANGUAGE_OPTIONS.length - 1 && styles.rowDivider]}
-              onPress={() => onSelectLocale(option.locale)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-              accessibilityLabel={option.label}
-            >
-              <View style={styles.iconBox}>
-                <Languages size={ICON_SIZE.md} color={selected ? colors.primaryGreen : colors.textSecondary} />
-              </View>
-              <Text style={styles.rowText}>{option.label}</Text>
-              {selected && <Check size={ICON_SIZE.sm} color={colors.primaryGreen} strokeWidth={3} />}
-            </TouchableOpacity>
+            <View key={option.locale}>
+              <ListRow
+                label={option.label}
+                icon={
+                  <Languages
+                    size={ICON_SIZE.md}
+                    color={selected ? colors.primaryGreen : colors.textSecondary}
+                  />
+                }
+                iconBoxed
+                accessory="select"
+                selected={selected}
+                onPress={() => onSelectLocale(option.locale)}
+              />
+              {index < LANGUAGE_OPTIONS.length - 1 ? <Divider /> : null}
+            </View>
           );
         })}
-      </View>
+      </Card>
 
-      <Text style={styles.sectionLabel}>{t('settings.notifications')}</Text>
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <View style={styles.iconBox}>
+      <SectionHeading variant="overline" title={t('settings.notifications')} />
+      <Card variant="group">
+        <ListRow
+          label={t('settings.pushNotifications')}
+          subtitle={
+            notifStatus === null
+              ? t('settings.notifChecking')
+              : notifGranted
+                ? t('settings.notifEnabled')
+                : t('settings.notifDisabled')
+          }
+          icon={
             <Bell size={ICON_SIZE.md} color={notifGranted ? colors.primaryGreen : colors.textSecondary} />
-          </View>
-          <View style={styles.rowTextGroup}>
-            <Text style={styles.rowText}>{t('settings.pushNotifications')}</Text>
-            <Text style={styles.rowSubtext}>
-              {notifStatus === null
-                ? t('settings.notifChecking')
-                : notifGranted
-                  ? t('settings.notifEnabled')
-                  : t('settings.notifDisabled')}
-            </Text>
-          </View>
-          {!notifGranted && notifStatus !== null && (
-            <Button
-              label={t('settings.openSettings')}
-              variant="secondary"
-              onPress={() => Linking.openSettings()}
-              style={styles.inlineButton}
-            />
-          )}
-        </View>
-      </View>
+          }
+          iconBoxed
+          trailing={
+            !notifGranted && notifStatus !== null ? (
+              <Button
+                label={t('settings.openSettings')}
+                variant="secondary"
+                onPress={() => Linking.openSettings()}
+                style={styles.inlineButton}
+              />
+            ) : undefined
+          }
+        />
+      </Card>
 
-      <Text style={styles.sectionLabel}>{t('settings.privacy')}</Text>
-      <View style={styles.card}>
+      <SectionHeading variant="overline" title={t('settings.privacy')} />
+      <Card variant="group">
         {/* Writes the same defaultAnonymous the report flow seeds its
             anonymity toggle from — so it follows the same platform switch.
             Showing it while GET /config forbids anonymous reports would be a
@@ -169,7 +177,7 @@ export default function SettingsScreen({ navigation }: Props) {
               onValueChange={(value) => privacyMutation.mutate({ defaultAnonymous: value })}
               style={styles.toggleRow}
             />
-            <View style={styles.rowDivider} />
+            <Divider />
           </>
         )}
         <ToggleRow
@@ -179,53 +187,45 @@ export default function SettingsScreen({ navigation }: Props) {
           onValueChange={(value) => privacyMutation.mutate({ defaultPhoneVisible: !value })}
           style={styles.toggleRow}
         />
-      </View>
+      </Card>
 
-      <Text style={styles.sectionLabel}>{t('settings.legal')}</Text>
-      <View style={styles.card}>
+      <SectionHeading variant="overline" title={t('settings.legal')} />
+      <Card variant="group">
         {LEGAL_TOPICS.map((item, index) => (
-          <TouchableOpacity
-            key={item.topic}
-            style={[styles.row, index < LEGAL_TOPICS.length - 1 && styles.rowDivider]}
-            onPress={() => navigation.navigate('Legal', { topic: item.topic })}
-            accessibilityRole="button"
-          >
-            <View style={styles.iconBox}>
-              <FileText size={ICON_SIZE.md} color={colors.textSecondary} />
-            </View>
-            <Text style={styles.rowText}>{t(item.labelKey)}</Text>
-            <ChevronRight size={ICON_SIZE.sm} color={colors.textSecondary} />
-          </TouchableOpacity>
+          <View key={item.topic}>
+            <ListRow
+              label={t(item.labelKey)}
+              icon={<FileText size={ICON_SIZE.md} color={colors.textSecondary} />}
+              iconBoxed
+              accessory="navigate"
+              onPress={() => navigation.navigate('Legal', { topic: item.topic })}
+            />
+            {index < LEGAL_TOPICS.length - 1 ? <Divider /> : null}
+          </View>
         ))}
-      </View>
+      </Card>
 
-      <Text style={styles.sectionLabel}>{t('settings.account')}</Text>
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.row}
+      <SectionHeading variant="overline" title={t('settings.account')} />
+      <Card variant="group">
+        <ListRow
+          label={t('settings.deleteAccount')}
+          icon={<Trash2 size={ICON_SIZE.md} color={colors.danger} />}
+          iconBoxed
+          tone="danger"
+          accessory="navigate"
           onPress={() => navigation.navigate('DeleteAccount')}
-          accessibilityRole="button"
-        >
-          <View style={styles.dangerIconBox}>
-            <Trash2 size={ICON_SIZE.md} color={colors.danger} />
-          </View>
-          <Text style={[styles.rowText, { color: colors.danger }]}>{t('settings.deleteAccount')}</Text>
-          <ChevronRight size={ICON_SIZE.sm} color={colors.danger} />
-        </TouchableOpacity>
-      </View>
+        />
+      </Card>
 
-      <Text style={styles.sectionLabel}>{t('settings.about')}</Text>
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <View style={styles.iconBox}>
-            <Info size={ICON_SIZE.md} color={colors.textSecondary} />
-          </View>
-          <View style={styles.rowTextGroup}>
-            <Text style={styles.rowText}>{appName}</Text>
-            <Text style={styles.rowSubtext}>{t('settings.version', { version: appVersion })}</Text>
-          </View>
-        </View>
-      </View>
+      <SectionHeading variant="overline" title={t('settings.about')} />
+      <Card variant="group">
+        <ListRow
+          label={appName}
+          subtitle={t('settings.version', { version: appVersion })}
+          icon={<Info size={ICON_SIZE.md} color={colors.textSecondary} />}
+          iconBoxed
+        />
+      </Card>
     </ScrollView>
   );
 }
@@ -240,49 +240,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
     },
     backButton: { marginBottom: SPACING.xs },
     title: { ...TYPE.headlineStrong, fontSize: 20, color: colors.textPrimary, marginBottom: SPACING.xs },
-    sectionLabel: {
-      ...TYPE.microLabel,
-      fontSize: 10,
-      color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      marginBottom: 4,
-      marginTop: SPACING.sm + 2,
-    },
-    card: {
-      backgroundColor: colors.bgElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.lg,
-      overflow: 'hidden',
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xs + 2,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xs + 2,
-    },
-    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
-    iconBox: {
-      width: 28,
-      height: 28,
-      borderRadius: RADIUS.sm,
-      backgroundColor: colors.bg,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    rowText: { flex: 1, ...TYPE.footnote, fontSize: 13, fontWeight: '600', color: colors.textPrimary },
-    rowTextGroup: { flex: 1 },
-    rowSubtext: { ...TYPE.microLabel, color: colors.textSecondary, marginTop: 1 },
     inlineButton: { paddingVertical: 4, paddingHorizontal: SPACING.xs },
     toggleRow: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs + 2 },
-    dangerIconBox: {
-      width: 28,
-      height: 28,
-      borderRadius: RADIUS.sm,
-      backgroundColor: colors.bg,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
   });

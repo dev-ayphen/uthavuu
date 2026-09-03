@@ -29,6 +29,7 @@ import { getMyMissions } from '@uthavu/libs-mobile/api/missions';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
 import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
+import Divider from '@uthavu/libs-mobile/components/Divider';
 import Card from '@uthavu/libs-mobile/components/Card';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
@@ -245,7 +246,7 @@ export default function DashboardScreen() {
             )}
             <Text style={styles.headerStatLabel}>Need Help</Text>
           </View>
-          <View style={styles.headerStatDivider} />
+          <Divider orientation="vertical" tone="onTint" />
           <View style={styles.headerStatCell}>
             {summaryLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
@@ -254,7 +255,7 @@ export default function DashboardScreen() {
             )}
             <Text style={styles.headerStatLabel}>Urgent</Text>
           </View>
-          <View style={styles.headerStatDivider} />
+          <Divider orientation="vertical" tone="onTint" />
           <View style={styles.headerStatCell}>
             {communityStatsLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
@@ -263,7 +264,7 @@ export default function DashboardScreen() {
             )}
             <Text style={styles.headerStatLabel}>Active Vols.</Text>
           </View>
-          <View style={styles.headerStatDivider} />
+          <Divider orientation="vertical" tone="onTint" />
           <View style={styles.headerStatCell}>
             {communityStatsLoading ? (
               <ActivityIndicator size="small" color={COLORS.textOnTint} />
@@ -387,7 +388,7 @@ export default function DashboardScreen() {
             active-mission banner and below every category tile, so a paid card
             can never push a real help request further from the user's thumb.
             Renders nothing at all unless the backend returns a live campaign. */}
-        <SponsorAd placement="HOME_FEED" style={styles.sponsorAd} />
+        <SponsorAd placement="home" style={styles.sponsorAd} />
       </ScrollView>
 
       {/* ── Radius bottom sheet — only radius, auto-close on select ── */}
@@ -600,11 +601,6 @@ const createStyles = (colors: ColorScheme) =>
       fontSize: 10,
       color: 'rgba(255,255,255,0.7)',
       marginTop: 1,
-    },
-    headerStatDivider: {
-      width: 1,
-      height: 20,
-      backgroundColor: 'rgba(255,255,255,0.15)',
     },
     activeMissionBanner: {
       backgroundColor: '#ECFDF5',

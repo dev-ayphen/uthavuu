@@ -78,7 +78,7 @@ export default function MyImpactStoriesScreen() {
            these are the citizen's completed missions, and an ad is not what
            they came here for. Renders nothing unless a campaign exists; the
            contentContainer's gap means a null render leaves no space. */
-        ListFooterComponent={<SponsorAd placement="IMPACT_STORIES" />}
+        ListFooterComponent={<SponsorAd placement="impact_stories" />}
         renderItem={({ item }: { item: ImpactStory }) => (
           <TouchableOpacity
             style={styles.card}

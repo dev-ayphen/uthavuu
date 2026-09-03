@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, ChevronRight, LifeBuoy, PlusCircle, Search, X } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, LifeBuoy, PlusCircle, Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
@@ -16,10 +16,15 @@ import {
   TICKETS_QUERY_KEY,
   type Ticket,
 } from '@uthavu/libs-mobile/api/tickets';
-import BackHeader from '@uthavu/libs-mobile/components/BackHeader';
-import EmptyState from '@uthavu/libs-mobile/components/EmptyState';
-import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
-import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
+import {
+  BackHeader,
+  Chip,
+  Divider,
+  EmptyState,
+  ErrorState,
+  SearchField,
+  Skeleton,
+} from '@uthavu/libs-mobile/components';
 import TicketStatusPill from './TicketStatusPill';
 import { relativeTimeOrNull, statusLabel } from './ticket-display';
 import { FAQ_ICONS, FAQ_IDS, type FaqId } from './support-faq';
@@ -97,30 +102,11 @@ export default function SupportHomeScreen() {
 
   const listHeader = (
     <View>
-      <View style={styles.searchBox}>
-        <Search size={ICON_SIZE.sm} color={colors.textSecondary} />
-        <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t('searchPlaceholder')}
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          accessibilityLabel={t('searchPlaceholder')}
-        />
-        {query.length > 0 ? (
-          <TouchableOpacity
-            onPress={() => setQuery('')}
-            accessibilityRole="button"
-            accessibilityLabel={t('searchClear')}
-            hitSlop={SPACING.xs}
-          >
-            <X size={ICON_SIZE.sm} color={colors.textSecondary} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <SearchField
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('searchPlaceholder')}
+      />
 
       <TouchableOpacity
         style={styles.submitCta}
@@ -149,7 +135,7 @@ export default function SupportHomeScreen() {
             const expanded = openFaq === id;
             return (
               <View key={id}>
-                {index > 0 ? <View style={styles.faqDivider} /> : null}
+                {index > 0 ? <Divider inset={SPACING.sm} /> : null}
                 <TouchableOpacity
                   style={styles.faqRow}
                   onPress={() => setOpenFaq(expanded ? null : id)}
@@ -176,22 +162,15 @@ export default function SupportHomeScreen() {
 
       <Text style={styles.sectionTitle}>{t('myTicketsTitle')}</Text>
       <View style={styles.filterRow}>
-        {FILTERS.map((option) => {
-          const active = filter === option;
-          return (
-            <TouchableOpacity
-              key={option}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => setFilter(option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-            >
-              <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                {t(`filter.${option}`)} · {counts[option]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {FILTERS.map((option) => (
+          <Chip
+            key={option}
+            label={`${t(`filter.${option}`)} · ${counts[option]}`}
+            selected={filter === option}
+            onPress={() => setFilter(option)}
+            style={styles.filterChip}
+          />
+        ))}
       </View>
 
       {isLoading ? (
@@ -315,19 +294,6 @@ const createStyles = (colors: ColorScheme) =>
     root: { flex: 1, backgroundColor: colors.bg },
     listContent: { paddingHorizontal: SIZES.padding, gap: SPACING.xs },
 
-    searchBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.xs,
-      height: 44,
-      paddingHorizontal: SPACING.sm,
-      borderRadius: RADIUS.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
-    },
-    searchInput: { flex: 1, ...TYPE.subhead, color: colors.textPrimary },
-
     submitCta: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -382,21 +348,12 @@ const createStyles = (colors: ColorScheme) =>
       paddingBottom: SPACING.sm,
       paddingLeft: SPACING.sm + 28 + SPACING.xs,
     },
-    faqDivider: { height: 1, backgroundColor: colors.border, marginLeft: SPACING.sm },
     faqNoMatches: { ...TYPE.body, color: colors.textSecondary, lineHeight: 19 },
 
     filterRow: { flexDirection: 'row', gap: SPACING.xs, marginBottom: SPACING.xs },
-    filterChip: {
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: SPACING.xxs + 2,
-      borderRadius: RADIUS.pill,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
-    },
-    filterChipActive: { backgroundColor: colors.primaryGreenLight, borderColor: colors.primaryGreen },
-    filterText: { ...TYPE.footnote, color: colors.textSecondary },
-    filterTextActive: { color: colors.primaryGreen },
+    // Only the vertical padding differs from the shared Chip default;
+    // everything else (radius, border, fills, label) already matches.
+    filterChip: { paddingVertical: SPACING.xxs + 2 },
 
     skeletonStack: { gap: SPACING.xs },
 

@@ -14,6 +14,7 @@ import { cancelReport, deleteReport, getReport } from '@uthavu/libs-mobile/api/r
 import { getRoster } from '@uthavu/libs-mobile/api/missions';
 import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
+import { Divider } from '@uthavu/libs-mobile/components';
 import RosterSection from './RosterSection';
 import ImpactStorySection from './ImpactStorySection';
 import MissionChat from './MissionChat';
@@ -308,7 +309,7 @@ export default function RequestDetailsScreen({ route }: Props) {
               </View>
             </TouchableOpacity>
 
-            <View style={styles.menuDivider} />
+            <Divider spacing={SPACING.xxs} />
 
             <TouchableOpacity style={styles.menuOptionRow} onPress={onCancelPress}>
               <XCircle size={18} color={COLORS.warning} />
@@ -318,7 +319,7 @@ export default function RequestDetailsScreen({ route }: Props) {
               </View>
             </TouchableOpacity>
 
-            <View style={styles.menuDivider} />
+            <Divider spacing={SPACING.xxs} />
 
             <TouchableOpacity style={styles.menuOptionRow} onPress={onDeletePress} activeOpacity={report.editable ? 0.6 : 1}>
               <Trash2 size={18} color={report.editable ? colors.danger : colors.textSecondary} />
@@ -449,5 +450,4 @@ const createStyles = (colors: ColorScheme) =>
     menuOptionTitle: { ...TYPE.bodyStrong, color: colors.textPrimary },
     menuOptionTitleDisabled: { color: colors.textSecondary },
     menuOptionSub: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
-    menuDivider: { height: 1, backgroundColor: colors.border, marginVertical: SPACING.xxs },
   });

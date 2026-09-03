@@ -29,5 +29,13 @@
   "durationHours_one": "{{count}} மணி நேரம்",
   "durationHours_other": "{{count}} மணி நேரங்கள்",
   "durationDays_one": "{{count}} நாள்",
-  "durationDays_other": "{{count}} நாட்கள்"
+  "durationDays_other": "{{count}} நாட்கள்",
+  "goBack": "பின் செல்",
+  "clearSearch": "தேடலை அழி",
+  "search": "தேடு",
+  "charCount": "{{current}}/{{max}}",
+  "decrease": "குறை",
+  "increase": "கூட்டு",
+  "requiredField": "தேவை",
+  "dismiss": "நிராகரி"
 }

@@ -38,6 +38,7 @@
     "postedByDeletedUser": "Posted by Deleted User",
     "viewProgress": "View Progress",
     "viewStory": "View Story",
+    "storyCompletedBadge": "Completed",
     "emptyActiveTitle": "No active missions",
     "emptyActiveSubtitle": "Missions you volunteer for will show up here once you accept a request.",
     "emptyStoriesTitle": "No impact stories yet",
@@ -83,7 +84,15 @@
     "editProfileButton": "சுயவிவரத்தைத் திருத்து",
     "settingsButton": "அமைப்புகள்",
     "loggingOut": "வெளியேறுகிறது…",
-    "logOut": "வெளியேறு"
+    "logOut": "வெளியேறு",
+    "menuHeading": "பட்டி",
+    "menuMissionJournal": "பணி நாட்குறிப்பு (எனது செயல்பாடு)",
+    "menuMyImpactStories": "எனது தாக்கக் கதைகள்",
+    "menuFlaggedComments": "கொடியிடப்பட்ட கருத்துகள்",
+    "menuSavedStories": "சேமித்த கதைகள்",
+    "menuHelpSupport": "உதவி & ஆதரவு",
+    "menuInviteFriends": "நண்பர்களை அழை",
+    "menuSettings": "அமைப்புகள்"
   },
   "settings": {
     "title": "அமைப்புகள்",

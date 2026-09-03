@@ -14,19 +14,23 @@
 // in this module resolves to `null`, and `null` means the component renders
 // nothing at all. An empty ad container is a bug, not an empty state.
 //
-// ⚠️ THE ENDPOINTS BELOW ARE NOT LIVE YET (checked 2026-09-02). Three different
-// shapes have been described for this feature:
+// CONTRACT: frozen by the product owner on 2026-09-02 as `GET /sponsors`, the
+// shape `apps/api/src/sponsors/` actually serves. Two rival specs circulated
+// during the build — `GET /ads` returning a single `{ campaign }`, and
+// `GET /sponsor-campaigns` with SCREAMING_CASE placements — and this file was
+// briefly written against the latter, which no backend ever served. Both are
+// dead; do not resurrect either without a new decision. The admin console
+// (`apps/admin/src/features/sponsors/`) is built on this same contract, so the
+// two clients now agree with the server and with each other.
 //
-//   1. `GET /ads` returning a single `{ campaign }`      — the brief this work started from
-//   2. `GET /sponsor-campaigns` returning `{ items }`    — architecture-agent's correction; IMPLEMENTED HERE
-//   3. `GET /sponsors` returning `{ items }`             — what apps/api/src/sponsors/ actually contains today,
-//                                                          with fields `name`/`description`/`website` and NO
-//                                                          impression or click route at all
-//
-// This module implements (2) because it supersedes (1) and matches (3) in
-// shape. Everything shape-specific is confined to this file — the list->single
-// reduction, the field names, the paths — so reconciling with whatever the
-// backend finally ships is a one-file change that no screen or component sees.
+// IMPRESSION AND CLICK TRACKING DO NOT EXIST, deliberately. The backend argues
+// in writing (sponsors.service.ts, sponsors-schema.ts, admin-sponsors.service.ts)
+// that counters it cannot verify would be fictional, and the owner confirmed on
+// 2026-09-02: no tracking until it is designed as its own feature with its own
+// table. This module previously POSTed to two routes that returned 404, which
+// failed silently and implied a capability the product does not have — a
+// sponsor could have been shown numbers derived from nothing. If tracking is
+// ever built, it arrives with a decision record, not as a client change.
 //
 // SAFETY RULE (do not weaken this). Uthavu is a community *emergency* product.
 // Nothing exported here may ever sit in front of accepting help, revealing an
@@ -46,13 +50,15 @@ import { apiRequest } from '../lib/api';
  * next to, an active mission, Mission Chat, mission completion, emergency
  * confirmation, or anywhere between "I'll Help" -> the 15-minute confirmation
  * -> "Start Helping". `PROFILE` was dropped in the same pass. Re-adding any of
- * them is a product decision, not a client change.
+ * them is a product decision, not a client change. The keys below are the
+ * server's `sponsor_placements` lookup values verbatim — renaming one here
+ * silently empties a surface in a shipped app.
  */
 export const AD_PLACEMENTS = [
-  'HOME_FEED',
-  'CATEGORY_LIST',
-  'IMPACT_STORIES',
-  'COMMUNITY',
+  'home',
+  'category_list',
+  'impact_stories',
+  'community_impact',
 ] as const;
 
 export type AdPlacement = (typeof AD_PLACEMENTS)[number];
@@ -142,7 +148,7 @@ export function adQueryKey(placement: AdPlacement, category?: string) {
 }
 
 /**
- * `GET /sponsor-campaigns?placement=…[&category=…]` -> `{ items: [...] }`
+ * `GET /sponsors?placement=…[&category=…]` -> `{ items: [...] }`
  *
  * Returns the first renderable campaign, or `null`.
  *
@@ -164,7 +170,7 @@ export async function getAd(
   placement: AdPlacement,
   category?: string
 ): Promise<SponsorCampaign | null> {
-  let path = `/sponsor-campaigns?placement=${encodeURIComponent(placement)}`;
+  let path = `/sponsors?placement=${encodeURIComponent(placement)}`;
   if (category) path += `&category=${encodeURIComponent(category)}`;
 
   const raw = await apiRequest<unknown>(path, { method: 'GET', auth: true });
@@ -178,41 +184,4 @@ export async function getAd(
     if (campaign) return campaign;
   }
   return null;
-}
-
-/**
- * `POST /sponsor-campaigns/:id/impression` -> 204
- *
- * Returns `void`, not `Promise<void>`, and that is the whole point. An
- * impression is telemetry: it must never be awaited, never gate a render, and
- * never surface a failure to a citizen. An un-awaitable return type means a
- * future caller *cannot* accidentally put an analytics round trip in front of
- * something that matters. Every rejection — a dead API, an offline phone, a
- * 500 — is swallowed here on purpose.
- *
- * WHEN TO CALL THIS: only when the ad is genuinely on screen, and only once per
- * campaign per mount. Calling it because the fetch returned a campaign inflates
- * the count with ads nobody ever saw. The visibility test and the duplicate
- * guard live in SponsorAd.tsx.
- */
-export function trackAdImpression(campaignId: string): void {
-  void apiRequest(`/sponsor-campaigns/${encodeURIComponent(campaignId)}/impression`, {
-    method: 'POST',
-    auth: true,
-  }).catch(() => {});
-}
-
-/**
- * `POST /sponsor-campaigns/:id/click` -> 204
- *
- * Same contract as the impression, same reason. Callers dispatch this and then
- * immediately open the destination URL — the navigation must not wait for the
- * request and must not be cancelled if it fails, or a tracking outage becomes a
- * dead button.
- */
-export function trackAdClick(campaignId: string): void {
-  void apiRequest(`/sponsor-campaigns/${encodeURIComponent(campaignId)}/click`, {
-    method: 'POST',
-    auth: true,
-  }).catch(() => {});
 }

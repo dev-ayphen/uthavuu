@@ -10,11 +10,12 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { COLORS, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMyReports, type Report } from '@uthavu/libs-mobile/api/reports';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
+import { CountBadge, Divider, StatusBadge } from '@uthavu/libs-mobile/components';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -90,9 +91,12 @@ export default function MyReportsScreen() {
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>My Reports</Text>
-        <View style={styles.totalBadge}>
-          <Text style={styles.totalBadgeText}>{reports?.length ?? 0}</Text>
-        </View>
+        <CountBadge
+          count={reports?.length ?? 0}
+          tone={{ fg: colors.primaryGreen, fill: colors.primaryGreenLight, border: colors.primaryGreen }}
+          style={styles.totalBadgeBox}
+          labelStyle={styles.totalBadgeLabel}
+        />
       </View>
 
       {/* Horizontally scrollable pill tabs — prevents text wrapping */}
@@ -172,15 +176,15 @@ function ReportItemCard({
   const statusBadge = useMemo(() => {
     switch (report.status) {
       case 'completed':
-        return { label: 'Completed', tone: { fg: '#15803D', fill: '#DCFCE7', border: '#BBF7D0' } };
+        return { label: 'Completed', tone: TONES.success };
       case 'closed':
-        return { label: 'Cancelled', tone: { fg: '#64748B', fill: '#F1F5F9', border: '#E2E8F0' } };
+        return { label: 'Cancelled', tone: TONES.normal };
       case 'expired':
-        return { label: 'Expired', tone: { fg: '#64748B', fill: '#F1F5F9', border: '#E2E8F0' } };
+        return { label: 'Expired', tone: TONES.normal };
       default:
         return report.assignedVolunteersCount && report.assignedVolunteersCount > 0
           ? { label: 'Active Mission', tone: TONES.soon }
-          : { label: 'Status: Open', tone: { fg: COLORS.infoStrong, fill: COLORS.infoBg, border: COLORS.infoBorder } };
+          : { label: 'Status: Open', tone: TONES.info };
     }
   }, [report.status, report.assignedVolunteersCount]);
 
@@ -190,9 +194,7 @@ function ReportItemCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={[styles.badge, { backgroundColor: statusBadge.tone.fill, borderColor: statusBadge.tone.border }]}>
-          <Text style={[styles.badgeText, { color: statusBadge.tone.fg }]}>{statusBadge.label}</Text>
-        </View>
+        <StatusBadge label={statusBadge.label} tone={statusBadge.tone} align="inline" />
         <Text style={styles.categoryLabel}>
           {report.category.emoji} {report.category.label}
         </Text>
@@ -218,7 +220,7 @@ function ReportItemCard({
         )}
       </View>
 
-      <View style={styles.cardDivider} />
+      <Divider spacing={SPACING.xs} />
 
       <View style={styles.cardFooter}>
         <Text style={styles.expiryText}>
@@ -244,15 +246,13 @@ const createStyles = (colors: ColorScheme) =>
       marginBottom: SPACING.xs,
     },
     headerTitle: { ...TYPE.title, fontSize: 18, color: colors.textPrimary, fontWeight: '800' },
-    totalBadge: {
-      backgroundColor: colors.primaryGreenLight,
-      borderWidth: 1,
-      borderColor: colors.primaryGreen,
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-    },
-    totalBadgeText: { ...TYPE.microLabel, fontSize: 12, color: colors.primaryGreen, fontWeight: '800' },
+    // CountBadge's own padding is SPACING.xs / 2; this badge has always been
+    // roomier. `paddingVertical: 3` is off the spacing scale and is preserved
+    // verbatim rather than snapped to a token that would move it.
+    totalBadgeBox: { paddingHorizontal: SPACING.lg / 2, paddingVertical: 3 },
+    // 12/800 — footnote's size, a weight the type ramp has no token for.
+    // letterSpacing rides in from CountBadge's microLabel base, as before.
+    totalBadgeLabel: { ...TYPE.footnote, fontWeight: '800' },
 
     tabsContainer: {
       marginBottom: SPACING.sm,
@@ -311,19 +311,11 @@ const createStyles = (colors: ColorScheme) =>
       padding: SPACING.sm + 2,
     },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    badge: {
-      borderWidth: 1,
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-    },
-    badgeText: { ...TYPE.microLabel, fontSize: 10, fontWeight: '700' },
     categoryLabel: { ...TYPE.caption, color: colors.textSecondary },
     cardTitle: { ...TYPE.bodyStrong, fontSize: 14, color: colors.textPrimary, marginTop: 6, marginBottom: 4 },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
     metaText: { ...TYPE.caption, color: colors.textSecondary },
     dot: { ...TYPE.caption, color: colors.textSecondary },
-    cardDivider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     expiryText: { ...TYPE.caption, color: colors.textSecondary },
     viewBtn: {

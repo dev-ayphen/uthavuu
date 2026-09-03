@@ -29,5 +29,13 @@
   "durationHours_one": "{{count}} hour",
   "durationHours_other": "{{count}} hours",
   "durationDays_one": "{{count}} day",
-  "durationDays_other": "{{count}} days"
+  "durationDays_other": "{{count}} days",
+  "goBack": "Go back",
+  "clearSearch": "Clear search",
+  "search": "Search",
+  "charCount": "{{current}}/{{max}}",
+  "decrease": "Decrease",
+  "increase": "Increase",
+  "requiredField": "required",
+  "dismiss": "Dismiss"
 }

@@ -12,13 +12,14 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { MainTabParamList } from '../../navigation/tabTypes';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { COLORS, ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { ICON_SIZE, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { getMyMissions, type MyMission } from '@uthavu/libs-mobile/api/missions';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import Button from '@uthavu/libs-mobile/components/Button';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
 import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 import ScreenHeader from '@uthavu/libs-mobile/components/ScreenHeader';
+import { Divider, StatusBadge } from '@uthavu/libs-mobile/components';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -175,7 +176,7 @@ function ActiveQueueCard({
   // inventing a new color for one badge isn't worth it.
   const badge = isActive
     ? { icon: '🟠', label: t('myHelps.statusHelpingInProgress'), tone: TONES.soon }
-    : { icon: '🔵', label: t('myHelps.statusVolunteerAssigned'), tone: { fg: COLORS.infoStrong, fill: COLORS.infoBg, border: COLORS.infoBorder } };
+    : { icon: '🔵', label: t('myHelps.statusVolunteerAssigned'), tone: TONES.info };
   const timeLabel = t(isActive ? 'myHelps.assignedTimeAgo' : 'myHelps.acceptedTimeAgo', {
     time: formatRelativeTime(mission.joinedAt),
   });
@@ -190,11 +191,13 @@ function ActiveQueueCard({
       })}
     >
       <View style={styles.cardTopRow}>
-        <View style={[styles.statusBadge, { backgroundColor: badge.tone.fill, borderColor: badge.tone.border }]}>
-          <Text style={[styles.statusBadgeText, { color: badge.tone.fg }]}>
-            {badge.icon} {badge.label}
-          </Text>
-        </View>
+        <StatusBadge
+          label={`${badge.icon} ${badge.label}`}
+          tone={badge.tone}
+          align="inline"
+          style={styles.statusBadgeBox}
+          labelStyle={styles.statusBadgeLabel}
+        />
         <Text style={styles.cardTime}>{timeLabel}</Text>
       </View>
 
@@ -217,7 +220,7 @@ function ActiveQueueCard({
         )}
       </View>
 
-      <View style={styles.cardDivider} />
+      <Divider spacing={SPACING.sm / 2} />
 
       <View style={styles.cardBottomRow}>
         <Text style={styles.cardPostedBy} numberOfLines={1}>
@@ -276,17 +279,18 @@ function ImpactStoryCard({
       {/* Completed badge top-right */}
       <View style={styles.storyCompletedBadge}>
         <CheckCircle2 size={13} color="#16A34A" />
-        <Text style={styles.storyCompletedText}>Completed</Text>
+        <Text style={styles.storyCompletedText}>{t('myHelps.storyCompletedBadge')}</Text>
       </View>
 
       {/* Card body */}
       <View style={styles.storyBody}>
         {/* Category pill */}
-        <View style={styles.storyCategoryPill}>
-          <Text style={styles.storyCategoryText}>
-            {mission.category.emoji} {mission.category.label}
-          </Text>
-        </View>
+        <StatusBadge
+          label={`${mission.category.emoji} ${mission.category.label}`}
+          tone={{ fg: colors.textSecondary, fill: colors.bg, border: colors.border }}
+          style={styles.storyCategoryPillBox}
+          labelStyle={styles.storyCategoryLabel}
+        />
 
         <Text style={styles.storyTitle} numberOfLines={2}>
           {mission.title}
@@ -299,7 +303,7 @@ function ImpactStoryCard({
           </View>
         ) : null}
 
-        <View style={styles.storyDivider} />
+        <Divider spacing={SPACING.xs} />
 
         <View style={styles.storyFooterRow}>
           <Text style={styles.storyHelperLabel}>You helped · {formatRelativeTime(mission.joinedAt)}</Text>
@@ -324,7 +328,7 @@ function ActiveQueueCardSkeleton({ styles }: { styles: ReturnType<typeof createS
       </View>
       <Skeleton width="80%" height={16} style={styles.skeletonLine} />
       <Skeleton width="60%" height={12} style={styles.skeletonLine} />
-      <View style={styles.cardDivider} />
+      <Divider spacing={SPACING.sm / 2} />
       <View style={styles.cardBottomRow}>
         <Skeleton width={100} height={12} />
         <Skeleton width={110} height={32} borderRadius={RADIUS.pill} />
@@ -366,13 +370,11 @@ const createStyles = (colors: ColorScheme) =>
       padding: SPACING.xs + 2,
     },
     cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    statusBadge: {
-      borderWidth: 1,
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: 6,
-      paddingVertical: 1,
-    },
-    statusBadgeText: { ...TYPE.microLabel, fontSize: 9.5, fontWeight: '800' },
+    // Tighter than StatusBadge's `sm` padding, and 9.5/800 is off the type
+    // ramp entirely — both preserved verbatim rather than snapped to a token
+    // that would resize the pill. microLabel's letterSpacing rides in as before.
+    statusBadgeBox: { paddingHorizontal: 6, paddingVertical: 1 },
+    statusBadgeLabel: { fontSize: 9.5, fontWeight: '800' },
     cardTime: { ...TYPE.caption, fontSize: 10.5, color: colors.textSecondary },
     cardTitle: { ...TYPE.bodyStrong, fontSize: 13.5, color: colors.textPrimary, marginTop: 4, marginBottom: 2 },
     cardMetaRow: {
@@ -384,7 +386,6 @@ const createStyles = (colors: ColorScheme) =>
     },
     cardMetaText: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
     cardMetaDot: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
-    cardDivider: { height: 1, backgroundColor: colors.border, marginVertical: 6 },
     cardBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.xs },
     cardPostedBy: { ...TYPE.caption, fontSize: 11.5, color: colors.textSecondary, flex: 1 },
     viewProgressButton: {
@@ -432,21 +433,13 @@ const createStyles = (colors: ColorScheme) =>
     storyBody: {
       padding: SPACING.sm,
     },
-    storyCategoryPill: {
-      alignSelf: 'flex-start',
-      backgroundColor: colors.bg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.pill,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      marginBottom: 6,
-    },
-    storyCategoryText: { ...TYPE.microLabel, color: colors.textSecondary, fontSize: 10.5, fontWeight: '600' },
+    // Geometry is StatusBadge's `sm` exactly; only the gap under it and the
+    // off-ramp 10.5/600 label had to be carried over.
+    storyCategoryPillBox: { marginBottom: SPACING.sm / 2 },
+    storyCategoryLabel: { fontSize: 10.5, fontWeight: '600' },
     storyTitle: { ...TYPE.bodyStrong, fontSize: 14.5, color: colors.textPrimary, marginBottom: 4, lineHeight: 20 },
     storyLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
     storyLocationText: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
-    storyDivider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
     storyFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     storyHelperLabel: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary },
     storyViewBtn: {

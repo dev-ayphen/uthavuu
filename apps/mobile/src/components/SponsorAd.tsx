@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
-  Dimensions,
   Image,
   Linking,
   StyleSheet,
@@ -10,16 +9,11 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
-import {
-  trackAdClick,
-  trackAdImpression,
-  type AdPlacement,
-} from '@uthavu/libs-mobile/api/ads';
+import type { AdPlacement } from '@uthavu/libs-mobile/api/ads';
 import { useAds } from '../hooks/useAds';
 
 type Props = {
@@ -35,19 +29,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/**
- * How much of the card must be inside the window before it counts as seen.
- * Half is the common industry floor (IAB's display standard is 50% of pixels);
- * anything lower starts counting cards that are one pixel past the fold.
- */
-const VISIBLE_AREA_RATIO = 0.5;
 
-/**
- * How often to re-measure while the card has not yet been counted. See the
- * long note on the effect below for why this is a poll and why it costs almost
- * nothing.
- */
-const VISIBILITY_POLL_MS = 500;
 
 /**
  * Creative height. Not a token because the theme has no image-height scale —
@@ -57,7 +39,7 @@ const VISIBILITY_POLL_MS = 500;
 const CREATIVE_HEIGHT = 140;
 
 /**
- * One sponsor ad slot. `<SponsorAd placement="HOME_FEED" />` is the entire API.
+ * One sponsor ad slot. `<SponsorAd placement="home" />` is the entire API.
  *
  * IT RENDERS NOTHING unless the backend hands it a campaign. Loading renders
  * nothing (no skeleton — a skeleton is a promise that something is coming, and
@@ -84,110 +66,18 @@ export default function SponsorAd({ placement, category, style }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { campaign, isLoading, isError } = useAds(placement, category);
-  const isFocused = useIsFocused();
 
-  const containerRef = useRef<View | null>(null);
-
-  /**
-   * THE DUPLICATE GUARD. Holds the id of the campaign an impression has already
-   * been sent for, so a re-render, a refetch that returns the same campaign, or
-   * the user scrolling the card off and back on cannot count it twice.
-   *
-   * Keyed by campaign id rather than a boolean on purpose: if a refetch returns
-   * a *different* campaign into this same slot, that genuinely is a new
-   * impression and should be counted. A boolean would silently swallow it.
-   *
-   * Being a ref (not state) is also load-bearing — writing it must not trigger
-   * a render, or recording an impression would itself cause the re-render that
-   * a naive implementation then miscounts.
-   */
-  const recordedCampaignIdRef = useRef<string | null>(null);
-
-  const campaignId = campaign?.id ?? null;
-
-  /**
-   * THE VISIBILITY TEST. Measures where the card actually is on the physical
-   * screen and counts an impression only if at least half of it is inside the
-   * window.
-   *
-   * This is the part that must not be a bare `useEffect(() => POST…)`. Firing
-   * because the API returned a campaign counts ads that were never on screen —
-   * below the fold in a ScrollView, off the end of a FlatList, on a screen
-   * buried in the navigation stack — and inflates the number a sponsor is
-   * eventually shown.
-   *
-   * `measureInWindow` is used rather than FlatList's `onViewableItemsChanged`
-   * because it works identically in every host: a ScrollView (Home feed), a
-   * FlatList footer (Category list, Impact Stories), or a plain View. Tying
-   * this to viewability config would mean each screen wiring up a different
-   * mechanism and the component no longer owning its own correctness.
-   */
-  const recordImpressionIfVisible = useCallback(() => {
-    const node = containerRef.current;
-    if (!node || !campaignId) return;
-    if (recordedCampaignIdRef.current === campaignId) return;
-
-    node.measureInWindow((x, y, width, height) => {
-      // Re-checked inside the callback, not just outside it: measureInWindow is
-      // asynchronous, so several measurements can be in flight at once. JS is
-      // single-threaded and the ref is claimed synchronously below, so whichever
-      // callback arrives first wins and the rest return here.
-      if (recordedCampaignIdRef.current === campaignId) return;
-      if (width <= 0 || height <= 0) return;
-
-      const window = Dimensions.get('window');
-      const visibleWidth = Math.min(x + width, window.width) - Math.max(x, 0);
-      const visibleHeight = Math.min(y + height, window.height) - Math.max(y, 0);
-      if (visibleWidth <= 0 || visibleHeight <= 0) return;
-      if ((visibleWidth * visibleHeight) / (width * height) < VISIBLE_AREA_RATIO) return;
-
-      // Claimed BEFORE the request is dispatched, never after and never in a
-      // `.then()`. If this were set on success, every measurement that landed
-      // while the POST was in flight would fire its own POST.
-      recordedCampaignIdRef.current = campaignId;
-      trackAdImpression(campaignId);
-    });
-  }, [campaignId]);
-
-  useEffect(() => {
-    if (!campaignId || !isFocused) return;
-    if (recordedCampaignIdRef.current === campaignId) return;
-
-    // Measure once immediately — covers the common case where the card is
-    // already on screen the moment it mounts.
-    recordImpressionIfVisible();
-
-    // Then poll until it becomes visible, and stop permanently the instant it
-    // does. This is bounded in the way that matters: the interval clears itself
-    // on the first successful count, and `isFocused` tears it down entirely
-    // when the screen is pushed behind another one. What is left is a single
-    // native view measurement twice a second, only while a real campaign is
-    // loaded, only while the user is looking at this screen, and only until the
-    // card has been seen once — which is cheaper than the re-render it avoids.
-    const interval = setInterval(() => {
-      if (recordedCampaignIdRef.current === campaignId) {
-        clearInterval(interval);
-        return;
-      }
-      recordImpressionIfVisible();
-    }, VISIBILITY_POLL_MS);
-
-    return () => clearInterval(interval);
-  }, [campaignId, isFocused, recordImpressionIfVisible]);
 
   const targetUrl = campaign?.targetUrl ?? null;
 
   const onPress = useCallback(() => {
     if (!campaign || !targetUrl) return;
 
-    // Click first, then navigate — and deliberately NOT awaited. `trackAdClick`
-    // returns void precisely so this cannot be written as
-    // `await trackAdClick(...)`, which would turn a tracking outage or a slow
-    // network into a button that does nothing.
-    trackAdClick(campaign.id);
+    // No click tracking: the routes do not exist and the product owner decided
+    // on 2026-09-02 not to build them yet. Opening the URL is the whole action.
     Linking.openURL(targetUrl).catch(() => {
       // A URL the OS can't open is the sponsor's data problem, not something to
-      // interrupt a citizen with. The click is already recorded.
+      // interrupt a citizen with.
     });
   }, [campaign, targetUrl]);
 
@@ -210,11 +100,7 @@ export default function SponsorAd({ placement, category, style }: Props) {
   const pressable = targetUrl !== null;
 
   return (
-    // The measured node is this outer View, not the touchable inside it.
-    // `collapsable={false}` is required: without it Android may flatten a plain
-    // View out of the native hierarchy entirely, and measureInWindow then
-    // reports zeros forever — the card would render and never count.
-    <View ref={containerRef} onLayout={recordImpressionIfVisible} collapsable={false} style={style}>
+    <View style={style}>
       <TouchableOpacity
         style={styles.card}
         onPress={onPress}

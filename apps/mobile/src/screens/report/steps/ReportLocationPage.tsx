@@ -8,8 +8,10 @@ import {
   View,
 } from 'react-native';
 import { MapPin } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import Spinner from '@uthavu/libs-mobile/components/Spinner';
+import { Divider, TextField } from '@uthavu/libs-mobile/components';
 import { ICON_SIZE, RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import type { ReportCategory } from '@uthavu/libs-mobile/api/reports';
@@ -55,50 +57,50 @@ export default function ReportLocationPage({
   onChangeCustomExpiryHours,
 }: Props) {
   const { colors } = useTheme();
+  const { t } = useTranslation('report');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.root}>
       {/* ── Page heading ── */}
-      <Text style={styles.pageTitle}>Location & Preferences</Text>
-      <Text style={styles.pageSubtitle}>Set location, expiry duration and contact privacy.</Text>
+      <Text style={styles.pageTitle}>{t('locationStep.pageTitle')}</Text>
+      <Text style={styles.pageSubtitle}>{t('locationStep.pageSubtitle')}</Text>
 
       {/* ── Location ── */}
-      <Text style={styles.label}>Location</Text>
+      <Text style={styles.label}>{t('locationStep.locationLabel')}</Text>
       <View style={styles.locationCard}>
         {locating ? (
           <>
             <Spinner variant="standalone" size="small" />
-            <Text style={styles.locationText}>Detecting location…</Text>
+            <Text style={styles.locationText}>{t('locationStep.detecting')}</Text>
           </>
         ) : (
           <>
             <MapPin size={ICON_SIZE.sm} color={colors.primaryGreen} />
             <View style={styles.locationBody}>
               <Text style={styles.locationLabel} numberOfLines={1}>
-                {locationLabel || 'Location unavailable'}
+                {locationLabel || t('locationStep.unavailable')}
               </Text>
-              <Text style={styles.locationAccuracy}>GPS Accuracy: High (5m)</Text>
+              <Text style={styles.locationAccuracy}>{t('locationStep.gpsAccuracy')}</Text>
             </View>
           </>
         )}
       </View>
 
-      <TextInput
-        style={styles.input}
+      <TextField
+        size="form"
         value={landmark}
         onChangeText={onChangeLandmark}
-        placeholder="Landmark or street details (Optional)"
-        placeholderTextColor={colors.textSecondary}
+        placeholder={t('locationStep.landmarkPlaceholder')}
         autoCapitalize="sentences"
       />
 
       {/* ── Expected help window ── */}
-      <Text style={styles.label}>Expected help window</Text>
+      <Text style={styles.label}>{t('locationStep.expiryLabel')}</Text>
       <Text style={styles.helpWindowCaption}>
         {category
-          ? `Default: Open for ${formatExpiryMinutes(category.defaultExpiryMinutes)}. Override below if needed.`
-          : 'Set a custom duration or pick a category to use its default.'}
+          ? t('locationStep.expiryDefault', { duration: formatExpiryMinutes(category.defaultExpiryMinutes) })
+          : t('locationStep.expiryNoCategory')}
       </Text>
 
       {/* Quick preset chips */}
@@ -112,7 +114,7 @@ export default function ReportLocationPage({
               onPress={() => onChangeCustomExpiryHours(active ? null : h)}
             >
               <Text style={[styles.expiryChipText, active && styles.expiryChipTextActive]}>
-                {h}h
+                {t('locationStep.expiryPreset', { hours: h })}
               </Text>
             </TouchableOpacity>
           );
@@ -121,7 +123,7 @@ export default function ReportLocationPage({
 
       {/* Manual hour entry */}
       <View style={styles.expiryInputRow}>
-        <Text style={styles.expiryInputLabel}>Or type hours:</Text>
+        <Text style={styles.expiryInputLabel}>{t('locationStep.expiryManualLabel')}</Text>
         <TextInput
           style={styles.expiryInput}
           value={customExpiryHours != null ? String(customExpiryHours) : ''}
@@ -131,15 +133,15 @@ export default function ReportLocationPage({
           }}
           keyboardType="number-pad"
           maxLength={3}
-          placeholder="e.g. 48"
+          placeholder={t('locationStep.expiryManualPlaceholder')}
           placeholderTextColor={colors.textSecondary}
           returnKeyType="done"
         />
-        <Text style={styles.expiryUnit}>hours</Text>
+        <Text style={styles.expiryUnit}>{t('locationStep.expiryUnit')}</Text>
       </View>
 
       {/* ── Privacy & Notifications ── */}
-      <Text style={styles.sectionTitle}>Privacy & Notifications</Text>
+      <Text style={styles.sectionTitle}>{t('locationStep.privacyTitle')}</Text>
 
       <View style={styles.toggleCard}>
         {/* Post Anonymously — only when the platform allows it */}
@@ -147,7 +149,7 @@ export default function ReportLocationPage({
           <>
             <View style={styles.toggleRow}>
               <View style={styles.toggleBody}>
-                <Text style={styles.toggleLabel}>Post Anonymously</Text>
+                <Text style={styles.toggleLabel}>{t('locationStep.anonymousLabel')}</Text>
               </View>
               <Switch
                 value={anonymous}
@@ -157,18 +159,18 @@ export default function ReportLocationPage({
               />
             </View>
 
-            <View style={styles.divider} />
+            <Divider inset={SPACING.md} />
           </>
         )}
 
         {/* Share phone number */}
         <View style={styles.toggleRow}>
           <View style={styles.toggleBody}>
-            <Text style={styles.toggleLabel}>Share phone number with volunteers</Text>
+            <Text style={styles.toggleLabel}>{t('locationStep.phoneVisibleLabel')}</Text>
             <Text style={styles.toggleSub}>
               {phoneVisible
-                ? 'Phone number visible to volunteers'
-                : 'Phone hidden — volunteers contact via in-app chat only.'}
+                ? t('locationStep.phoneVisibleOn')
+                : t('locationStep.phoneVisibleOff')}
             </Text>
           </View>
           <Switch
@@ -179,12 +181,12 @@ export default function ReportLocationPage({
           />
         </View>
 
-        <View style={styles.divider} />
+        <Divider inset={SPACING.md} />
 
         {/* Share with NGOs (UI-only, always off) */}
         <View style={styles.toggleRow}>
           <View style={styles.toggleBody}>
-            <Text style={styles.toggleLabel}>Share with local NGOs</Text>
+            <Text style={styles.toggleLabel}>{t('locationStep.ngoLabel')}</Text>
           </View>
           <Switch
             value={shareWithNGOs}
@@ -204,7 +206,7 @@ export default function ReportLocationPage({
         <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
           {confirmed && <Text style={styles.checkmark}>✓</Text>}
         </View>
-        <Text style={styles.confirmText}>I confirm that this information is accurate.</Text>
+        <Text style={styles.confirmText}>{t('locationStep.confirmLabel')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -235,27 +237,7 @@ const createStyles = (colors: ColorScheme) =>
     locationAccuracy: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
     locationText: { ...TYPE.body, color: colors.textSecondary, flex: 1 },
 
-    input: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.lg,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      ...TYPE.body,
-      color: colors.textPrimary,
-      backgroundColor: colors.bgElevated,
-    },
-
     helpWindowCaption: { ...TYPE.caption, color: colors.textSecondary, marginBottom: SPACING.xs, marginTop: -SPACING.xxs },
-    helpWindowBox: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.lg,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      backgroundColor: colors.bgElevated,
-    },
-    helpWindowText: { ...TYPE.body, color: colors.textSecondary, lineHeight: 18 },
 
     // Expiry hour selector
     expiryChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: SPACING.xs },
@@ -320,7 +302,6 @@ const createStyles = (colors: ColorScheme) =>
     toggleBody: { flex: 1 },
     toggleLabel: { ...TYPE.bodyStrong, color: colors.textPrimary },
     toggleSub: { ...TYPE.caption, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
-    divider: { height: 1, backgroundColor: colors.border, marginHorizontal: SPACING.md },
 
     confirmRow: {
       flexDirection: 'row',
