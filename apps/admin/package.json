@@ -2,13 +2,15 @@
   "name": "@uthavu/admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Uthavu admin console — internal ops/moderation tool (english-only chrome, desktop-first).",
+  "description": "Uthavu admin console \u2014 internal ops/moderation tool (english-only chrome, desktop-first).",
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "next start -p 3002",
     "type-check": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -37,6 +39,7 @@
     "eslint-config-next": "16.3.3",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

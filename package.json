@@ -8,6 +8,7 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:api": "pnpm --filter api test",
+    "test:admin": "pnpm --filter admin test",
     "lint": "pnpm -r run lint",
     "docs:viewer": "node scripts/build-docs-viewer.mjs",
     "db:generate": "pnpm --filter api db:generate",

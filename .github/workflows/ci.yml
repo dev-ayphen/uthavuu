@@ -93,11 +93,12 @@ jobs:
       - name: Run backend tests
         run: pnpm test:api
 
-      # NO ADMIN TEST STEP, deliberately. `apps/admin` has no test runner, no
-      # test files and no `test` script, so `pnpm test:admin` failed with
-      # "Command not found" — which is what broke this job. Re-add the step in
-      # the same commit that adds the first admin test, not before: a step that
-      # cannot pass trains everyone to ignore a red CI.
+      # Restored alongside the console's first tests (Vitest, node env). It
+      # needs no database: what it covers is decision logic — the sidebar's
+      # fail-closed permission gating, what an API refusal code means to an
+      # operator, and which placements actually reach a phone.
+      - name: Run admin tests
+        run: pnpm test:admin
 
   build:
     name: Build
