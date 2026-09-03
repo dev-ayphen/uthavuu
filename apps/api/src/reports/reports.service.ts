@@ -33,6 +33,8 @@ import {
 } from './report-visibility';
 import { getPlatformConfig } from '../config/platform-settings';
 import { assertStoredUploads } from '../uploads/stored-upload';
+import { PHOTO_CAPTURE_UNVERIFIED } from './report-photos';
+import { effectiveStatusOf, isActionableSql } from './report-effective-status';
 
 // Great-circle distance in km via the haversine formula, expressed directly
 // in SQL (no PostGIS extension on this Postgres — see docker-compose.yml).
@@ -220,7 +222,7 @@ export class ReportsService {
         id: uuidv7(),
         reportId,
         url,
-        capturedLive: true,
+        capturedLive: PHOTO_CAPTURE_UNVERIFIED,
       })),
     );
 
@@ -412,24 +414,28 @@ export class ReportsService {
   // within radius, for the Dashboard grid. "Urgent" mirrors the TONES "soon"
   // band (design-system.md §5): expiring within the hour.
   async summary(input: ReportsSummaryDto) {
-    const openStatusId = await this.getStatusIdByKey('open');
     const dist = distanceKmExpr(input.lat, input.lng);
 
     const rows = await db
       .select({
         categoryKey: reportCategories.key,
         activeCount: sql<string>`count(*)`,
-        urgentCount: sql<string>`count(*) filter (where ${reports.expiryAt} - now() < interval '1 hour')`,
+        // The window is bounded at BOTH ends. `expiry_at - now() < 1 hour` on
+        // its own is true for every already-expired report, because the
+        // interval goes negative — so the Dashboard's "urgent" badge counted
+        // the long dead alongside the genuinely-about-to-lapse. Measured on the
+        // dev database: 77 urgent for medicalHelp, of which 73 had already
+        // expired. The `isActionableSql` term in the WHERE now excludes them
+        // from the row set entirely, and this keeps the filter honest on its
+        // own terms rather than relying on that.
+        urgentCount: sql<string>`count(*) filter (where ${reports.expiryAt} > now() and ${reports.expiryAt} - now() < interval '1 hour')`,
       })
       .from(reports)
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
-      .where(
-        and(
-          eq(reports.statusId, openStatusId),
-          isNull(reports.deletedAt),
-          sql`${dist} <= ${input.radiusKm}`,
-        ),
-      )
+      // Joined solely so the shared predicate can read `report_statuses.key`.
+      // It replaces the getStatusIdByKey('open') lookup this method used to do.
+      .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
+      .where(and(isActionableSql, sql`${dist} <= ${input.radiusKm}`))
       .groupBy(reportCategories.key);
 
     const byKey = new Map(rows.map((r) => [r.categoryKey, r]));
@@ -493,7 +499,6 @@ export class ReportsService {
       .where(eq(reportCategories.key, input.categoryKey));
     if (!category) throw new BadRequestException('Unknown category');
 
-    const openStatusId = await this.getStatusIdByKey('open');
     const dist = distanceKmExpr(input.lat, input.lng);
 
     const rows = await db
@@ -511,8 +516,10 @@ export class ReportsService {
       .where(
         and(
           eq(reports.categoryId, category.id),
-          eq(reports.statusId, openStatusId),
-          isNull(reports.deletedAt),
+          // `isActionableSql`, not `status_id = open`: the stored status alone
+          // listed every already-expired report as a live request — see
+          // report-effective-status.ts. It carries the deleted_at term too.
+          isActionableSql,
           sql`${dist} <= ${input.radiusKm}`,
         ),
       )
@@ -609,7 +616,7 @@ export class ReportsService {
           id: uuidv7(),
           reportId,
           url,
-          capturedLive: true,
+          capturedLive: PHOTO_CAPTURE_UNVERIFIED,
         })),
       );
     }
@@ -630,9 +637,12 @@ export class ReportsService {
     await this.assertReportLimits({ photoCount: existingPhotos.length + 1 });
     this.assertPhotosAreOurUploads([url]);
 
-    await db
-      .insert(reportPhotos)
-      .values({ id: uuidv7(), reportId, url, capturedLive: true });
+    await db.insert(reportPhotos).values({
+      id: uuidv7(),
+      reportId,
+      url,
+      capturedLive: PHOTO_CAPTURE_UNVERIFIED,
+    });
 
     return this.findOne(reportId, requestingUserId);
   }
@@ -790,6 +800,21 @@ export class ReportsService {
   ) {
     const isOwner = report.reporterId === requestingUserId;
     const reporterDeleted = report.reporterId === null;
+
+    // The DERIVED status, not `status.key`. Nothing writes 'expired', so the
+    // stored key reports a lapsed request as 'open' forever: the app's Expired
+    // tab stayed permanently empty while its Active tab listed the dead, and
+    // My Reports showed a reporter their own expired request as live. Same
+    // rule the console has always used — see report-effective-status.ts.
+    //
+    // `deleted` cannot surface here: every path into toResponse() has already
+    // gone through requireVisibleReport() or filters `deleted_at is null`.
+    const effectiveStatus = effectiveStatusOf({
+      storedStatusKey: status.key,
+      expiryAt: report.expiryAt,
+      deletedAt: report.deletedAt,
+    });
+
     return {
       id: report.id,
       category: {
@@ -797,7 +822,7 @@ export class ReportsService {
         label: category.label,
         emoji: category.emoji,
       },
-      status: status.key,
+      status: effectiveStatus,
       title: report.title,
       description: report.description,
       lat: report.lat,
@@ -832,7 +857,12 @@ export class ReportsService {
       savedByMe,
       // edit-cancel-report.md: same rule as update()'s server-side guard —
       // computed here, not duplicated client-side, so the two can't drift.
-      editable: status.key === 'open' && !hasAnyActiveVolunteer,
+      //
+      // Reads the DERIVED status, so an expired request stops offering Edit.
+      // There is nothing useful to change on a report nobody can accept any
+      // more, and the expiry itself is not editable (it is chosen at create and
+      // may only shorten the category default).
+      editable: effectiveStatus === 'open' && !hasAnyActiveVolunteer,
     };
   }
 }

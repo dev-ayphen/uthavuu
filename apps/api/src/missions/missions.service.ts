@@ -25,6 +25,10 @@ import {
 } from '../db/schema/missions-schema';
 import { AlertsService } from '../alerts/alerts.service';
 import { notRemoved, requireVisibleReport } from '../reports/report-visibility';
+import {
+  effectiveStatusOf,
+  notActionableReason,
+} from '../reports/report-effective-status';
 import { assertStoredUpload } from '../uploads/stored-upload';
 
 type VolunteerStatusKey = 'joined' | 'active' | 'released';
@@ -218,6 +222,25 @@ export class MissionsService {
         .where(eq(missionVolunteers.id, row.mv.id));
     }
 
+    // Tell the reporter their slot reopened.
+    //
+    // A timeout release is INVISIBLE to everyone otherwise: nobody pressed
+    // anything, so nothing prompts a read. `leave()` alerts the reporter when a
+    // volunteer withdraws by hand, and this is the same event — the slot is
+    // free and help is not coming — reached by a deadline instead of a tap. A
+    // reporter waiting on someone who silently lapsed 15 minutes ago has no way
+    // to learn they should be looking for another volunteer.
+    //
+    // Same `volunteer_released` type as the manual path, so it renders from the
+    // existing bilingual template with no new copy.
+    //
+    // AFTER the status writes have committed, and never inside them: an alert
+    // is a notification, and a push failure must not roll back a release the
+    // roster has already acted on. Failures are swallowed per volunteer for the
+    // same reason — one bad row must not abort the rest of the sweep, and this
+    // method is on the read path for every roster fetch.
+    await this.alertStaleReleases(stale.map((row) => row.mv.id));
+
     return db
       .select({
         mv: missionVolunteers,
@@ -315,6 +338,53 @@ export class MissionsService {
     return new Map(rows.map((r) => [r.reportId, r.photoUrl]));
   }
 
+  /**
+   * The reporter-facing half of a timeout release. Best-effort by design — see
+   * the call site in expireStaleAndListVolunteers().
+   */
+  private async alertStaleReleases(missionVolunteerRowIds: string[]) {
+    if (missionVolunteerRowIds.length === 0) return;
+
+    for (const rowId of missionVolunteerRowIds) {
+      try {
+        // Keyed on the mission_volunteers PRIMARY KEY, not the volunteer id.
+        // A volunteer has a row per mission they have ever joined, so looking
+        // them up by volunteerId alone returns an arbitrary one of those and
+        // alerts about the wrong report — caught by the spec, which asserts the
+        // alert's reportId.
+        const [row] = await db
+          .select({
+            reporterId: reports.reporterId,
+            reportId: reports.id,
+            reportTitle: reports.title,
+            volunteerName: user.name,
+          })
+          .from(missionVolunteers)
+          .innerJoin(missions, eq(missionVolunteers.missionId, missions.id))
+          .innerJoin(reports, eq(missions.reportId, reports.id))
+          .leftJoin(user, eq(missionVolunteers.volunteerId, user.id))
+          .where(eq(missionVolunteers.id, rowId));
+
+        // No reporter means the account was deleted — `reporterId` is
+        // ON DELETE SET NULL — so there is nobody to notify.
+        if (!row?.reporterId) continue;
+
+        await this.alertsService.create(
+          row.reporterId,
+          'volunteer_released',
+          {
+            volunteerName: row.volunteerName ?? null,
+            reportTitle: row.reportTitle,
+          },
+          row.reportId,
+        );
+      } catch {
+        // Swallowed on purpose: this runs inside a read path, and a failed
+        // notification must never turn a roster fetch into an error.
+      }
+    }
+  }
+
   async accept(reportId: string, volunteerId: string): Promise<RosterResponse> {
     // The status check below is not a substitute for this one: a moderator
     // hides plenty of reports that are still 'open', so without the visibility
@@ -329,8 +399,34 @@ export class MissionsService {
       .select()
       .from(reportStatuses)
       .where(eq(reportStatuses.id, report.statusId));
-    if (status?.key !== 'open')
+
+    // The DERIVED status, not `status.key`. Nothing writes 'expired', so this
+    // guard read a request that lapsed days ago as 'open' and let a volunteer
+    // join it — and accepting is what unlocks the reporter's phone number, so
+    // an expired request was still handing out a contact detail. Measured on
+    // the dev database: 148 of 360 stored-'open' reports were already past
+    // their expiry_at.
+    //
+    // This is the ONLY thing expiry closes. It stops a lapsed request taking on
+    // NEW volunteers; it does not touch anyone already on the mission — see
+    // hasActiveAccess(), which is deliberately not expressed in terms of
+    // expiry, so a volunteer who accepted at 10:30 on a request expiring at
+    // 12:00 keeps their roster row, their Mission Chat and the phone number
+    // afterwards. The help is happening; the clock running out on the request
+    // does not un-happen it.
+    const reason = notActionableReason({
+      storedStatusKey: status?.key ?? 'closed',
+      expiryAt: report.expiryAt,
+      deletedAt: report.deletedAt,
+    });
+    if (reason === 'expired') {
+      throw new BadRequestException(
+        'This request has expired and can no longer be accepted.',
+      );
+    }
+    if (reason !== null) {
       throw new BadRequestException('This request is no longer open');
+    }
 
     const missionId = await this.getOrCreateMission(reportId);
     const rows = await this.expireStaleAndListVolunteers(missionId);
@@ -888,7 +984,20 @@ export class MissionsService {
             label: found.category.label,
             emoji: found.category.emoji,
           },
-          reportStatus: found.status.key,
+          // DERIVED, like every other surface — see
+          // reports/report-effective-status.ts. The stored key never becomes
+          // 'expired', so Mission Journal's Cancelled tab (which groups
+          // closed + expired) could never reach a lapsed report and its badge
+          // showed one as still joined.
+          //
+          // This labels the REPORT, not the volunteer's own standing: a
+          // mission accepted before expiry stays active in `myStatus`, which
+          // is what the roster and Mission Chat gate on.
+          reportStatus: effectiveStatusOf({
+            storedStatusKey: found.status.key,
+            expiryAt: found.report.expiryAt,
+            deletedAt: found.report.deletedAt,
+          }),
           photo:
             completionPhotoByReportId.get(found.report.id) ??
             firstPhotoByReportId.get(found.report.id) ??

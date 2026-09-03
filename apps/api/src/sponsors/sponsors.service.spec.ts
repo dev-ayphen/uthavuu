@@ -173,6 +173,24 @@ describe('SponsorsService', () => {
     expect(await namesOn('community_impact')).toEqual([]);
   });
 
+  // Rotation. The client renders items[0] and nothing else, so the ORDER here is
+  // the whole exposure policy — a stable one meant the newest campaign showed
+  // every time and no other paid sponsor ever showed at all.
+  it('does not always return the same campaign first', async () => {
+    for (const name of ['A', 'B', 'C', 'D', 'E']) await insert({ name });
+
+    const firsts = new Set<string>();
+    for (let i = 0; i < 25; i++) {
+      const [first] = (await service.list('home')).items;
+      firsts.add(first.name);
+    }
+
+    // With five campaigns and a random order, 25 draws landing on one name has
+    // probability 5^-24 — so a single distinct value means the ordering is
+    // fixed, not that the test was unlucky.
+    expect(firsts.size).toBeGreaterThan(1);
+  });
+
   it('returns one row per sponsor even when it holds several placements', async () => {
     await insert({ name: 'Multi', placements: ['home', 'impact_stories'] });
     expect(await namesOn('home')).toEqual(['Multi']);

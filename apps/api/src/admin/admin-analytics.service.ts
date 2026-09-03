@@ -14,7 +14,7 @@ import {
   missions,
 } from '../db/schema/missions-schema';
 import { adminUsers } from '../db/schema/admin-schema';
-import { effectiveStatusSql } from './report-effective-status';
+import { effectiveStatusSql } from '../reports/report-effective-status';
 import type { AnalyticsDto } from './dto/analytics.dto';
 
 /**

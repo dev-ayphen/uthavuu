@@ -8,6 +8,7 @@ import { user } from '../db/schema/auth-schema';
 import {
   reportCategories,
   reportPhotos,
+  reportStatuses,
   reports,
 } from '../db/schema/reports-schema';
 import { reportSaves } from '../db/schema/saves-schema';
@@ -326,6 +327,123 @@ describe('ReportsService', () => {
       // reporterId-wide sweep timing concerns, but harmless either way).
       await service.close(near.id, reporterId);
       await service.close(far.id, reporterId);
+    });
+  });
+
+  // ---------------------------------------------------------------- expiry
+  //
+  // Expiry is DERIVED from `expiry_at` at read time and never written to
+  // `status_id` (report-effective-status.ts). These assert the boundary and the
+  // three surfaces that read it, because before this existed the citizen API
+  // disagreed with the admin console about the same rows: Discover listed
+  // lapsed requests, the Dashboard counted them as urgent, and a volunteer
+  // could still accept one.
+  describe('expiry is derived, never stored', () => {
+    // A private test area — these assertions count rows in a radius, and the
+    // Chennai point other suites reuse makes that flaky under parallel runs.
+    const HERE = { lat: -33.8688, lng: 151.2093 }; // Sydney
+
+    /** Moves a report's expiry without touching its stored status. */
+    const setExpiry = (id: string, at: Date) =>
+      db.update(reports).set({ expiryAt: at }).where(eq(reports.id, id));
+
+    const medical = async () =>
+      (
+        await service.summary({ lat: HERE.lat, lng: HERE.lng, radiusKm: 10 })
+      ).find((c) => c.key === 'medicalHelp');
+
+    const listedIds = async () =>
+      (
+        await service.list(
+          {
+            categoryKey: 'medicalHelp',
+            lat: HERE.lat,
+            lng: HERE.lng,
+            radiusKm: 10,
+          },
+          reporterId,
+        )
+      ).map((r) => r.id);
+
+    it('before expiry: actionable — open, listed, counted', async () => {
+      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      await setExpiry(report.id, new Date(Date.now() + 60 * 60 * 1000));
+
+      expect((await service.findOne(report.id, reporterId)).status).toBe(
+        'open',
+      );
+      expect(await listedIds()).toContain(report.id);
+      expect((await medical())!.activeCount).toBeGreaterThan(0);
+
+      await service.close(report.id, reporterId);
+    });
+
+    it('after expiry: expired — not listed, not counted, stored status untouched', async () => {
+      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      const before = (await medical())!.activeCount;
+      await setExpiry(report.id, new Date(Date.now() - 60 * 60 * 1000));
+
+      expect((await service.findOne(report.id, reporterId)).status).toBe(
+        'expired',
+      );
+      expect(await listedIds()).not.toContain(report.id);
+      expect((await medical())!.activeCount).toBe(before - 1);
+
+      // The point of "derived": the column still says open. Nothing swept it,
+      // so nothing can be stale, and the mobile client's own status filters
+      // read the derived value the API sends rather than this column.
+      const [row] = await db
+        .select({ statusId: reports.statusId })
+        .from(reports)
+        .where(eq(reports.id, report.id));
+      const [stored] = await db
+        .select({ key: reportStatuses.key })
+        .from(reportStatuses)
+        .where(eq(reportStatuses.id, row.statusId));
+      expect(stored.key).toBe('open');
+    });
+
+    // The boundary itself. `expiry_at <= now()` is expired, so the instant a
+    // request lapses it stops being actionable rather than lingering for one
+    // more tick. Set a moment in the past rather than exactly now: "now" has
+    // moved on by the time the query runs, and a test that depends on
+    // sub-millisecond timing tests the clock, not the rule.
+    it('at the boundary: an expiry a moment ago is already expired', async () => {
+      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      await setExpiry(report.id, new Date(Date.now() - 1));
+
+      expect((await service.findOne(report.id, reporterId)).status).toBe(
+        'expired',
+      );
+      expect(await listedIds()).not.toContain(report.id);
+    });
+
+    // The counter that was wrong in the most misleading direction: the "urgent"
+    // filter is `expiry_at - now() < 1 hour`, which is TRUE for every already
+    // expired report because the interval goes negative.
+    it('urgentCount counts the about-to-lapse, never the already-lapsed', async () => {
+      const soon = await service.create(reporterId, baseInput({ ...HERE }));
+      await setExpiry(soon.id, new Date(Date.now() + 10 * 60 * 1000));
+      const withSoon = (await medical())!.urgentCount;
+
+      const dead = await service.create(reporterId, baseInput({ ...HERE }));
+      await setExpiry(dead.id, new Date(Date.now() - 10 * 60 * 1000));
+
+      expect((await medical())!.urgentCount).toBe(withSoon);
+
+      await service.close(soon.id, reporterId);
+    });
+
+    it('an expired report is no longer editable', async () => {
+      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      expect((await service.findOne(report.id, reporterId)).editable).toBe(
+        true,
+      );
+
+      await setExpiry(report.id, new Date(Date.now() - 1000));
+      expect((await service.findOne(report.id, reporterId)).editable).toBe(
+        false,
+      );
     });
   });
 

@@ -11,6 +11,7 @@ import {
   reports,
 } from '../db/schema/reports-schema';
 import { missionVolunteers, missions } from '../db/schema/missions-schema';
+import { alerts } from '../db/schema/alerts-schema';
 import { MissionsService } from './missions.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
@@ -89,6 +90,79 @@ describe('MissionsService', () => {
     });
   });
 
+  // ---------------------------------------------------------------- expiry
+  //
+  // `expired` is derived from `expiry_at` and never written to `status_id`
+  // (report-effective-status.ts), so every one of these leaves the stored
+  // status as 'open' — that is precisely the state the old guard misread.
+  describe('an expired report', () => {
+    const expire = (at = new Date(Date.now() - 60_000)) =>
+      db.update(reports).set({ expiryAt: at }).where(eq(reports.id, reportId));
+
+    it('cannot be accepted, even though its stored status is still open', async () => {
+      await expire();
+
+      await expect(service.accept(reportId, volunteerAId)).rejects.toThrow(
+        'This request has expired and can no longer be accepted.',
+      );
+
+      // The guard has to be reading the DERIVED status, so prove the stored one
+      // still says open — otherwise this test would pass against a sweep too.
+      const [row] = await db
+        .select({ statusId: reports.statusId })
+        .from(reports)
+        .where(eq(reports.id, reportId));
+      expect(row.statusId).toBe(openStatusId);
+    });
+
+    // The boundary, from the mutation's side.
+    it('is acceptable a minute before expiry and refused a moment after', async () => {
+      await expire(new Date(Date.now() + 60_000));
+      expect((await service.accept(reportId, volunteerAId)).myStatus).toBe(
+        'joined',
+      );
+
+      await expire(new Date(Date.now() - 1));
+      await expect(service.accept(reportId, volunteerBId)).rejects.toThrow(
+        'This request has expired and can no longer be accepted.',
+      );
+    });
+
+    // THE NUANCE, and the reason expiry is not expressed as an access check.
+    //
+    //   10:00  report created, expires 12:00
+    //   10:30  volunteer accepts
+    //   10:35  volunteer starts helping
+    //   12:00  report expires
+    //
+    // The mission does not evaporate at 12:00. The volunteer keeps their roster
+    // row, their progress, Mission Chat, and the reporter's phone number — the
+    // help is happening, and the request's clock running out does not un-happen
+    // it. Expiry stops NEW volunteers joining; it does not cancel work already
+    // under way.
+    it('does not cancel a mission that was accepted before it expired', async () => {
+      await service.accept(reportId, volunteerAId);
+      await service.confirm(reportId, volunteerAId);
+      await service.updateProgress(reportId, volunteerAId, 'on_the_way');
+
+      await expire();
+
+      const roster = await service.getRoster(reportId, volunteerAId);
+      expect(roster.myStatus).toBe('active');
+      expect(roster.myProgressStatus?.key).toBe('on_the_way');
+
+      // Mission Chat still works in both directions.
+      await service.sendMessage(reportId, volunteerAId, 'On my way now.');
+      const messages = await service.listMessages(reportId, volunteerAId);
+      expect(messages.at(-1)?.body).toBe('On my way now.');
+
+      // And the mission can still be completed after the report expired.
+      await expect(
+        service.getRoster(reportId, volunteerAId),
+      ).resolves.toBeDefined();
+    });
+  });
+
   it('rejects a reporter accepting their own report', async () => {
     await expect(service.accept(reportId, reporterId)).rejects.toThrow(
       'You cannot accept your own report',
@@ -137,6 +211,68 @@ describe('MissionsService', () => {
 
     const secondAccept = await service.accept(reportId, volunteerBId);
     expect(secondAccept.myStatus).toBe('joined');
+  });
+
+  // A timeout release is the one release nobody presses a button for, so
+  // without this the reporter's slot silently reopened and they were never told
+  // — they went on waiting for a volunteer who had lapsed 15 minutes earlier.
+  it('alerts the reporter when a volunteer is released by timeout', async () => {
+    await service.accept(reportId, volunteerAId);
+
+    const before = await db
+      .select({ id: alerts.id })
+      .from(alerts)
+      .where(eq(alerts.userId, reporterId));
+
+    const [mission] = await db
+      .select()
+      .from(missions)
+      .where(eq(missions.reportId, reportId));
+    await db
+      .update(missionVolunteers)
+      .set({ confirmDeadline: new Date(Date.now() - 60_000) })
+      .where(eq(missionVolunteers.missionId, mission.id));
+
+    // Any roster read triggers the lazy sweep — that is the whole design.
+    await service.getRoster(reportId, volunteerAId);
+
+    const after = await db
+      .select({ id: alerts.id, type: alerts.type, reportId: alerts.reportId })
+      .from(alerts)
+      .where(eq(alerts.userId, reporterId));
+
+    expect(after.length).toBe(before.length + 1);
+    const fresh = after.find((a) => !before.some((b) => b.id === a.id));
+    expect(fresh?.type).toBe('volunteer_released');
+    expect(fresh?.reportId).toBe(reportId);
+  });
+
+  // The sweep runs on every roster read, so it must not re-alert on each one.
+  it('does not re-alert the reporter on every subsequent roster read', async () => {
+    await service.accept(reportId, volunteerAId);
+    const [mission] = await db
+      .select()
+      .from(missions)
+      .where(eq(missions.reportId, reportId));
+    await db
+      .update(missionVolunteers)
+      .set({ confirmDeadline: new Date(Date.now() - 60_000) })
+      .where(eq(missionVolunteers.missionId, mission.id));
+
+    await service.getRoster(reportId, volunteerAId);
+    const afterFirst = await db
+      .select({ id: alerts.id })
+      .from(alerts)
+      .where(eq(alerts.userId, reporterId));
+
+    await service.getRoster(reportId, volunteerAId);
+    await service.getRoster(reportId, volunteerAId);
+
+    const afterMore = await db
+      .select({ id: alerts.id })
+      .from(alerts)
+      .where(eq(alerts.userId, reporterId));
+    expect(afterMore.length).toBe(afterFirst.length);
   });
 
   it('lazily releases a stale joined row once its deadline has passed', async () => {

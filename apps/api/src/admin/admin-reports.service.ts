@@ -30,7 +30,7 @@ import {
 } from '../db/schema/missions-schema';
 import { reportComments } from '../db/schema/comments-schema';
 import { reportSaves } from '../db/schema/saves-schema';
-import { effectiveStatusSql } from './report-effective-status';
+import { effectiveStatusSql } from '../reports/report-effective-status';
 import { likePattern, offsetFor, paginate } from './admin-pagination';
 import type { ListAdminReportsDto } from './dto/list-admin-reports.dto';
 

@@ -20,7 +20,10 @@ import {
   effectiveStatusOf,
   effectiveStatusSql,
 } from './report-effective-status';
-import { createSpecDatabase, seedLookups } from './testing/admin-spec-db';
+import {
+  createSpecDatabase,
+  seedLookups,
+} from '../admin/testing/admin-spec-db';
 
 const DATABASE = 'uthavu_effective_status_test';
 

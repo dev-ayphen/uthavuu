@@ -32,7 +32,7 @@ import { AdminAuditService } from './admin-audit.service';
 import type { AdminIdentity } from './admin-rbac';
 import type { AdminRequestMeta } from './admin-request-meta';
 import { likePattern, offsetFor, paginate } from './admin-pagination';
-import { effectiveStatusSql } from './report-effective-status';
+import { effectiveStatusSql } from '../reports/report-effective-status';
 import type { ListAdminCommentsDto } from './dto/list-admin-comments.dto';
 import type { ListFlaggedCommentsDto } from './dto/list-flagged-comments.dto';
 import { PENDING_FLAG_STATUS_KEYS } from './dto/list-flagged-comments.dto';

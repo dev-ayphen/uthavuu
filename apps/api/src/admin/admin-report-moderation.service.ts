@@ -14,7 +14,7 @@ import {
 import { AlertsService } from '../alerts/alerts.service';
 import { AdminAuditService } from './admin-audit.service';
 import { AdminReportsService } from './admin-reports.service';
-import { effectiveStatusOf } from './report-effective-status';
+import { effectiveStatusOf } from '../reports/report-effective-status';
 import type { AdminIdentity } from './admin-rbac';
 import type { AdminRequestMeta } from './admin-request-meta';
 import type { ModerateReportDto } from './dto/moderate-report.dto';

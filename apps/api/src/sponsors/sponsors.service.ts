@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db';
 import {
   sponsorCreativeTypes,
@@ -76,13 +76,28 @@ export class SponsorsService {
           sponsorIsLiveSql,
         ),
       )
-      // Newest campaign first, with id breaking ties in true write order
-      // (uuidv7 is time-ordered). Deliberately NOT a rotation, a weighting or a
-      // random(): ad rotation is a product decision nobody has made, and
-      // inventing one here would be unmeasurable — the app reports no
-      // impressions (§4.1), so there would be no way to tell whether it worked.
-      // A stable order is the honest default and is trivially replaceable.
-      .orderBy(desc(sponsors.createdAt), desc(sponsors.id))
+      // RANDOM, and this is the rotation policy.
+      //
+      // The order used to be newest-first, on the reasoning that rotation is a
+      // product decision nobody had made and would be unmeasurable without
+      // impression tracking. Both halves are true, but the conclusion was
+      // wrong, because the client takes `items[0]` and renders only that one
+      // (libs-mobile/api/ads.ts — and it is right to, since ordering is the
+      // server's job). Stable order plus take-the-first is not "no rotation
+      // policy": it is winner-take-all. The most recently created campaign
+      // showed 100% of the time and every other paid sponsor showed never,
+      // for as long as it stayed active. That was a product decision too —
+      // just one nobody made on purpose, and one no sponsor was told about.
+      //
+      // Random needs no data the product does not have and no weighting anyone
+      // has to agree on: over many requests every active campaign in a
+      // placement gets roughly equal exposure. It is the smallest policy that
+      // is not a silent monopoly.
+      //
+      // Still open, and still needing impressions before it can be built:
+      // WEIGHTED rotation (by spend, or by a per-campaign share). That is the
+      // decision this comment used to be deferring, and it remains deferred.
+      .orderBy(sql`random()`)
       .limit(PLACEMENT_LIMIT);
 
     // An empty list is a normal, expected answer — most placements will have no

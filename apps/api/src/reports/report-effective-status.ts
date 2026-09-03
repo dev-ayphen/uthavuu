@@ -1,11 +1,20 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { reportStatuses, reports } from '../db/schema/reports-schema';
 
 /**
  * ==========================================================================
- * `reports.status_id` is not trustworthy on its own. Every admin surface that
- * shows or filters a report's status MUST go through this file.
+ * `reports.status_id` is not trustworthy on its own. EVERY surface that shows,
+ * filters or acts on a report's status MUST go through this file — the admin
+ * console, the citizen API, and every mutation that asks "is this still open?".
  * ==========================================================================
+ *
+ * This lived in `admin/` and was used only by the console, which is how the
+ * citizen API spent months disagreeing with it: Discover filtered on
+ * `status_id = open` with no expiry term, so it listed reports the console
+ * called expired, counted them as urgent (the "expiring within the hour" test
+ * is `expiry_at - now() < 1 hour`, which is TRUE for every already-expired
+ * report because the interval is negative), and `accept()` let a volunteer join
+ * one — which unlocks the reporter's phone number. Same database, two answers.
  *
  * THE PROBLEM, measured rather than assumed. `report_statuses` seeds four keys
  * — open / closed / expired / completed (db/seed.ts) — and **nothing in this
@@ -82,7 +91,7 @@ export type EffectiveStatus = (typeof EFFECTIVE_STATUSES)[number];
 export const effectiveStatusSql = sql<EffectiveStatus>`
   case
     when ${reports.deletedAt} is not null then 'deleted'
-    when ${reportStatuses.key} = 'open' and ${reports.expiryAt} < now() then 'expired'
+    when ${reportStatuses.key} = 'open' and ${reports.expiryAt} <= now() then 'expired'
     else ${reportStatuses.key}
   end
 `;
@@ -102,8 +111,54 @@ export function effectiveStatusOf(row: {
   deletedAt: Date | null;
 }): EffectiveStatus {
   if (row.deletedAt !== null) return 'deleted';
-  if (row.storedStatusKey === 'open' && row.expiryAt.getTime() < Date.now()) {
+  if (row.storedStatusKey === 'open' && row.expiryAt.getTime() <= Date.now()) {
     return 'expired';
   }
   return row.storedStatusKey as EffectiveStatus;
+}
+
+/**
+ * The citizen predicate: everything that must be true for a report to still be
+ * ACTIONABLE — listable in Discover, countable as active, acceptable by a new
+ * volunteer. Requires `report_statuses` to be joined.
+ *
+ * It is the exact complement of the `expired` branch above, and it is written
+ * here rather than inline at each call site for the reason this file exists:
+ * `status = 'open'` alone is not "open", and every place that believed it was
+ * got the same class of bug.
+ *
+ * `>` here against `<=` above, so the two partition the timeline with no
+ * instant belonging to both and none to neither.
+ *
+ * ⚠️ THIS IS NOT AN ACCESS CHECK FOR WORK ALREADY IN FLIGHT. Expiry stops a
+ * report attracting NEW commitments; it does not cancel a mission somebody
+ * already accepted. A volunteer who accepted at 10:30 on a report expiring at
+ * 12:00 keeps their roster row, their Mission Chat and the reporter's phone
+ * number after 12:00 — the help is happening, and the clock running out on the
+ * request does not un-happen it. `hasActiveAccess()` in missions.service.ts is
+ * deliberately NOT expressed in terms of this predicate; do not "fix" that.
+ */
+export const isActionableSql = and(
+  eq(reportStatuses.key, 'open'),
+  isNull(reports.deletedAt),
+  sql`${reports.expiryAt} > now()`,
+);
+
+/**
+ * The same predicate for a report row fetched WITHOUT joining
+ * `report_statuses` — the shape every mutation guard already has in hand.
+ *
+ * Returns the reason it is not actionable, or null when it is, so a caller can
+ * raise the message that fits rather than a generic refusal.
+ */
+export function notActionableReason(row: {
+  storedStatusKey: string;
+  expiryAt: Date;
+  deletedAt: Date | null;
+}): 'deleted' | 'expired' | 'not-open' | null {
+  const status = effectiveStatusOf(row);
+  if (status === 'open') return null;
+  if (status === 'deleted') return 'deleted';
+  if (status === 'expired') return 'expired';
+  return 'not-open';
 }

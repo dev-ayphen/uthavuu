@@ -50,7 +50,7 @@ import { AdminAuditService } from './admin-audit.service';
 import type { AdminIdentity } from './admin-rbac';
 import type { AdminRequestMeta } from './admin-request-meta';
 import type { ReactivateUserDto, SuspendUserDto } from './dto/suspend-user.dto';
-import { effectiveStatusSql } from './report-effective-status';
+import { effectiveStatusSql } from '../reports/report-effective-status';
 import { likePattern, offsetFor, paginate } from './admin-pagination';
 import type { ListAdminUsersDto } from './dto/list-admin-users.dto';
 

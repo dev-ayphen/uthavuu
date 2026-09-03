@@ -1,7 +1,7 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 import { PaginationSchema } from '../admin-pagination';
-import { EFFECTIVE_STATUSES } from '../report-effective-status';
+import { EFFECTIVE_STATUSES } from '../../reports/report-effective-status';
 
 const DateBound = z.coerce
   .date()
