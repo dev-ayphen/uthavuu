@@ -18,11 +18,12 @@ import { ApiError, getErrorMessage } from "@/lib/api-error";
  * API's OWN prose. A code this map has not heard of degrades to the backend's
  * real sentence rather than to silence or a wrong explanation.
  *
- * TWO OF THESE ARE READINESS REFUSALS, NOT STALE STATE, and the distinction
- * decides whether refetching helps. `SPONSOR_NO_PLACEMENTS` and
- * `SPONSOR_CREATIVE_URL_REQUIRED` mean the campaign is not ready to run —
- * refetching changes nothing, the operator has to go and edit the sponsor. Only
- * the "already/not in that state" codes belong in STALE_CONFLICT_CODES.
+ * THREE OF THESE ARE READINESS REFUSALS, NOT STALE STATE, and the distinction
+ * decides whether refetching helps. `SPONSOR_NO_PLACEMENTS`,
+ * `SPONSOR_CREATIVE_URL_REQUIRED` and `SPONSOR_WINDOW_EXPIRED` mean the
+ * campaign is not ready to run — refetching changes nothing, the operator has
+ * to go and edit the sponsor. Only the "already/not in that state" codes belong
+ * in STALE_CONFLICT_CODES.
  *
  * BRANCH ON THE CODE, NEVER ON THE MESSAGE. The API's prose gets reworded; the
  * code is the contract (see `ApiError.code`).
@@ -37,12 +38,19 @@ const MESSAGES: Record<string, string> = {
   // running, so there is nothing to stop — the useful action is Activate.
   SPONSOR_NOT_ACTIVE:
     "Only a running campaign can be paused. This one is still a draft — activate it first if you want it to run.",
-  // Both raised by activate(), which is the ONLY place the readiness rules are
-  // checked. Saving an incomplete draft is deliberately allowed.
+  // All three raised by activate(), which is the ONLY place the readiness rules
+  // are checked. Saving an incomplete draft is deliberately allowed.
   SPONSOR_NO_PLACEMENTS:
     "This campaign has no placements, so activating it would run an advertisement that appears on no screen. Add at least one placement first.",
   SPONSOR_CREATIVE_URL_REQUIRED:
     "This campaign's creative type needs a creative URL before it can run — without one the card renders blank. Add the asset URL, or switch the creative type to Logo + text.",
+  // The third readiness rule. Before it existed, activating a closed campaign
+  // returned 201 and this console showed a green "Campaign activated." while
+  // the app showed nothing — the advertiser billed for a campaign no citizen
+  // could see. A future START date is fine and stays allowed; only a passed END
+  // date is refused.
+  SPONSOR_WINDOW_EXPIRED:
+    "This campaign's end date has already passed, so activating it would run an advertisement no citizen can see. Extend the end date first, or clear it to run until paused.",
   // 409 on a PATCH whose every field already holds the value sent. Benign: the
   // operator pressed Save on a form they had not changed. Saying "conflict"
   // would make a no-op sound like a fault.

@@ -272,6 +272,43 @@ describe('AdminSponsorsService', () => {
     });
   });
 
+  it('refuses to activate a campaign whose end date has already passed', async () => {
+    const created = await draft({
+      endDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+    await expect(
+      service.activate(created.id, admin, META),
+    ).rejects.toMatchObject({
+      response: { code: 'SPONSOR_WINDOW_EXPIRED' },
+    });
+  });
+
+  // The counterpart, and the reason the guard tests `expired` rather than
+  // "has a window": approving next month's campaign today is what this
+  // endpoint is FOR, so a future start date must still activate.
+  //
+  // It comes back as `scheduled`, not `active`, and that is the design rather
+  // than a near-miss: the STORED status is `active` (the row transitioned), and
+  // `scheduled` is derived from the window at read time — see sponsor-status.ts
+  // on why neither state is written by a cron. So this asserts both halves at
+  // once: the guard let it through, and the projection tells the operator it is
+  // not on screens yet.
+  it('activates a campaign booked to start in the future, as scheduled', async () => {
+    const created = await draft({
+      startDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+    expect((await service.activate(created.id, admin, META)).status.key).toBe(
+      'scheduled',
+    );
+
+    const [row] = await db
+      .select({ storedStatusKey: sponsorStatuses.key })
+      .from(sponsors)
+      .innerJoin(sponsorStatuses, eq(sponsors.statusId, sponsorStatuses.id))
+      .where(eq(sponsors.id, created.id));
+    expect(row.storedStatusKey).toBe('active');
+  });
+
   it('activates a video creative once it has an asset URL', async () => {
     const created = await draft({
       creativeType: 'video',
@@ -362,7 +399,7 @@ describe('AdminSponsorsService', () => {
     });
     const expired = await draft({
       name: 'Expired',
-      endDate: new Date(Date.now() - HOUR),
+      endDate: new Date(Date.now() + HOUR),
     });
     const live = await draft({ name: 'Live' });
     await draft({ name: 'Still a draft' });
@@ -370,6 +407,16 @@ describe('AdminSponsorsService', () => {
     for (const id of [scheduled.id, expired.id, live.id]) {
       await service.activate(id, admin, META);
     }
+
+    // Age the campaign AFTER activating it, rather than activating one that had
+    // already closed: `activate()` now refuses that outright
+    // (SPONSOR_WINDOW_EXPIRED), and this test is about the derived-status
+    // FILTER, not about activation. This is also the way a row genuinely
+    // reaches `expired` in production — it ran, and then its end date passed.
+    await db
+      .update(sponsors)
+      .set({ endDate: new Date(Date.now() - HOUR) })
+      .where(eq(sponsors.id, expired.id));
 
     const names = async (status: string) =>
       (await service.list({ page: 1, limit: 25, status })).items.map(

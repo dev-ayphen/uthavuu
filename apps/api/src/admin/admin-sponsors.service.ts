@@ -18,7 +18,10 @@ import type {
   SponsorCreativeTypeKey,
   SponsorStoredStatusKey,
 } from '../db/schema/sponsors-schema';
-import { effectiveSponsorStatusSql } from '../sponsors/sponsor-status';
+import {
+  effectiveSponsorStatusOf,
+  effectiveSponsorStatusSql,
+} from '../sponsors/sponsor-status';
 import { AdminAuditService } from './admin-audit.service';
 import { likePattern, offsetFor, paginate } from './admin-pagination';
 import type { AdminIdentity } from './admin-rbac';
@@ -428,7 +431,7 @@ export class AdminSponsorsService {
    * IS the scheduled state, and the citizen query is what decides it is not
    * visible yet (sponsor-status.ts).
    *
-   * THE TWO READINESS GUARDS BELOW ARE THE POINT OF THIS METHOD.
+   * THE THREE READINESS GUARDS BELOW ARE THE POINT OF THIS METHOD.
    * A campaign that is live but renders nowhere is the exact failure this
    * module exists to end: it looks active in the console, the advertiser is
    * being charged, and no citizen ever sees it. Both conditions are silent —
@@ -463,6 +466,36 @@ export class AdminSponsorsService {
       throw new ConflictException({
         code: 'SPONSOR_CREATIVE_URL_REQUIRED',
         message: `A ${existing.creativeTypeKey} creative needs a creativeUrl before it can run — without one the card renders blank. Add the asset URL, or switch the creative type to logo_text.`,
+      });
+    }
+
+    // The third readiness guard: a window that has already closed.
+    //
+    // Without it, activating a campaign whose end date has passed returned 201
+    // and the console showed a green "Campaign activated." while the citizen
+    // feed stayed empty — precisely the "live in the console, invisible to
+    // everyone" failure the two guards above exist to prevent, arriving through
+    // the one door they did not cover.
+    //
+    // Asked of `effectiveSponsorStatusOf` with `storedStatusKey: 'active'`
+    // rather than re-deriving `endDate <= now()` here. That function IS the
+    // rule — the same one the citizen SQL and the console's derived column
+    // use — and its header calls two implementations a drift risk. A third,
+    // written inline, is how the console ends up disagreeing with the app about
+    // what "expired" means.
+    //
+    // `scheduled` is deliberately NOT refused: activating a campaign booked for
+    // next month is the documented meaning of this endpoint.
+    const windowStatus = effectiveSponsorStatusOf({
+      storedStatusKey: 'active',
+      startDate: existing.startDate,
+      endDate: existing.endDate,
+    });
+    if (windowStatus === 'expired') {
+      throw new ConflictException({
+        code: 'SPONSOR_WINDOW_EXPIRED',
+        message:
+          "This campaign's end date has already passed, so activating it would run a campaign no citizen can see. Extend the end date first, or clear it to run until paused.",
       });
     }
 
