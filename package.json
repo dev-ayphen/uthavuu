@@ -7,8 +7,13 @@
     "dev:mobile": "pnpm --filter @uthavu/mobile dev",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
+    "test:api": "pnpm --filter api test",
     "lint": "pnpm -r run lint",
-    "docs:viewer": "node scripts/build-docs-viewer.mjs"
+    "docs:viewer": "node scripts/build-docs-viewer.mjs",
+    "db:generate": "pnpm --filter api db:generate",
+    "db:migrate": "pnpm --filter api db:migrate",
+    "db:studio": "pnpm --filter api db:studio",
+    "db:seed": "pnpm --filter api db:seed"
   },
   "devDependencies": {
     "marked": "^18.0.10"

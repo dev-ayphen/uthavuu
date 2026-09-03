@@ -178,7 +178,7 @@ describe('SponsorsService', () => {
     expect(await namesOn('home')).toEqual(['Multi']);
   });
 
-  it('returns exactly the eight citizen fields — no status, dates or counters', async () => {
+  it('returns exactly the seven citizen fields — no status, dates or counters', async () => {
     await insert({
       name: 'ABC Foods',
       creativeType: 'video',
@@ -186,10 +186,10 @@ describe('SponsorsService', () => {
     });
 
     const [item] = (await service.list('home')).items;
-    // `sponsorName` is a deliberate duplicate of `name`, not a leak: the mobile
-    // client's frozen contract discards any row without it
-    // (libs-mobile/api/ads.ts). See the projection in sponsors.service.ts for
-    // why both are emitted and what has to be true before either is removed.
+    // These seven are the whole citizen contract. `libs-mobile/api/ads.ts`
+    // normalises from exactly these names — `name`, `description` and `website`
+    // are what the card's title, body and link are built from — so renaming one
+    // here silently empties a surface in a shipped app.
     expect(Object.keys(item).sort()).toEqual([
       'creativeType',
       'creativeUrl',
@@ -197,10 +197,8 @@ describe('SponsorsService', () => {
       'id',
       'logoUrl',
       'name',
-      'sponsorName',
       'website',
     ]);
-    expect(item.sponsorName).toBe(item.name);
     // A bare key, not { key, label } — the mobile card switches on it.
     expect(item.creativeType).toBe('video');
   });

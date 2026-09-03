@@ -25,10 +25,10 @@ export type UseAdsResult = {
 // — loading, error, empty and the visibility-gated impression — and a screen
 // that reaches past it to this hook is a screen that can accidentally render an
 // empty ad container, which is precisely the bug this feature exists to avoid.
-export function useAds(placement: AdPlacement, category?: string): UseAdsResult {
+export function useAds(placement: AdPlacement): UseAdsResult {
   const { data, isPending, isError } = useQuery({
-    queryKey: adQueryKey(placement, category),
-    queryFn: () => getAd(placement, category),
+    queryKey: adQueryKey(placement),
+    queryFn: () => getAd(placement),
 
     // One minute. Short on purpose: the product promise is that pausing a
     // campaign in the admin console makes it vanish from the app with no

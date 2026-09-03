@@ -74,20 +74,32 @@ export const AD_CREATIVE_TYPES = ['video', 'banner', 'logo_text'] as const;
 
 export type AdCreativeType = (typeof AD_CREATIVE_TYPES)[number];
 
+/**
+ * The citizen sponsor contract, named EXACTLY as `GET /sponsors` sends it.
+ *
+ * This type used to carry `sponsorName`, `headline`, `body`, `ctaText` and
+ * `thumbnailUrl` — five names no backend has ever sent. The server's projection
+ * (apps/api/src/sponsors/sponsors.service.ts) selects `name`, `description` and
+ * `website`, so every one of those read `undefined`: the card rendered with no
+ * copy and, because the link came from `targetUrl`, `pressable` was false and
+ * the card was not tappable at all. A sponsor's website was unreachable from
+ * the app — the entire commercial value of the placement — and nothing logged
+ * a thing. The names below are checked by the API's own spec, which asserts
+ * this exact seven-field shape.
+ *
+ * THERE IS NO SEPARATE POSTER IMAGE. `creativeUrl` is the one asset column, so
+ * a `video` campaign has no still to render (see `creativeUri` in
+ * SponsorAd.tsx). Adding one means a migration and an admin field, not a change
+ * here.
+ */
 export type SponsorCampaign = {
   id: string;
-  sponsorName: string;
+  name: string;
   creativeType: AdCreativeType;
   creativeUrl: string | null;
-  thumbnailUrl: string | null;
-  // Not in the corrected field list, but the backend projection on disk does
-  // send it and `logo_text` is meaningless without it. Nullable, so a payload
-  // that omits it degrades to a text-only card rather than a broken image.
   logoUrl: string | null;
-  headline: string | null;
-  body: string | null;
-  ctaText: string | null;
-  targetUrl: string | null;
+  description: string | null;
+  website: string | null;
 };
 
 function nullableString(value: unknown): string | null {
@@ -110,47 +122,57 @@ function creativeType(value: unknown): AdCreativeType {
  * Field-by-field, and it returns `null` rather than throwing for anything it
  * cannot render.
  *
- * `id` and `sponsorName` are the two fields a card cannot exist without: `id`
- * is what the impression and click calls are keyed on, and `sponsorName` is
- * what makes the "Sponsored" label mean something — an unattributed ad is
- * exactly the thing the labelling rule exists to prevent. Missing either one is
- * not a degraded ad, it is no ad, and no ad is a perfectly normal answer here.
+ * `id` and `name` are the two fields a card cannot exist without: `id` keys the
+ * cache entry, and `name` is what makes the "Sponsored" label mean something —
+ * an unattributed ad is exactly the thing the labelling rule exists to prevent.
+ * Missing either one is not a degraded ad, it is no ad, and no ad is a
+ * perfectly normal answer here.
  */
 export function normalizeCampaign(raw: unknown): SponsorCampaign | null {
   if (raw === null || typeof raw !== 'object') return null;
   const c = raw as Record<string, unknown>;
 
   const id = nullableString(c.id);
-  const sponsorName = nullableString(c.sponsorName);
-  if (!id || !sponsorName) return null;
+  const name = nullableString(c.name);
+  if (!id || !name) return null;
 
   return {
     id,
-    sponsorName,
+    name,
     creativeType: creativeType(c.creativeType),
     creativeUrl: nullableString(c.creativeUrl),
-    thumbnailUrl: nullableString(c.thumbnailUrl),
     logoUrl: nullableString(c.logoUrl),
-    headline: nullableString(c.headline),
-    body: nullableString(c.body),
-    ctaText: nullableString(c.ctaText),
-    targetUrl: nullableString(c.targetUrl),
+    description: nullableString(c.description),
+    website: nullableString(c.website),
   };
 }
 
 /**
- * One cache entry per placement, and per category when the placement is
- * category-scoped — CATEGORY_LIST asks a different question for "medical help"
- * than for "lost & found", so they must not share a cached answer.
+ * One cache entry per placement. NOT per category — see `getAd` below.
+ *
+ * This used to append the category, on the belief that `category_list` asks a
+ * different question for "medical help" than for "lost & found". The server
+ * does not: it filters on placement alone. Keying by category therefore stored
+ * N identical answers under N keys and issued N requests for them.
  */
-export function adQueryKey(placement: AdPlacement, category?: string) {
-  return ['sponsorCampaign', placement, category ?? null] as const;
+export function adQueryKey(placement: AdPlacement) {
+  return ['sponsorCampaign', placement] as const;
 }
 
 /**
- * `GET /sponsors?placement=…[&category=…]` -> `{ items: [...] }`
+ * `GET /sponsors?placement=…` -> `{ items: [...] }`
  *
  * Returns the first renderable campaign, or `null`.
+ *
+ * THERE IS NO CATEGORY TARGETING, so this sends no category. It used to append
+ * `&category=…`; the citizen DTO declares `placement` only
+ * (apps/api/src/sponsors/dto/list-sponsors.dto.ts), the global validation pipe
+ * strips unknown keys, and the parameter was silently discarded — no 400, no
+ * filtering, the same campaign on every category screen. `sponsors.category` is
+ * free-text campaign metadata beside `campaign_name` and `location`, not a
+ * targeting key, and nothing joins it to a report category. Real targeting
+ * needs a server-side filter and a decision about what it targets ON; until
+ * then, sending the parameter only implies a capability the product lacks.
  *
  * TAKING THE FIRST ITEM IS THE WHOLE ROTATION POLICY, and that is deliberate.
  * The server decides the order; the client does not shuffle, weight or
@@ -164,14 +186,12 @@ export function adQueryKey(placement: AdPlacement, category?: string) {
  *
  * The query string is built by hand rather than with URLSearchParams: React
  * Native ships an incomplete polyfill for it (the RN docs say so outright), and
- * this is two parameters.
+ * this is one parameter.
  */
 export async function getAd(
-  placement: AdPlacement,
-  category?: string
+  placement: AdPlacement
 ): Promise<SponsorCampaign | null> {
-  let path = `/sponsors?placement=${encodeURIComponent(placement)}`;
-  if (category) path += `&category=${encodeURIComponent(category)}`;
+  const path = `/sponsors?placement=${encodeURIComponent(placement)}`;
 
   const raw = await apiRequest<unknown>(path, { method: 'GET', auth: true });
   if (raw === null || typeof raw !== 'object') return null;

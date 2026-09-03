@@ -46,19 +46,6 @@ export class SponsorsService {
       .select({
         id: sponsors.id,
         name: sponsors.name,
-        // `sponsorName` duplicates `name` deliberately, and additively.
-        //
-        // The mobile client's frozen contract requires `sponsorName` and
-        // DISCARDS any row without it (libs-mobile/api/ads.ts: `if (!id ||
-        // !sponsorName) return null`). Sending only `name` meant every campaign
-        // normalised to null, getAd() returned null, and SponsorAd rendered
-        // nothing — permanently, for every placement, with no error logged
-        // anywhere. Exactly the silent failure this module exists to avoid.
-        //
-        // Emitting both satisfies mobile without breaking any existing
-        // consumer. Collapse to one name only when both sides can change
-        // together; until then removing either field breaks a live client.
-        sponsorName: sponsors.name,
         logoUrl: sponsors.logoUrl,
         description: sponsors.description,
         website: sponsors.website,

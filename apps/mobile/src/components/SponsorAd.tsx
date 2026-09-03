@@ -18,8 +18,6 @@ import { useAds } from '../hooks/useAds';
 
 type Props = {
   placement: AdPlacement;
-  /** Only meaningful for CATEGORY_LIST — scopes the ad to the category on screen. */
-  category?: string;
   /**
    * Outer spacing, supplied by the screen. Deliberately has no default: in a
    * FlatList the contentContainer's own `gap` already spaces this correctly,
@@ -60,15 +58,17 @@ const CREATIVE_HEIGHT = 140;
  * IT MUST NEVER BLOCK ANYTHING. No modal, no interstitial, no gate. It draws
  * beside content and nothing waits on it.
  */
-export default function SponsorAd({ placement, category, style }: Props) {
+export default function SponsorAd({ placement, style }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation('sponsor');
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const { campaign, isLoading, isError } = useAds(placement, category);
+  const { campaign, isLoading, isError } = useAds(placement);
 
 
-  const targetUrl = campaign?.targetUrl ?? null;
+  // The sponsor's own site, and the only action this card has. It comes from
+  // `website` — the column the admin console's "Website" field writes.
+  const targetUrl = campaign?.website ?? null;
 
   const onPress = useCallback(() => {
     if (!campaign || !targetUrl) return;
@@ -86,16 +86,17 @@ export default function SponsorAd({ placement, category, style }: Props) {
   // either a real campaign or null.
   if (isLoading || isError || !campaign) return null;
 
-  // `video` renders its poster frame and nothing else. There is no play button
-  // and no modal: apps/mobile has no video dependency, and a play affordance
-  // that opens a fake player is exactly what commit b4c0daf deleted. The
-  // creative is imagery; the CTA is the only action.
+  // Only `banner` has something to draw. There is no play button and no modal:
+  // apps/mobile has no video dependency, and a play affordance that opens a
+  // fake player is exactly what commit b4c0daf deleted.
+  //
+  // `video` deliberately renders NO image. Its `creativeUrl` is the video file
+  // itself (the API's own fixture is an `.mp4`), and there is no poster column
+  // to fall back on — feeding an .mp4 to <Image> yields a broken box, which is
+  // worse than the logo-and-copy card it degrades to instead. Give video a
+  // still and this becomes a one-line change; until then it is text + logo.
   const creativeUri =
-    campaign.creativeType === 'banner'
-      ? (campaign.creativeUrl ?? campaign.thumbnailUrl)
-      : campaign.creativeType === 'video'
-        ? campaign.thumbnailUrl
-        : null;
+    campaign.creativeType === 'banner' ? campaign.creativeUrl : null;
 
   const pressable = targetUrl !== null;
 
@@ -107,7 +108,7 @@ export default function SponsorAd({ placement, category, style }: Props) {
         disabled={!pressable}
         activeOpacity={0.85}
         accessibilityRole={pressable ? 'link' : undefined}
-        accessibilityLabel={t('cardLabel', { sponsor: campaign.sponsorName })}
+        accessibilityLabel={t('cardLabel', { sponsor: campaign.name })}
       >
         {/* Always first, always present. The label is the point of the card. */}
         <View style={styles.labelRow}>
@@ -133,25 +134,21 @@ export default function SponsorAd({ placement, category, style }: Props) {
             />
           ) : null}
           <Text style={styles.sponsorName} numberOfLines={1}>
-            {campaign.sponsorName}
+            {campaign.name}
           </Text>
         </View>
 
-        {campaign.headline ? (
-          <Text style={styles.headline} numberOfLines={2}>
-            {campaign.headline}
-          </Text>
-        ) : null}
-
-        {campaign.body ? (
+        {/* The console captures one free-text field ("Description"), and its
+            own form copy promises it renders beside the logo. There is no
+            separate headline or CTA-label column, so the card supplies its own
+            CTA wording from the locale catalogue. */}
+        {campaign.description ? (
           <Text style={styles.body} numberOfLines={3}>
-            {campaign.body}
+            {campaign.description}
           </Text>
         ) : null}
 
-        {pressable ? (
-          <Text style={styles.cta}>{campaign.ctaText ?? t('defaultCta')}</Text>
-        ) : null}
+        {pressable ? <Text style={styles.cta}>{t('defaultCta')}</Text> : null}
       </TouchableOpacity>
     </View>
   );
@@ -193,7 +190,6 @@ const createStyles = (colors: ColorScheme) =>
     brandRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
     logo: { width: ICON_SIZE.lg, height: ICON_SIZE.lg, borderRadius: RADIUS.sm },
     sponsorName: { ...TYPE.footnote, color: colors.textSecondary, flexShrink: 1 },
-    headline: { ...TYPE.bodyStrong, color: colors.textPrimary },
     body: { ...TYPE.footnoteRegular, color: colors.textSecondary },
     // Underlined rather than tinted, for the same reason as the palette above:
     // it reads as "this opens something external" instead of as one of the
