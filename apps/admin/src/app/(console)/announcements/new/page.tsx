@@ -1,7 +1,8 @@
+import { AccessDeniedState } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { PageLayout } from "@/components/layout";
 import { canManageAnnouncements } from "@/features/announcements/permission";
 import { UpdateForm } from "@/features/announcements/update-form";
-import { UpdatesAccessDenied } from "@/features/announcements/updates-access-denied";
 
 export const metadata = { title: "New Announcement" };
 
@@ -32,7 +33,7 @@ export default async function Page() {
       ]}
       contentWidth="wide"
     >
-      {canManage ? <UpdateForm record={null} /> : <UpdatesAccessDenied />}
+      {canManage ? <UpdateForm record={null} /> : <AccessDeniedState {...ACCESS_DENIED.announcements} />}
     </PageLayout>
   );
 }

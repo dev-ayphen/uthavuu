@@ -9,8 +9,9 @@ import { Button } from "@/components/ui";
 import { invalidateAll } from "@/features/moderation/actions";
 import { ConfirmActionDialog } from "@/features/moderation/confirm-action-dialog";
 
-import { SPONSOR_KEYS, runSponsorAction } from "./api";
+import { SPONSOR_KEYS, runSponsorAction, type SponsorActionOutcome } from "./api";
 import { creativeUrlApplies } from "./creative";
+import { placementDelivery, placementLabel } from "./placements";
 import { isSponsorStaleConflict } from "./sponsor-errors";
 import { primaryTransition } from "./status";
 import type { AdminSponsor } from "./types";
@@ -77,6 +78,14 @@ export function SponsorActions({
     creativeUrlApplies(sponsor.creativeType.key) && !sponsor.creativeUrl;
   const blocked = noPlacements || missingCreativeUrl;
 
+  // A THIRD way to run nowhere, which the API does NOT guard against. Every
+  // placement on this campaign may be one the mobile app mounts no slot for —
+  // see `placements.ts`. `activate()` counts placements, it does not ask
+  // whether any of them reaches a screen, so this one passes every server check
+  // and still shows to nobody. Warned about here because the console is the
+  // only place that knows.
+  const delivery = placementDelivery(sponsor.placements);
+
   const onStale = () => void invalidateAll(queryClient, SPONSOR_KEYS);
 
   /** Invalidate on a stale refusal, then rethrow so the dialog reports it. */
@@ -87,6 +96,23 @@ export function SponsorActions({
 
   const run = (path: string, method: "POST" | "DELETE", success: string) => () =>
     runSponsorAction({ queryClient, path, method, success })
+      .then(() => undefined)
+      .catch(refetchOnStale);
+
+  /**
+   * Activate, then report WHAT ACTUALLY HAPPENED rather than what was asked.
+   *
+   * The reporter reads the record the API sent back, whose `status` was derived
+   * in SQL against the database's own clock. Nothing is recomputed here — the
+   * console only decides which sentence describes the answer it was given.
+   */
+  const runActivate = () =>
+    runSponsorAction<AdminSponsor>({
+      queryClient,
+      path: `${base}/activate`,
+      method: "POST",
+      success: (saved) => activationOutcome(saved),
+    })
       .then(() => undefined)
       .catch(refetchOnStale);
 
@@ -152,7 +178,11 @@ export function SponsorActions({
                 now when it will not. */}
             It becomes visible to citizens in the mobile app{" "}
             {startsAt ? `from ${startsAt}` : "immediately"}
-            {endsAt ? ` until ${endsAt}` : ", with no end date"}.
+            {/* "until X" reads as "through X" and the API means the opposite:
+                the window closes at the START of the end day. Spelled out here
+                because this is the last screen before an advertisement goes to
+                every citizen. */}
+            {endsAt ? ` and stops at the start of ${endsAt}` : ", with no end date"}.
             {endHasPassed ? (
               <>
                 {" "}
@@ -176,13 +206,29 @@ export function SponsorActions({
                 </strong>
               </>
             ) : null}
+            {/* NOT a refusal — the API accepts this happily, which is exactly
+                why it has to be said here. Every placement on the campaign is
+                one the app mounts no slot for, so it would activate cleanly and
+                appear to nobody. */}
+            {delivery.showsNowhere ? (
+              <>
+                {" "}
+                <strong className="font-bold">
+                  This will be accepted but will show to nobody:{" "}
+                  {sponsor.placements.length === 1
+                    ? `${placementLabel(sponsor.placements[0]!)} isn't`
+                    : `${delivery.undelivered.map(placementLabel).join(" and ")} aren't`}{" "}
+                  rendered by any screen in the app yet. Add a placement that is.
+                </strong>
+              </>
+            ) : null}
           </>
         }
         confirmLabel="Activate campaign"
         pendingLabel="Activating…"
         reason="none"
         onStale={onStale}
-        onConfirm={run(`${base}/activate`, "POST", "Campaign activated.")}
+        onConfirm={runActivate}
       />
 
       <ConfirmActionDialog
@@ -233,6 +279,79 @@ export function SponsorActions({
       />
     </>
   );
+}
+
+/**
+ * What to say after `POST /activate` came back 2xx.
+ *
+ * THE PROBLEM THIS SOLVES, MEASURED RATHER THAN GUESSED
+ * ───────────────────────────────────────────────────────────────────────────
+ * Against the running API on 2026-09-02, activating a campaign whose end date
+ * is in the past answers `201 Created` and returns the record with the derived
+ * status `expired`; `GET /sponsors?placement=home` then contains nothing. The
+ * console's previous answer to that was a green "Campaign activated." — the
+ * operator was told the advertisement was live, by the only feedback the button
+ * gives them, while no citizen could see it. A sponsor may have been invoiced
+ * on the strength of that sentence.
+ *
+ * So the sentence is chosen from the RECORD THE SERVER RETURNED. Three of the
+ * outcomes are genuinely fine and read as fine; two are not, and say so.
+ *
+ * NOTHING HERE RE-DERIVES A STATUS. `saved.status` was computed in SQL against
+ * the database's clock (`apps/api/src/sponsors/sponsor-status.ts`), and this
+ * function only picks prose for the answer it was handed — the same rule
+ * `SponsorStatusBadge` follows. The one local judgement is about PLACEMENTS,
+ * which is a fact about `apps/mobile`, not about status, and which the server
+ * does not check at all.
+ */
+function activationOutcome(saved: AdminSponsor): SponsorActionOutcome {
+  const endsAt = formatDate(saved.endDate);
+  const startsAt = formatDate(saved.startDate);
+  const { showsNowhere, undelivered } = placementDelivery(saved.placements);
+
+  // Checked first: it is true regardless of what the window says, and it is the
+  // failure the API has no guard for at all.
+  if (showsNowhere) {
+    return {
+      tone: "warning",
+      message: "Activated, but it shows on no screen.",
+      description: `${undelivered.map(placementLabel).join(" and ")} ${
+        undelivered.length === 1 ? "is" : "are"
+      } not rendered by any screen in the app yet, so no citizen will see this campaign. Add a placement that is.`,
+    };
+  }
+
+  switch (saved.status.key) {
+    case "expired":
+      return {
+        tone: "warning",
+        message: "Activated, but it isn't showing to anyone.",
+        description: endsAt
+          ? `Its end date (${endsAt}) has already passed, so it went straight to Expired. Change the end date to put it on screen.`
+          : "Its campaign window has already closed, so it went straight to Expired. Change the end date to put it on screen.",
+      };
+
+    case "scheduled":
+      return {
+        message: "Campaign activated.",
+        description: startsAt
+          ? `It starts on ${startsAt} — nothing shows to citizens before then.`
+          : "It starts on its booked date — nothing shows to citizens before then.",
+      };
+
+    case "active":
+      return {
+        message: "Campaign activated.",
+        description: endsAt
+          ? `It's showing in the app now, until ${endsAt}.`
+          : "It's showing in the app now, with no end date.",
+      };
+
+    // Not reachable through `activate()` today. Reporting the API's own label
+    // beats asserting a state it did not return.
+    default:
+      return { message: `Campaign activated — it now reads ${saved.status.label}.` };
+  }
 }
 
 /**

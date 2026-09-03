@@ -1,7 +1,8 @@
+import { AccessDeniedState } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { PageLayout } from "@/components/layout";
 import { canManageAnnouncements } from "@/features/announcements/permission";
 import { UpdateEditor } from "@/features/announcements/update-editor";
-import { UpdatesAccessDenied } from "@/features/announcements/updates-access-denied";
 
 export const metadata = { title: "Announcement" };
 
@@ -28,7 +29,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       ]}
       contentWidth="wide"
     >
-      {canManage ? <UpdateEditor updateId={id} /> : <UpdatesAccessDenied />}
+      {canManage ? <UpdateEditor updateId={id} /> : <AccessDeniedState {...ACCESS_DENIED.announcements} />}
     </PageLayout>
   );
 }

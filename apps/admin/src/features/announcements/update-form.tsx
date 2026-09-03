@@ -2,13 +2,23 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Languages, Save } from "lucide-react";
 import { useEffect, useId, useMemo } from "react";
 import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 
-import { Button, Card, CardBody, CardHeader, CardTitle, Field, Input } from "@/components/ui";
+import {
+  Alert,
+  BackButton,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  Field,
+  Input,
+  Textarea,
+} from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
 import { runUpdateAction } from "./api";
 import { CODE_TO_FIELD, updateErrorMessage } from "./update-errors";
@@ -21,7 +31,6 @@ import {
   updateToFormValues,
   type UpdateFormValues,
 } from "./schema";
-import { Textarea } from "./textarea";
 import type { AdminUpdate } from "./types";
 
 /**
@@ -210,17 +219,9 @@ export function UpdateForm({
       // A form may set its own measure — a readable line length is a property of
       // the form, not of the page. It must never set `mx-auto` or page padding:
       // the form owns WIDTH, the layout owns POSITION (see PageLayout).
-      className="max-w-[var(--container-wide)] space-y-5"
+      className="max-w-(--container-wide) space-y-5"
     >
-      {errors.root?.message ? (
-        <p
-          role="alert"
-          className="flex items-start gap-2 rounded-card border border-danger-soft-border bg-danger-soft px-3.5 py-3 text-sm text-danger-fg"
-        >
-          <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-          <span>{errors.root.message}</span>
-        </p>
-      ) : null}
+      {errors.root?.message ? <Alert size="md">{errors.root.message}</Alert> : null}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
@@ -260,11 +261,11 @@ export function UpdateForm({
             {/* Said once at the top, then again per field with the actual text.
                 The rule is simple enough to state in a sentence, and an operator
                 who never reads it still cannot miss the per-field version. */}
-            <p className="rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
+            <Alert tone="info" icon={null}>
               Leave a field blank and Tamil readers see the English instead. The mobile app ships
               in English and Tamil, so anything left blank here reaches a Tamil-speaking citizen
               in a language they may not read.
-            </p>
+            </Alert>
 
             <TextField
               label="Title (Tamil)"
@@ -291,13 +292,10 @@ export function UpdateForm({
                 a broken app rather than as a missing translation — so it is
                 named rather than silently allowed. */}
             {halfTranslated ? (
-              <p className="flex items-start gap-2 rounded-control border border-warning-soft-border bg-warning-soft px-3 py-2 text-xs text-warning-fg">
-                <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                <span>
-                  Only the {tamilTitleMissing ? "body" : "title"} is translated. A Tamil reader
-                  will get a mix of Tamil and English in one announcement. You can still save it.
-                </span>
-              </p>
+              <Alert tone="warning" icon={AlertTriangle}>
+                Only the {tamilTitleMissing ? "body" : "title"} is translated. A Tamil reader will
+                get a mix of Tamil and English in one announcement. You can still save it.
+              </Alert>
             ) : null}
           </CardBody>
         </Card>
@@ -337,9 +335,7 @@ export function UpdateForm({
 
         {secondaryActions}
 
-        <Button type="button" variant="ghost" size="sm" asChild>
-          <Link href={ANNOUNCEMENTS_INDEX}>Back to announcements</Link>
-        </Button>
+        <BackButton href={ANNOUNCEMENTS_INDEX} label="Back to announcements" variant="outline" size="sm" />
 
         {/* Rule 4. */}
         <Button type="submit" size="sm" disabled={isSubmitting}>
@@ -362,7 +358,7 @@ function Fallback({ label, value }: { label: string; value: string }) {
   const trimmed = value.trim();
 
   return (
-    <p className="rounded-control border border-dashed border-border bg-surface-2 px-3 py-2 text-xs text-fg-subtle">
+    <Alert tone="neutral" dashed icon={null}>
       <span className="font-semibold text-fg-muted">Blank.</span> Tamil readers will see the
       English {label}
       {trimmed ? (
@@ -375,7 +371,7 @@ function Fallback({ label, value }: { label: string; value: string }) {
       ) : (
         <> — which is also empty. Write the English {label} first.</>
       )}
-    </p>
+    </Alert>
   );
 }
 

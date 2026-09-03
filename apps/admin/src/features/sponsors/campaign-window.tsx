@@ -45,10 +45,36 @@ export function CampaignWindow({
 
   return (
     <span className={className}>
-      <span className="tabular block whitespace-nowrap text-fg-subtle">
+      <span
+        className="tabular block whitespace-nowrap text-fg-subtle"
+        title={from ? `Runs from the start of ${from}, IST.` : undefined}
+      >
         {from ? `From ${from}` : "From activation"}
       </span>
-      <span className="tabular block whitespace-nowrap text-[11px] text-fg-faint">
+      {/*
+        THE TWO BOUNDS ARE NOT SYMMETRIC, AND THE WORD "UNTIL" HIDES IT.
+        The API's predicate is `start_date <= now() AND end_date > now()`
+        (apps/api/src/sponsors/sponsor-status.ts) and this console writes each
+        picked day as midnight IST (./dates.ts) — so the start day IS included
+        and the end day is NOT. Verified against the running API on 2026-09-02:
+        a campaign whose end date was today already read `Expired` and served
+        nothing.
+
+        The cell keeps its short label — this column is 12rem and two dates a
+        row — and the tooltip carries the precision, while the FORM says it in
+        full at the point the operator picks the date. What this must never do
+        is subtract a day to display "the last day it runs": that would be a
+        second implementation of a backend rule, in a browser, which is exactly
+        what `SponsorStatusBadge` exists to warn against.
+      */}
+      <span
+        className="tabular block whitespace-nowrap text-[11px] text-fg-faint"
+        title={
+          to
+            ? `Stops at the start of ${to}, IST — the last day it runs is the day before.`
+            : "No end date: it runs until somebody pauses it."
+        }
+      >
         {to ? `Until ${to}` : "No end date"}
       </span>
     </span>

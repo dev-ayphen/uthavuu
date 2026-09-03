@@ -112,17 +112,14 @@ export function isSuspended(status: AdminAccountStatus | undefined): boolean {
   return status?.key === "suspended";
 }
 
-/**
- * The role keys this build knows how to offer in the edit form.
- *
- * The KEYS are contract: `ADMIN_ROLE_KEYS` in `apps/api/src/admin/admin-rbac.ts`
- * is `['super_admin', 'ops_admin']`, and both the create and update DTOs
- * validate `roleKey` against it with `z.enum()` — so an unrecognised key is a
- * 400, not a new role. The LABELS are deliberately absent: see `roleOptions()`
- * in `./schema.ts`, which reads them off the records the API has already sent
- * rather than keeping a second copy of the API's lookup table.
- */
-export const ADMIN_ROLE_KEYS = ["super_admin", "ops_admin"] as const;
+// The role keys this build offers in the edit form used to be re-declared here.
+// They now come from `@uthavu/libs-common` — `./schema.ts` imports them
+// directly, and `apps/api/src/admin/admin-rbac.ts` re-exports the same array to
+// its DTOs, so the `z.enum()` that turns an unrecognised key into a 400 and the
+// `<select>` that offers them are reading one list. The LABELS are still
+// deliberately absent: see `roleOptions()` in `./schema.ts`, which reads them
+// off the records the API has already sent rather than keeping a second copy of
+// the API's lookup table.
 
 /**
  * Three outcomes, because there are three states and collapsing any two of

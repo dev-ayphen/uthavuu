@@ -3,18 +3,27 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Users, XCircle } from "lucide-react";
 import { useId, useState } from "react";
-import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 
 import { invalidateAll } from "@/features/moderation/actions";
 import { ConfirmActionDialog } from "@/features/moderation/confirm-action-dialog";
-import { Button, Card, CardBody, CardHeader, CardTitle, Field, Select } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  CharacterCounter,
+  Field,
+  Select,
+  Textarea,
+} from "@/components/ui";
 
 import { runTicketAction, SUPPORT_TICKET_KEYS, ticketPath } from "./api";
 import { TICKET_WORKING_STATUS_KEYS } from "./catalogue";
 import { MESSAGE_MAX } from "./schema";
 import { isTicketStaleConflict, supportErrorMessage } from "./support-errors";
-import { Textarea } from "./textarea";
 import type { SupportTicketDetail, TicketPatch } from "./types";
 import { useAssignableAdmins } from "./use-support-tickets";
 import { useTicketCatalogue } from "./use-ticket-catalogue";
@@ -436,13 +445,10 @@ function ClosingMessageField({
         <span className="ml-1 font-normal text-fg-faint">(optional)</span>
       </label>
 
-      <p className="flex items-start gap-2 rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
-        <Users aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-        <span>
-          Sent as a normal reply, at the same moment. <strong className="font-bold">{citizen}</strong>{" "}
-          sees it in the app. Leave it blank to change the status silently.
-        </span>
-      </p>
+      <Alert tone="info" icon={Users}>
+        Sent as a normal reply, at the same moment. <strong className="font-bold">{citizen}</strong>{" "}
+        sees it in the app. Leave it blank to change the status silently.
+      </Alert>
 
       <Textarea
         id={id}
@@ -457,11 +463,7 @@ function ClosingMessageField({
       {/* Only speaks up near the limit. The API caps this at MESSAGE_MAX and
           would refuse a longer one inside the dialog, next to the button that
           caused it — but meeting a visible number beats meeting a 400. */}
-      {value.length > MESSAGE_MAX * 0.8 ? (
-        <p className={cn("tabular text-right text-[11px]", over ? "font-semibold text-danger-fg" : "text-fg-faint")}>
-          {value.length} / {MESSAGE_MAX}
-        </p>
-      ) : null}
+      <CharacterCounter value={value.length} max={MESSAGE_MAX} align="right" />
     </div>
   );
 }

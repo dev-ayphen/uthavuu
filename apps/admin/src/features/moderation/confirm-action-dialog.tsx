@@ -6,10 +6,16 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Button } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  Textarea,
+} from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
-import { cn } from "@/lib/cn";
-import { Dialog, DialogBody, DialogFooter, DialogHeader } from "./dialog";
 import { isPermanentRefusal, isStaleConflict, moderationErrorMessage } from "./moderation-errors";
 
 /**
@@ -209,20 +215,20 @@ function ConfirmActionBody({
                   <span className="ml-1 font-normal text-fg-faint">(optional)</span>
                 ) : null}
               </label>
-              <textarea
+              <Textarea
                 id={reasonId}
                 rows={3}
                 autoFocus
                 aria-invalid={errors.reason ? true : undefined}
                 aria-describedby={errors.reason ? `${reasonId}-error` : undefined}
                 disabled={pending}
-                className={cn(
-                  "w-full resize-y rounded-control border border-border bg-surface-inset px-3 py-2 text-xs text-fg",
-                  "placeholder:text-fg-faint",
-                  "outline-none transition-colors focus:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
-                  "disabled:cursor-not-allowed disabled:opacity-60",
-                  errors.reason && "border-danger-fg",
-                )}
+                // The four ways this box differs from the shared control, kept
+                // verbatim: it is denser than a form field because it sits in a
+                // dialog, and its focus ring is offset against `--surface`
+                // rather than `--canvas` because that is the colour behind it
+                // here. The invalid border now comes from the shared
+                // `aria-[invalid=true]` rule, which this already sets.
+                className="px-3 py-2 text-xs focus-visible:ring-offset-surface"
                 {...register("reason")}
               />
               {errors.reason ? (
@@ -236,21 +242,18 @@ function ConfirmActionBody({
           )}
 
           {failure ? (
-            // Not `role="alert"` when the API simply said no — same rule as
+            // Not announced when the API simply said no — same rule as
             // `classifyListFailure`. A refusal announced as an alert reads as a
             // fault in the console rather than an answer from it.
-            <div
-              role={refused ? undefined : "alert"}
-              className={cn(
-                "flex items-start gap-2 rounded-control border px-3 py-2 text-xs",
-                refused
-                  ? "border-border bg-surface-2 text-fg-subtle"
-                  : "border-danger-soft-border bg-danger-soft text-danger-fg",
-              )}
+            <Alert
+              tone={refused ? "neutral" : "danger"}
+              announce={!refused}
+              // The neutral tone's default glyph is an `i`; both branches of
+              // this banner have always shown the triangle.
+              icon={AlertTriangle}
             >
-              <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              <span>{failure}</span>
-            </div>
+              {failure}
+            </Alert>
           ) : null}
         </form>
       </DialogBody>

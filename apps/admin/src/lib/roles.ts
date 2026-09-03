@@ -1,3 +1,5 @@
+import { SUPER_ADMIN_ROLE_KEY, type AdminRoleKey } from "@uthavu/libs-common";
+
 /**
  * Admin roles — shared by server and client, so NO "server-only" here.
  *
@@ -6,8 +8,15 @@
  * `{ key: "ops_admin", label: "Ops Admin" }`.
  */
 
-/** Role keys this build knows how to make permission decisions about. */
-export type KnownAdminRole = "super_admin" | "ops_admin";
+/**
+ * Role keys this build knows how to make permission decisions about.
+ *
+ * Aliased from `@uthavu/libs-common`, never restated. The console typing the
+ * second role as `moderator` while the API returned `ops_admin` is a bug this
+ * project actually shipped — every ops admin would have looked signed out — and
+ * a hand-copied union is exactly how it happened.
+ */
+export type KnownAdminRole = AdminRoleKey;
 
 export type AdminRoleRef = {
   /**
@@ -32,5 +41,5 @@ export type AdminRoleRef = {
  * The API is what actually enforces this; the console only mirrors it for UX.
  */
 export function isSuperAdmin(role: AdminRoleRef | null | undefined): boolean {
-  return role?.key === "super_admin";
+  return role?.key === SUPER_ADMIN_ROLE_KEY;
 }

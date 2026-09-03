@@ -12,7 +12,7 @@ import {
   DetailSkeleton,
   formatDate,
 } from "@/components/data";
-import { Card } from "@/components/ui";
+import { CalloutCard } from "@/components/ui";
 import { DetailFallback } from "@/features/moderation/detail-query";
 import { AdminAccountActions } from "./admin-actions";
 import { AdminRoleBadge, AdminStatusBadge, LastSuperAdminBadge, YouBadge } from "./badges";
@@ -110,22 +110,12 @@ export function AdminDetail({
         instead, without hunting for it.
       */}
       {admin.isLastSuperAdmin ? (
-        <Card className="border-warning-soft-border">
-          <div className="flex items-start gap-3 p-4">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-control bg-warning-soft text-warning-fg">
-              <ShieldAlert className="size-3.5" aria-hidden />
-            </span>
-            <div className="min-w-0 space-y-1">
-              <h3 className="text-sm font-bold text-fg">This is the last super admin</h3>
-              <p className="text-xs text-fg-subtle">
-                Suspending this account, revoking its access, or moving it to another role would
-                leave the console with nobody able to manage admin accounts — including nobody able
-                to undo it. The API refuses all three, and this page does not offer them. Promote
-                someone else to Super Admin first and every one of them unlocks by itself.
-              </p>
-            </div>
-          </div>
-        </Card>
+        <CalloutCard tone="warning" icon={ShieldAlert} title="This is the last super admin">
+          Suspending this account, revoking its access, or moving it to another role would leave
+          the console with nobody able to manage admin accounts — including nobody able to undo it.
+          The API refuses all three, and this page does not offer them. Promote someone else to
+          Super Admin first and every one of them unlocks by itself.
+        </CalloutCard>
       ) : null}
 
       <DetailSection

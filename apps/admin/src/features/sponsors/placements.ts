@@ -29,7 +29,46 @@ export type PlacementDef = {
   label: string;
   /** Where this actually renders in the mobile app, in one line. */
   hint: string;
+  /**
+   * Does a screen in `apps/mobile` actually MOUNT an ad slot for this key?
+   *
+   * See `PLACEMENT_DELIVERY_VERIFIED_ON` below for what was checked and how to
+   * re-check it. A placement the API accepts is not the same thing as a
+   * placement a citizen can see.
+   */
+  renderedByApp: boolean;
 };
+
+/**
+ * ⚠ ONE OF THE FOUR PLACEMENTS RENDERS NOWHERE, AND THE EDITOR MUST SAY SO
+ * ───────────────────────────────────────────────────────────────────────────
+ * The four keys below are all real to the API: the DTO accepts them
+ * (`apps/api/src/admin/dto/create-sponsor.dto.ts`), the citizen endpoint filters
+ * on them, and `activate()`'s `SPONSOR_NO_PLACEMENTS` check is satisfied by any
+ * one of them. But `community_impact` is mounted by NO SCREEN in the mobile app.
+ * Checked 2026-09-02:
+ *
+ *     grep -rn '<SponsorAd' apps/mobile/src
+ *       DashboardScreen.tsx:390        placement="home"
+ *       MyImpactStoriesScreen.tsx:81   placement="impact_stories"
+ *       CategoryListScreen.tsx:122     placement="category_list"
+ *     grep -rn community_impact apps/mobile libs-mobile
+ *       libs-mobile/api/ads.ts:61      (the constant only — no mount)
+ *
+ * So an operator can tick Community impact ALONE, clear the API's only
+ * "appears somewhere" guard, activate, and ship a campaign that appears on no
+ * screen in the product — the precise silent failure this feature exists to
+ * end, reached through a control this console offered them.
+ *
+ * WHY IT IS FLAGGED RATHER THAN REMOVED. Two reasons, and the first is data
+ * loss: dropping the checkbox would not drop the key from records that already
+ * carry it, so an operator opening such a sponsor would see one fewer placement
+ * than it has and silently delete it by pressing Save — the same failure
+ * `sponsorToFormValues` refuses to cause with unknown keys. The second is that
+ * the fix belongs in `apps/mobile` (mount the slot), not here; hiding the key
+ * would make a missing renderer look like a decision nobody has to take.
+ */
+export const PLACEMENT_DELIVERY_VERIFIED_ON = "2026-09-02";
 
 /**
  * The four the contract names. `docs/webadmin/08-monetization.md` §4 records
@@ -42,23 +81,63 @@ export const PLACEMENTS: readonly PlacementDef[] = [
     key: "home",
     label: "Home feed",
     hint: "In the main request feed on the app's home tab.",
+    renderedByApp: true,
   },
   {
     key: "community_impact",
     label: "Community impact",
-    hint: "On the community impact surface.",
+    hint: "Intended for the community impact surface — but no screen in the app renders this slot yet.",
+    renderedByApp: false,
   },
   {
     key: "impact_stories",
     label: "Impact stories",
     hint: "Between story cards in the Impact Stories list.",
+    renderedByApp: true,
   },
   {
     key: "category_list",
     label: "Category list",
     hint: "Among the results when browsing a request category.",
+    renderedByApp: true,
   },
 ] as const;
+
+const UNDELIVERED = new Set(
+  PLACEMENTS.filter((placement) => !placement.renderedByApp).map((placement) => placement.key),
+);
+
+/**
+ * Is this key one this build KNOWS the app never renders?
+ *
+ * Note the direction: an UNKNOWN key returns `false`. This console cannot
+ * testify about a placement a newer backend invented, and claiming "shows
+ * nowhere" about one would be inventing a fault — the same fail-open choice
+ * `placementLabel` makes when it prints a key it has not heard of.
+ */
+export function placementRendersNowhere(key: string): boolean {
+  return UNDELIVERED.has(key);
+}
+
+/**
+ * The keys on this campaign that no screen renders — and, separately, whether
+ * that accounts for ALL of them.
+ *
+ * The second answer is the one that matters: a campaign carrying `home` and
+ * `community_impact` runs perfectly well on the home feed and merely wastes a
+ * tick box, while a campaign carrying `community_impact` alone runs nowhere at
+ * all despite passing every check the API makes.
+ */
+export function placementDelivery(keys: readonly string[]): {
+  undelivered: string[];
+  showsNowhere: boolean;
+} {
+  const undelivered = keys.filter((key) => placementRendersNowhere(key));
+  return {
+    undelivered,
+    showsNowhere: keys.length > 0 && undelivered.length === keys.length,
+  };
+}
 
 const LABELS = new Map(PLACEMENTS.map((placement) => [placement.key, placement.label]));
 

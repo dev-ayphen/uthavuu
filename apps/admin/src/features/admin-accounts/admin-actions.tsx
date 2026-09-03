@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Ban, Eye, KeyRound, Pencil, RotateCcw, ShieldOff } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { ConfirmActionDialog } from "@/features/moderation/confirm-action-dialog";
 import { invalidateAll } from "@/features/moderation/actions";
 import type { AdminRoleRef } from "@/lib/roles";
@@ -493,27 +493,21 @@ function ActionButton({ action }: { action: MenuAction }) {
 /** What suspension does and does not do. */
 function AccountSurvivesNote({ name }: { name: string }) {
   return (
-    <p className="flex items-start gap-2 rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
-      <Eye aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>
-        This blocks the console only. {name} keeps their admin role, their Uthavu account, and
-        everything they have already done — the audit entries with their name on them do not move.
-      </span>
-    </p>
+    <Alert tone="info" icon={Eye}>
+      This blocks the console only. {name} keeps their admin role, their Uthavu account, and
+      everything they have already done — the audit entries with their name on them do not move.
+    </Alert>
   );
 }
 
 /** The sentence that stops "Revoke" being read as "Delete". */
 function RevokeIsNotDeleteNote({ name }: { name: string }) {
   return (
-    <p className="flex items-start gap-2 rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
-      <Eye aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>
-        <strong className="font-bold">This is not a deletion.</strong> {name} keeps their Uthavu
-        account and can still use the mobile app; their reports, comments and completed missions
-        stay exactly where they are, and every audit entry naming them is untouched. What is removed
-        is the grant that lets them into this console — a super admin can give it back.
-      </span>
-    </p>
+    <Alert tone="info" icon={Eye}>
+      <strong className="font-bold">This is not a deletion.</strong> {name} keeps their Uthavu
+      account and can still use the mobile app; their reports, comments and completed missions stay
+      exactly where they are, and every audit entry naming them is untouched. What is removed is the
+      grant that lets them into this console — a super admin can give it back.
+    </Alert>
   );
 }

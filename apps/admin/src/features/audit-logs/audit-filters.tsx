@@ -1,11 +1,14 @@
 "use client";
 
-import { FilterX, X } from "lucide-react";
-import { useId } from "react";
+import { X } from "lucide-react";
 
-import { useListState } from "@/components/data";
-import { Badge, Button, Input, Select } from "@/components/ui";
-import { cn } from "@/lib/cn";
+import {
+  ClearFiltersButton,
+  DateRangeFilter,
+  ResultAnnouncer,
+  useListState,
+} from "@/components/data";
+import { FilterRow, FilterSelect } from "@/components/ui";
 import { useAuditCatalogue } from "./use-audit-logs";
 
 /**
@@ -19,13 +22,8 @@ import { useAuditCatalogue } from "./use-audit-logs";
  * deliberately, so the two read as the same control.
  */
 export function AuditFilters({ resultCount }: { resultCount: number | null }) {
-  const { params, activeFilterCount, isNarrowed, setFilter, clearAll, isFilterActive } =
-    useListState();
+  const { params, setFilter, isFilterActive } = useListState();
   const catalogue = useAuditCatalogue();
-  const actionId = useId();
-  const targetTypeId = useId();
-  const fromId = useId();
-  const toId = useId();
 
   const actions = catalogue.data?.actions ?? [];
   const targetTypes = catalogue.data?.targetTypes ?? [];
@@ -36,95 +34,32 @@ export function AuditFilters({ resultCount }: { resultCount: number | null }) {
   const optionsUnavailable = catalogue.isPending || catalogue.isError;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex min-w-0 items-center gap-1.5">
-        <label htmlFor={actionId} className="micro-label whitespace-nowrap">
-          Action
-        </label>
-        <Select
-          id={actionId}
-          size="sm"
-          value={params.filters.action ?? ""}
-          disabled={optionsUnavailable}
-          onChange={(event) => setFilter("action", event.target.value)}
-          className={cn(
-            "w-auto max-w-56",
-            isFilterActive("action") &&
-              "border-primary-soft-border bg-primary-soft text-primary-soft-fg",
-          )}
-        >
-          <option value="">All actions</option>
-          {actions.map((action) => (
-            <option key={action.key} value={action.key}>
-              {action.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+    <FilterRow>
+      <FilterSelect
+        label="Action"
+        allLabel="All actions"
+        // The catalogue speaks `key`/`label`; the control speaks `value`/`label`.
+        options={actions.map((action) => ({ value: action.key, label: action.label }))}
+        value={params.filters.action ?? ""}
+        active={isFilterActive("action")}
+        disabled={optionsUnavailable}
+        onChange={(value) => setFilter("action", value)}
+        // Action labels are the longest text in this row; without a cap this
+        // one dropdown decides how wide the whole row is.
+        className="max-w-56"
+      />
 
-      <div className="flex min-w-0 items-center gap-1.5">
-        <label htmlFor={targetTypeId} className="micro-label whitespace-nowrap">
-          Target
-        </label>
-        <Select
-          id={targetTypeId}
-          size="sm"
-          value={params.filters.targetType ?? ""}
-          disabled={optionsUnavailable}
-          onChange={(event) => setFilter("targetType", event.target.value)}
-          className={cn(
-            "w-auto",
-            isFilterActive("targetType") &&
-              "border-primary-soft-border bg-primary-soft text-primary-soft-fg",
-          )}
-        >
-          <option value="">All targets</option>
-          {targetTypes.map((type) => (
-            <option key={type.key} value={type.key}>
-              {type.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <FilterSelect
+        label="Target"
+        allLabel="All targets"
+        options={targetTypes.map((type) => ({ value: type.key, label: type.label }))}
+        value={params.filters.targetType ?? ""}
+        active={isFilterActive("targetType")}
+        disabled={optionsUnavailable}
+        onChange={(value) => setFilter("targetType", value)}
+      />
 
-      <div className="flex min-w-0 items-center gap-1.5">
-        <label htmlFor={fromId} className="micro-label whitespace-nowrap">
-          From
-        </label>
-        <Input
-          id={fromId}
-          type="date"
-          value={params.filters.from ?? ""}
-          // The API rejects `from > to` with a 400 (`\`from\` must not be after
-          // \`to\``). Constraining the pickers means that validation error is
-          // unreachable through the UI instead of being explained after the fact.
-          max={params.filters.to || undefined}
-          onChange={(event) => setFilter("from", event.target.value)}
-          className={cn(
-            "h-8 w-auto px-2.5 text-xs",
-            isFilterActive("from") &&
-              "border-primary-soft-border bg-primary-soft text-primary-soft-fg",
-          )}
-        />
-      </div>
-
-      <div className="flex min-w-0 items-center gap-1.5">
-        <label htmlFor={toId} className="micro-label whitespace-nowrap">
-          To
-        </label>
-        <Input
-          id={toId}
-          type="date"
-          value={params.filters.to ?? ""}
-          min={params.filters.from || undefined}
-          onChange={(event) => setFilter("to", event.target.value)}
-          className={cn(
-            "h-8 w-auto px-2.5 text-xs",
-            isFilterActive("to") &&
-              "border-primary-soft-border bg-primary-soft text-primary-soft-fg",
-          )}
-        />
-      </div>
+      <DateRangeFilter />
 
       {/* Deep-link filters have no dropdown of their own — they arrive from a
           link ("everything this admin did"). Rendering them as removable chips
@@ -133,26 +68,10 @@ export function AuditFilters({ resultCount }: { resultCount: number | null }) {
       <IdChip label="Actor" value={params.filters.actorUserId} onClear={() => setFilter("actorUserId", null)} />
       <IdChip label="Target id" value={params.filters.targetId} onClear={() => setFilter("targetId", null)} />
 
-      {isNarrowed ? (
-        <Button variant="ghost" size="sm" onClick={clearAll}>
-          <FilterX />
-          Clear all
-          {activeFilterCount > 0 ? (
-            <Badge tone="neutral" className="ml-0.5">
-              {activeFilterCount}
-            </Badge>
-          ) : null}
-        </Button>
-      ) : null}
+      <ClearFiltersButton />
 
-      <p aria-live="polite" className="sr-only">
-        {resultCount === null
-          ? ""
-          : `${resultCount} ${resultCount === 1 ? "entry" : "entries"}${
-              isNarrowed ? " matching the current filters" : ""
-            }`}
-      </p>
-    </div>
+      <ResultAnnouncer count={resultCount} noun="entry" pluralNoun="entries" />
+    </FilterRow>
   );
 }
 

@@ -17,7 +17,7 @@ import {
   type FilterDef,
   type ListConfig,
 } from "@/components/data";
-import { Badge, Button } from "@/components/ui";
+import { Alert, Badge, Button } from "@/components/ui";
 import { apiFetch } from "@/lib/api-client";
 import { MODERATION_TABLE } from "@/features/moderation/table-surface";
 import { CommentActions } from "./comment-actions";
@@ -200,11 +200,10 @@ export function CommentsTable() {
       />
 
       {scoped ? (
-        <p className="flex items-center gap-2 rounded-control border border-primary-soft-border bg-primary-soft px-3 py-2 text-xs text-primary-soft-fg">
-          <MessageSquare aria-hidden className="size-3.5 shrink-0" />
+        <Alert tone="primary" align="center" icon={MessageSquare}>
           Scoped to one {listParams.filters.reportId ? "report" : "author"}. Use “Clear all” to see
           every comment.
-        </p>
+        </Alert>
       ) : null}
 
       <DataTable

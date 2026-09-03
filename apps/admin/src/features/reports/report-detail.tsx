@@ -15,7 +15,7 @@ import {
   formatDate,
   formatRelative,
 } from "@/components/data";
-import { Badge, Card, MetricTile } from "@/components/ui";
+import { Alert, Badge, CalloutCard, Card, MetricTile } from "@/components/ui";
 import { DetailFallback, useDetailQuery } from "@/features/moderation/detail-query";
 import { commentsForReportHref, userDetailHref } from "@/features/moderation/routes";
 import { cn } from "@/lib/cn";
@@ -77,22 +77,12 @@ export function ReportDetail({ reportId }: { reportId: string }) {
       />
 
       {hidden ? (
-        <Card className="border-danger-soft-border">
-          <div className="flex items-start gap-3 p-4">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-control bg-danger-soft text-danger-fg">
-              <EyeOff className="size-3.5" aria-hidden />
-            </span>
-            <div className="min-w-0 text-xs">
-              <p className="text-sm font-bold text-fg">This report is hidden</p>
-              <p className="mt-1 text-fg-subtle">
-                Removed {formatDate(report.deletedAt, true) ?? "at an unknown time"}
-                {report.deletedBy ? ` by ${report.deletedBy.name}` : ""}. Nobody outside the
-                console can see it, and neither the reporter nor the volunteers were notified.
-                Everything below is preserved so the decision can be reviewed.
-              </p>
-            </div>
-          </div>
-        </Card>
+        <CalloutCard tone="danger" icon={EyeOff} title="This report is hidden">
+          Removed {formatDate(report.deletedAt, true) ?? "at an unknown time"}
+          {report.deletedBy ? ` by ${report.deletedBy.name}` : ""}. Nobody outside the console can
+          see it, and neither the reporter nor the volunteers were notified. Everything below is
+          preserved so the decision can be reviewed.
+        </CalloutCard>
       ) : null}
 
       {/*
@@ -103,14 +93,11 @@ export function ReportDetail({ reportId }: { reportId: string }) {
         computes it from `expiry_at` at read time.
       */}
       {report.expired ? (
-        <p className="flex items-start gap-2 rounded-control border border-warning-soft-border bg-warning-soft px-3 py-2 text-xs text-warning-fg">
-          <Clock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            This request passed its window {formatRelative(new Date(report.expiryAt))} and can no
-            longer be accepted. The stored status column still reads “{report.storedStatusLabel}” —
-            expiry is worked out when the record is read, never written back.
-          </span>
-        </p>
+        <Alert tone="warning" icon={Clock}>
+          This request passed its window {formatRelative(new Date(report.expiryAt))} and can no
+          longer be accepted. The stored status column still reads “{report.storedStatusLabel}” —
+          expiry is worked out when the record is read, never written back.
+        </Alert>
       ) : null}
 
       <DetailSection title="At a glance">

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useId } from "react";
-import { FilterX, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import {
+  ClearFiltersButton,
   DataTable,
   DateCell,
+  filterTint,
   ListPagination,
   offsetListAdapter,
   RemovedContentCell,
@@ -16,7 +17,7 @@ import {
   type FilterDef,
   type ListConfig,
 } from "@/components/data";
-import { Badge, Button, Select } from "@/components/ui";
+import { InlineField, Select } from "@/components/ui";
 import { reportDetailHref } from "@/features/moderation/routes";
 import { MODERATION_TABLE } from "@/features/moderation/table-surface";
 import { apiFetch } from "@/lib/api-client";
@@ -222,50 +223,33 @@ export function FlaggedCommentsTable() {
  * search box, so this page grows its own row from the same `useListState`.
  */
 function FlagFilters({ total }: { total: number | null }) {
-  const { params, isNarrowed, activeFilterCount, clearAll, setFilter, isFilterActive } =
-    useListState();
-  const selectId = useId();
+  const { params, setFilter, isFilterActive } = useListState();
   const filter = FILTERS[0];
   if (!filter) return null;
   const value = params.filters[filter.id] ?? "";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex min-w-0 items-center gap-1.5">
-        <label htmlFor={selectId} className="micro-label whitespace-nowrap">
-          {filter.label}
-        </label>
-        <Select
-          id={selectId}
-          size="sm"
-          value={value}
-          onChange={(event) => setFilter(filter.id, event.target.value)}
-          className={cn(
-            "w-auto",
-            isFilterActive(filter.id) &&
-              "border-primary-soft-border bg-primary-soft text-primary-soft-fg",
-          )}
-        >
-          <option value="">{filter.allLabel}</option>
-          {filter.options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <InlineField label={filter.label}>
+        {(id) => (
+          <Select
+            id={id}
+            size="sm"
+            value={value}
+            onChange={(event) => setFilter(filter.id, event.target.value)}
+            className={cn("w-auto", filterTint(isFilterActive(filter.id)))}
+          >
+            <option value="">{filter.allLabel}</option>
+            {filter.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        )}
+      </InlineField>
 
-      {isNarrowed ? (
-        <Button variant="ghost" size="sm" onClick={clearAll}>
-          <FilterX />
-          Clear all
-          {activeFilterCount > 0 ? (
-            <Badge tone="neutral" className="ml-0.5">
-              {activeFilterCount}
-            </Badge>
-          ) : null}
-        </Button>
-      ) : null}
+      <ClearFiltersButton />
 
       <p aria-live="polite" className="sr-only">
         {total === null ? "" : `${total} ${total === 1 ? "flag" : "flags"}`}

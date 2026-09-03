@@ -1,7 +1,8 @@
+import { AccessDeniedState } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { ListStateProvider } from "@/components/data";
 import { getAdminSession } from "@/lib/session";
 import { canManageSupport } from "@/features/support-tickets/permission";
-import { SupportAccessDenied } from "@/features/support-tickets/support-access-denied";
 import { SupportTable, SupportTableSkeleton } from "@/features/support-tickets/support-table";
 import { SUPPORT_LIST } from "@/features/support-tickets/use-support-tickets";
 
@@ -35,7 +36,7 @@ export default async function Page() {
     return (
       <div className="space-y-4">
         <Heading />
-        <SupportAccessDenied />
+        <AccessDeniedState {...ACCESS_DENIED.support} />
       </div>
     );
   }

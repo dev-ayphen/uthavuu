@@ -1,5 +1,6 @@
+import { AccessDeniedState } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { canManageAppSettings } from "@/features/platform-settings/permission";
-import { SettingsAccessDenied } from "@/features/platform-settings/settings-access-denied";
 import { SettingsView } from "@/features/platform-settings/settings-view";
 
 export const metadata = { title: "App Settings" };
@@ -40,7 +41,7 @@ export default async function Page() {
         </p>
       </div>
 
-      {canManage ? <SettingsView /> : <SettingsAccessDenied />}
+      {canManage ? <SettingsView /> : <AccessDeniedState {...ACCESS_DENIED.settings} />}
     </div>
   );
 }

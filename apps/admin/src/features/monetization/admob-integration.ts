@@ -31,8 +31,15 @@
  * ───────────────────────────────────────────────────────────────────────────
  *   apps/mobile/package.json           no Google Mobile Ads dependency of any
  *                                      kind. Not `react-native-google-mobile-ads`,
- *                                      not `expo-ads-admob`. 30 dependencies,
- *                                      none of them an ad SDK.
+ *                                      not `expo-ads-admob`, and nothing else
+ *                                      matching /admob|mobile-ads/ across its
+ *                                      dependencies or devDependencies.
+ *                                      (An earlier revision of this note said
+ *                                      "30 dependencies"; it is 26 as of the
+ *                                      date below. The COUNT was never the
+ *                                      evidence and drifts with every install,
+ *                                      so it is no longer asserted — the
+ *                                      absence of an ad SDK is.)
  *   apps/api/.env.example              no AdMob variable. It carries DATABASE_URL,
  *                                      REDIS_URL, BETTER_AUTH_*, MSG91_*, FCM_*,
  *                                      ADMIN_URL and the seed passwords. Nothing

@@ -2,11 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Lock, Send, Users } from "lucide-react";
+import { Lock, Send, Users } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
-import { Button } from "@/components/ui";
+import { Alert, Button, CharacterCounter, Textarea } from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
 
@@ -20,7 +20,6 @@ import {
   type MessageFormValues,
 } from "./schema";
 import { isTicketStaleConflict, supportErrorMessage } from "./support-errors";
-import { Textarea } from "./textarea";
 import type { SupportTicketDetail } from "./types";
 
 /**
@@ -187,34 +186,26 @@ export function TicketComposer({ ticket }: { ticket: SupportTicketDetail }) {
       {/* SIGNAL 2 + 3: the audience, in words, with an icon — for BOTH modes.
           Warning only the dangerous one would train agents to read "no banner"
           as "safe", and a missing element is not something anyone notices. */}
-      <p
-        className={cn(
-          "flex items-start gap-2 rounded-control px-3 py-2 text-xs",
-          isNote
-            ? "bg-warning-soft text-warning-fg"
-            : "border border-info-soft-border bg-info-soft text-info-fg",
-        )}
+      <Alert
+        tone={isNote ? "warning" : "info"}
+        icon={isNote ? Lock : Users}
+        // The note variant has never had a border. `border-0` reproduces that
+        // exactly rather than letting the tone's default 1px change the box.
+        className={cn(isNote && "border-0")}
       >
         {isNote ? (
-          <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <>
+            <strong className="font-bold">Internal note — not visible to the user.</strong> Only
+            staff with access to this queue can read it. It stays on the ticket permanently and
+            cannot be edited or deleted.
+          </>
         ) : (
-          <Users aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <>
+            <strong className="font-bold">Reply — {recipient} sees this in the app.</strong> It is
+            sent as support&rsquo;s answer and cannot be edited or unsent.
+          </>
         )}
-        <span>
-          {isNote ? (
-            <>
-              <strong className="font-bold">Internal note — not visible to the user.</strong> Only
-              staff with access to this queue can read it. It stays on the ticket permanently and
-              cannot be edited or deleted.
-            </>
-          ) : (
-            <>
-              <strong className="font-bold">Reply — {recipient} sees this in the app.</strong> It
-              is sent as support&rsquo;s answer and cannot be edited or unsent.
-            </>
-          )}
-        </span>
-      </p>
+      </Alert>
 
       <div className="space-y-1.5">
         <label htmlFor={bodyId} className="sr-only">
@@ -247,26 +238,11 @@ export function TicketComposer({ ticket }: { ticket: SupportTicketDetail }) {
           {/* The bound made visible rather than enforced only at submit — see
               the note on MESSAGE_MAX. Only speaks up near the limit, so it is
               not one more thing on screen for the 99% of replies nowhere near it. */}
-          <span
-            className={cn(
-              "tabular text-[11px]",
-              used > MESSAGE_MAX ? "font-semibold text-danger-fg" : "text-fg-faint",
-            )}
-          >
-            {used > MESSAGE_MAX * 0.8 ? `${used} / ${MESSAGE_MAX}` : null}
-          </span>
+          <CharacterCounter value={used} max={MESSAGE_MAX} />
         </div>
       </div>
 
-      {errors.root?.message ? (
-        <p
-          role="alert"
-          className="flex items-start gap-2 rounded-control border border-danger-soft-border bg-danger-soft px-3 py-2 text-xs text-danger-fg"
-        >
-          <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-          <span>{errors.root.message}</span>
-        </p>
-      ) : null}
+      {errors.root?.message ? <Alert>{errors.root.message}</Alert> : null}
 
       <div className="flex justify-end">
         {/* SIGNAL 5: the last thing read before clicking names the audience.

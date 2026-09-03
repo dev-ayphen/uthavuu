@@ -1,6 +1,20 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
+   Shared UI source
+   ---------------------------------------------------------------------------
+   The design-system primitives (Button, Card, Badge, Input, Textarea, …) live
+   in `@uthavu/libs-web`, not in this app. Tailwind v4's automatic source
+   detection starts from this file's project and never descends into
+   node_modules, so it cannot see them through the workspace symlink — and a
+   missing source path fails SILENTLY: the components render, their utilities
+   are simply never emitted, and it surfaces later as an unexplained "CSS bug".
+   Point Tailwind at the real directory so every class those files use is in
+   the output. Add a line here for each new web package that ships markup.
+--------------------------------------------------------------------------- */
+@source "../../../../libs-web";
+
+/* ---------------------------------------------------------------------------
    Dark mode
    ---------------------------------------------------------------------------
    Theme is driven by a `data-theme` attribute on <html>, written by next-themes

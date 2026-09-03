@@ -1,13 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Check, Eye, EyeOff, KeyRound, ShieldAlert } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, ShieldAlert } from "lucide-react";
 import { useId, useState } from "react";
 import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { toast } from "sonner";
 
-import { Button, Field, Input } from "@/components/ui";
-import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/features/moderation/dialog";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  Field,
+  Input,
+} from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
 import { adminAccountMutate } from "./api";
@@ -74,7 +82,7 @@ import type { AdminAccountDetail } from "./types";
  *     devtools panel ever sees it. Nothing observable changes in the list
  *     either, so there is nothing to invalidate.
  *   - It is never held after the dialog closes. `<Dialog>` unmounts its
- *     children while closed (see `features/moderation/dialog.tsx`), so the form
+ *     children while closed (see `@uthavu/libs-web`'s `Dialog`), so the form
  *     state is discarded with the component rather than scrubbed by an effect
  *     someone can forget to update.
  */
@@ -358,14 +366,11 @@ function ResetPasswordBody({
 
           {/* The single most important thing an operator needs to know before
               pressing the button: the console cannot deliver this for them. */}
-          <p className="flex items-start gap-2 rounded-control border border-warning-soft-border bg-warning-soft px-3 py-2 text-xs text-warning-fg">
-            <ShieldAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            <span>
-              Nothing is emailed. {admin.name} cannot sign in until you tell them this password
-              yourself, through a channel you trust — and the console will not show it to you again
-              afterwards.
-            </span>
-          </p>
+          <Alert tone="warning" icon={ShieldAlert}>
+            Nothing is emailed. {admin.name} cannot sign in until you tell them this password
+            yourself, through a channel you trust — and the console will not show it to you again
+            afterwards.
+          </Alert>
 
           <PasswordField
             label="New password"
@@ -391,14 +396,13 @@ function ResetPasswordBody({
           {/* Says, in words, what this dialog is NOT asking for — because its
               absence is the surprising part, and an operator hunting for the
               missing field is one who assumes the form is broken. */}
-          <p className="flex items-start gap-2 rounded-control border border-border bg-surface-2 px-3 py-2 text-[11px] text-fg-subtle">
-            <KeyRound aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <Alert tone="neutral" icon={KeyRound} className="text-[11px]">
             <span>
               This form does not ask for {admin.name}&rsquo;s current password, and it never will —
               you do not know it, and pretending otherwise would just be a box to guess into. That
               is also why this action is restricted to super admins and recorded.
             </span>
-          </p>
+          </Alert>
         </form>
       </DialogBody>
 
@@ -451,16 +455,7 @@ function routeFieldErrors(
 
 function FormBanner({ message }: { message?: string }) {
   if (!message) return null;
-
-  return (
-    <p
-      role="alert"
-      className="flex items-start gap-2 rounded-control border border-danger-soft-border bg-danger-soft px-3 py-2 text-xs text-danger-fg"
-    >
-      <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>{message}</span>
-    </p>
-  );
+  return <Alert>{message}</Alert>;
 }
 
 function DialogActions({

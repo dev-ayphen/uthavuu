@@ -19,6 +19,10 @@ export { ListPane, TableScrollRegion } from "./list-pane";
 export { Pagination, ListPagination, pageWindow, type PaginationProps } from "./pagination";
 export { SearchInput, ListSearchInput } from "./search-input";
 export { FilterBar, type FilterDef, type FilterOption } from "./filter-bar";
+// The row shell, the labelled dropdown and the active tint are design-layer
+// primitives and come from "@/components/ui" (i.e. `@uthavu/libs-web`) — this
+// barrel does not proxy them, any more than it proxies Select or InlineField.
+export { ClearFiltersButton, DateRangeFilter, ResultAnnouncer } from "./filter-controls";
 export {
   ListEmptyState,
   ListFailureState,

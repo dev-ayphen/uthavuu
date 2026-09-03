@@ -11,6 +11,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import type { AdminPermissionKey } from "@uthavu/libs-common";
 
 /**
  * The console's 9 sections.
@@ -62,25 +63,22 @@ import {
  */
 
 /**
- * The six permissions, mirrored from `ADMIN_PERMISSIONS` in
- * `apps/api/src/admin/admin-rbac.ts`.
+ * The six permissions, now IMPORTED from `@uthavu/libs-common` rather than
+ * mirrored — `apps/api/src/admin/admin-rbac.ts` builds its labelled catalogue
+ * from the same list.
  *
- * Spelled out as a union rather than typed `string` so a typo is a build error.
- * That matters more than usual here: a misspelt permission can never be held by
- * anyone, so the fail-closed rule would silently hide the entry from EVERY
- * admin — a bug that looks exactly like a deliberate gate.
+ * A union rather than `string` so a typo is a build error. That matters more
+ * than usual here: a misspelt permission can never be held by anyone, so the
+ * fail-closed rule would silently hide the entry from EVERY admin — a bug that
+ * looks exactly like a deliberate gate. Keeping a hand-copied union got the
+ * same guarantee, but only against typos this file made; it could not catch the
+ * API renaming a key underneath it. The shared list catches both.
  *
- * Duplicating the list is the deliberate trade. The console cannot import from
- * `apps/api`, and the alternative — `string` — trades a compile error for a
- * section nobody can see.
+ * The GRANTS are still the database's call — which role holds which permission
+ * is read from `admin_role_permissions` at request time and is not mirrored
+ * here at all.
  */
-export type AdminPermission =
-  | "users:manage"
-  | "reports:manage"
-  | "comments:manage"
-  | "analytics:view"
-  | "platform:manage"
-  | "data:delete_all";
+export type AdminPermission = AdminPermissionKey;
 
 /**
  * What a destination demands of the signed-in admin.
@@ -254,35 +252,45 @@ export const NAV_SECTIONS: NavSection[] = [
       // admin-authored posts broadcast TO citizens. That is the opposite
       // direction of travel, and conflating the two is the bug this fixes.
       //
-      // `permission: null` HERE IS A MEASUREMENT, NOT A GUESS — AND IT IS
-      // TEMPORARY. `/community/broadcasts` renders `SectionPlaceholder` and
-      // fetches nothing; there is no broadcasts controller in `apps/api` and no
-      // endpoint to read a gate off. So the honest answer to "what does this
-      // destination require" is: nothing. Every admin opens it and sees the
-      // same "lands with the notifications module" placeholder — no 403, so no
-      // dead link to hide.
+      // `permission: "platform:manage"` HERE IS CODE-DERIVED, NOT A GUESS.
       //
-      //   >> WHEN THE NOTIFICATIONS MODULE LANDS, COME BACK HERE. Sending a
-      //   >> push to every citizen is the Announcements direction of travel and
-      //   >> will almost certainly ship behind `platform:manage`. Copy whatever
-      //   >> its controller actually declares — do not assume this `null`.
+      // THE NOTIFICATIONS MODULE HAS LANDED, so the note that used to sit here
+      // — "no broadcasts controller exists, the page fetches nothing, this is
+      // genuinely ungated" — no longer describes anything real.
+      // `/community/broadcasts` is now a built list + compose + detail feature
+      // (`src/features/broadcasts/**`) reading `/admin/broadcasts`, and
+      // `AdminBroadcastsController` carries a CLASS-LEVEL
+      // `@RequireAdminPermissions('platform:manage')` — so list, detail,
+      // create, update, send, cancel and delete are all behind that one
+      // permission by construction (`admin-module-guard.spec.ts` fails the
+      // suite if the decorator is ever dropped). The value below was copied off
+      // that controller, which is the rule the old note asked the next reader
+      // to follow.
+      //
+      // Mirrored server-side for the page itself in
+      // `features/broadcasts/permission.ts`; this entry is the sidebar's half
+      // of the same mirror.
+      //
+      // The consequence is unchanged but its meaning is not: ops_admin's
+      // Community still shows Impact Stories alone, and that is now a real 403
+      // being kept off the screen rather than a policy applied to a
+      // placeholder. An ops admin opening this URL directly would get
+      // ADMIN_MISSING_PERMISSION from every request the page makes.
       {
         label: "Broadcasts",
         href: "/community/broadcasts",
-        // OWNER DECISION 2026-09-02: `platform:manage`, not `null`.
-        //
-        // Code-derived, this is genuinely ungated — no broadcasts controller
-        // exists and the page fetches nothing, so it refuses nobody. But the
-        // owner's rule is "if it isn't needed, don't show it in an ops login",
-        // and a coming-soon placeholder is not something an ops moderator
-        // needs. Gating it also matches where it is certainly heading: sending
-        // a push to every citizen is the Announcements direction of travel, and
-        // Announcements is `platform:manage`.
-        //
-        // Consequence: ops_admin's Community shows Impact Stories alone.
-        // When the notifications module lands, replace this with whatever its
-        // controller actually declares — do not assume this stays correct.
         permission: "platform:manage",
+        // ⚠️ NOTHING FEEDS THIS BADGE YET, and that is not an oversight here.
+        // `nav-badges.ts` maps exactly two figures (`users`,
+        // `commentsFlagged`), and `GET /admin/dashboard` returns no broadcast
+        // count for a third to be mapped from — so this key resolves to
+        // `undefined` and the sidebar renders no badge at all, which is that
+        // file's deliberate rule: "no badge says nothing, which is the only
+        // true thing available". The key is kept because the counter worth
+        // having is obvious — broadcasts stuck in `sending`, i.e. fan-outs that
+        // started and never reported finishing — but wiring it needs a
+        // dashboard field first, and a made-up number beside Broadcasts would
+        // send an operator looking for work that isn't there.
         badgeKey: "broadcastsActive",
       },
     ],

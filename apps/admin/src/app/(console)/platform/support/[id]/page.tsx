@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
+import { AccessDeniedState, BackButton } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { canManageSupport } from "@/features/support-tickets/permission";
 import { SUPPORT_INDEX } from "@/features/support-tickets/routes";
-import { SupportAccessDenied } from "@/features/support-tickets/support-access-denied";
 import { TicketWorkbench } from "@/features/support-tickets/ticket-workbench";
 
 export const metadata = { title: "Ticket" };
@@ -33,13 +31,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <div className="space-y-4">
       <div>
-        <Link
-          href={SUPPORT_INDEX}
-          className="inline-flex items-center gap-1 rounded-control text-[11px] font-semibold text-fg-faint transition-colors hover:text-fg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <ArrowLeft aria-hidden className="size-3" />
-          Support queue
-        </Link>
+        <div className="mb-2">
+          <BackButton href={SUPPORT_INDEX} label="Support queue" />
+        </div>
         <h2 className="mt-1 text-lg font-extrabold tracking-tight text-fg">Ticket</h2>
         <p className="mt-0.5 text-fg-subtle">
           The whole conversation, staff notes included. Replies go to the citizen; internal notes
@@ -47,7 +41,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </p>
       </div>
 
-      {canManage ? <TicketWorkbench ticketId={id} /> : <SupportAccessDenied />}
+      {canManage ? <TicketWorkbench ticketId={id} /> : <AccessDeniedState {...ACCESS_DENIED.support} />}
     </div>
   );
 }

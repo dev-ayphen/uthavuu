@@ -1,7 +1,7 @@
 "use client";
 
 import { useListState } from "@/components/data";
-import { cn } from "@/lib/cn";
+import { SegmentedControl } from "@/components/ui";
 
 import { STATUS_FILTER_KEY } from "./use-support-tickets";
 import { useTicketCatalogue } from "./use-ticket-catalogue";
@@ -10,13 +10,9 @@ import { useTicketCatalogue } from "./use-ticket-catalogue";
  * The queue's status tabs — All / Open / In Progress / Waiting / Resolved /
  * Closed.
  *
- * WHY THESE ARE BUTTONS AND NOT `role="tablist"`
- * ───────────────────────────────────────────────────────────────────────────
- * A tablist promises tabpanels: arrow-key navigation between tabs, one panel
- * per tab, and `aria-controls` pointing at it. There is one table here, whose
- * CONTENTS change — that is a filter with a segmented control, not a tab set.
- * Announcing it as tabs would make a screen-reader user hunt for five panels
- * that do not exist. `aria-pressed` says the true thing: this control is on.
+ * The control is `@uthavu/libs-web`'s `SegmentedControl`, which carries the
+ * reasoning for `role="group"` + `aria-pressed` rather than `role="tablist"`.
+ * What is decided here is which options exist and where they come from.
  *
  * WHY IT DRIVES THE SAME FILTER THE URL OWNS
  * ───────────────────────────────────────────────────────────────────────────
@@ -47,34 +43,13 @@ export function StatusTabs() {
   const tabs = [{ value: "", label: "All" }, ...catalogue.statuses];
 
   return (
-    <div
-      role="group"
-      aria-label="Filter tickets by status"
-      className="flex flex-wrap items-center gap-1 border-b border-border pb-2"
-    >
-      {tabs.map((tab) => {
-        const selected = active === tab.value;
-
-        return (
-          <button
-            key={tab.value || "all"}
-            type="button"
-            aria-pressed={selected}
-            // `null` clears the param entirely — see the note above on why
-            // "All" must not be written to the URL as a value.
-            onClick={() => setFilter(STATUS_FILTER_KEY, tab.value || null)}
-            className={cn(
-              "rounded-control px-3 py-1.5 text-xs font-semibold transition-colors",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-canvas focus-visible:outline-none",
-              selected
-                ? "bg-primary-soft text-primary-soft-fg"
-                : "text-fg-muted hover:bg-surface-2 hover:text-fg",
-            )}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedControl
+      label="Filter tickets by status"
+      options={tabs}
+      value={active}
+      // `null` clears the param entirely — see the note above on why "All" must
+      // not be written to the URL as a value.
+      onChange={(value) => setFilter(STATUS_FILTER_KEY, value || null)}
+    />
   );
 }

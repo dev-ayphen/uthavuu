@@ -3,6 +3,8 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
+import { FullPageState } from "@/components/ui";
+
 type Props = {
   children: ReactNode;
   /** Optional custom fallback. Receives the error and a reset callback. */
@@ -47,29 +49,26 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.props.fallback) return this.props.fallback(error, this.reset);
 
     return (
-      <div className="grid min-h-svh place-items-center bg-canvas p-6">
-        <div className="w-full max-w-md rounded-panel border border-border bg-surface p-6 shadow-raised">
-          <div className="flex size-10 items-center justify-center rounded-control bg-danger-soft text-danger-fg">
-            <AlertTriangle className="size-5" />
-          </div>
-          <h1 className="mt-4 text-base font-bold text-fg">The console hit an error</h1>
-          <p className="mt-1.5 text-fg-subtle">
-            Something failed while rendering this screen. Try again — if it keeps happening,
-            send the details below to engineering.
-          </p>
-          <pre className="mt-4 overflow-x-auto rounded-control border border-border bg-surface-inset p-3 font-mono text-[11px] text-fg-muted">
-            {error.message}
-          </pre>
-          <button
-            type="button"
-            onClick={this.reset}
-            className="mt-5 inline-flex items-center gap-2 rounded-control bg-primary px-3.5 py-2 font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
-          >
-            <RotateCcw className="size-4" />
-            Try again
-          </button>
-        </div>
-      </div>
+      <FullPageState
+        icon={AlertTriangle}
+        title="The console hit an error"
+        description="Something failed while rendering this screen. Try again — if it keeps happening, send the details below to engineering."
+      >
+        <pre className="mt-4 overflow-x-auto rounded-control border border-border bg-surface-inset p-3 font-mono text-[11px] text-fg-muted">
+          {error.message}
+        </pre>
+        {/* Deliberately a raw <button>, not <Button>. This boundary is the last
+            thing between a render throw and a blank document, and it must not
+            depend on any component that could itself be the thing that threw. */}
+        <button
+          type="button"
+          onClick={this.reset}
+          className="mt-5 inline-flex items-center gap-2 rounded-control bg-primary px-3.5 py-2 font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
+        >
+          <RotateCcw className="size-4" />
+          Try again
+        </button>
+      </FullPageState>
     );
   }
 }

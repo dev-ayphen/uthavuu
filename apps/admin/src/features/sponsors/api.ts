@@ -70,6 +70,44 @@ export async function sponsorMutate<TResponse>(
 }
 
 /**
+ * What to tell the operator once the action came back 2xx.
+ *
+ * WHY A TONE, WHEN THE REQUEST SUCCEEDED
+ * ───────────────────────────────────────────────────────────────────────────
+ * "The API accepted it" and "the thing the operator wanted has happened" are
+ * not the same sentence, and on this feature they come apart for real. Verified
+ * against the running API on 2026-09-02: activating a campaign whose end date
+ * has already passed answers `201 Created`, and the record comes back with the
+ * derived status `expired` — stored active, on nobody's screen. The console
+ * used to answer that with a green "Campaign activated." An operator has then
+ * been TOLD the advertisement is running, by the only feedback the action gives
+ * them, while no citizen can see it. That is the exact silent failure this
+ * whole feature is built to end, arriving through the success path.
+ *
+ * So the toast is derived from the RECORD THE API RETURNED, never from what
+ * was asked for. `warning` means the write landed and the goal did not.
+ */
+export type SponsorActionOutcome = {
+  message: string;
+  /** Second line. Sonner styles it through the shared `description` class. */
+  description?: string;
+  /** `warning` = it saved, but not into the state the operator was after. */
+  tone?: "success" | "warning";
+};
+
+/**
+ * A fixed sentence, or one computed from the response.
+ *
+ * The function form is the ONLY way to stay honest here without re-deriving the
+ * status rule in the browser — it reads the `status` the server already
+ * computed in SQL against its own clock, which is what `sponsor-status.ts`
+ * insists must have exactly one implementation.
+ */
+export type SponsorActionReport<TResponse> =
+  | string
+  | ((result: TResponse) => SponsorActionOutcome);
+
+/**
  * Fire an action, then make the screen agree with the database.
  *
  * Mirrors `runModerationAction` — including its choice NOT to be optimistic.
@@ -81,6 +119,9 @@ export async function sponsorMutate<TResponse>(
  * An optimistic patch would have to re-implement that derivation in the
  * browser — the second implementation of a rule the backend file explicitly
  * says must have exactly one. Refetching is one round trip and cannot drift.
+ *
+ * That same derivation is why the toast can disagree with the request: see
+ * `SponsorActionOutcome` above, and `activationOutcome` in ./sponsor-actions.tsx.
  *
  * A completed ACTION is a toast. A failed LOAD is not — that is `ErrorState`.
  */
@@ -95,10 +136,22 @@ export async function runSponsorAction<TResponse>({
   path: string;
   method?: SponsorMutationMethod;
   body?: unknown;
-  success: string;
+  success: SponsorActionReport<TResponse>;
 }): Promise<TResponse> {
   const result = await sponsorMutate<TResponse>(path, method, body);
   await invalidateAll(queryClient, SPONSOR_KEYS);
-  toast.success(success);
+
+  const outcome: SponsorActionOutcome =
+    typeof success === "string" ? { message: success } : success(result);
+
+  // Sonner renders a type-specific icon for each, which is what separates the
+  // two at a glance — the shared `toastOptions.classNames` in `providers.tsx`
+  // pins every toast to the same surface, so the wording carries the rest.
+  if (outcome.tone === "warning") {
+    toast.warning(outcome.message, { description: outcome.description });
+  } else {
+    toast.success(outcome.message, { description: outcome.description });
+  }
+
   return result;
 }

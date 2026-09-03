@@ -5,8 +5,7 @@ import { Flag } from "lucide-react";
 import { useId } from "react";
 
 import { formatDate, PersonCell } from "@/components/data";
-import { Badge } from "@/components/ui";
-import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/features/moderation/dialog";
+import { Badge, Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui";
 import { reportDetailHref, userDetailHref } from "@/features/moderation/routes";
 import { ReportStatusBadge } from "@/features/reports/report-status-badge";
 import { CommentActions } from "./comment-actions";

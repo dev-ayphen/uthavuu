@@ -12,7 +12,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { Badge, Button, Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
 import { ConfirmActionDialog } from "@/features/moderation/confirm-action-dialog";
 import { moderationErrorMessage } from "@/features/moderation/moderation-errors";
 import { cn } from "@/lib/cn";
@@ -418,8 +418,6 @@ export function MaintenanceCard({
  */
 function PresentationCaveat() {
   return (
-    <p className="flex items-start gap-2 rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
-      <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-    </p>
+    <Alert tone="info" icon={Info} />
   );
 }

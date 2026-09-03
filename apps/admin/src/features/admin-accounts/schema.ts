@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import type { AdminRoleRef } from "@/lib/roles";
-import { ADMIN_ROLE_KEYS, type AdminAccountDetail, type UpdateAdminAccountPayload } from "./types";
+import { ADMIN_ROLE_KEYS } from "@uthavu/libs-common";
+import { type AdminAccountDetail, type UpdateAdminAccountPayload } from "./types";
 
 /**
  * The three forms this section owns, and the mappers either side of them.

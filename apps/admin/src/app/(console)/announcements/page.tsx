@@ -3,10 +3,10 @@ import { Plus } from "lucide-react";
 
 import { ListStateProvider } from "@/components/data";
 import { PageLayout } from "@/components/layout";
-import { Button } from "@/components/ui";
+import { AccessDeniedState, Button } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { canManageAnnouncements } from "@/features/announcements/permission";
 import { ANNOUNCEMENTS_NEW } from "@/features/announcements/routes";
-import { UpdatesAccessDenied } from "@/features/announcements/updates-access-denied";
 import { UPDATES_LIST, UpdatesTable } from "@/features/announcements/updates-table";
 import { ListPageSkeleton } from "@/features/moderation/table-skeleton";
 
@@ -67,7 +67,7 @@ export default async function Page() {
           <UpdatesTable />
         </ListStateProvider>
       ) : (
-        <UpdatesAccessDenied />
+        <AccessDeniedState {...ACCESS_DENIED.announcements} />
       )}
     </PageLayout>
   );

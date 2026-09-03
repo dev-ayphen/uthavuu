@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Info, Save } from "lucide-react";
 import { useEffect, useId, useMemo } from "react";
@@ -14,13 +13,24 @@ import {
   type UseFormRegisterReturn,
 } from "react-hook-form";
 
-import { Button, Card, CardBody, CardHeader, CardTitle, Field, Input, Select } from "@/components/ui";
+import {
+  BackButton,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  Field,
+  Input,
+  Select,
+} from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
 
 import { runSponsorAction } from "./api";
 import { creativeTypeHint, creativeTypeOptions, creativeUrlApplies } from "./creative";
 import { TIMEZONE_LABEL } from "./dates";
-import { PLACEMENTS } from "./placements";
+import { PLACEMENTS, placementDelivery, placementLabel } from "./placements";
 import { SPONSORS_INDEX, sponsorEditHref } from "./routes";
 import {
   creativeUrlMissing,
@@ -132,6 +142,9 @@ export function SponsorForm({
 
   const needsCreativeUrl = creativeUrlApplies(creativeType);
   const noPlacements = placements.length === 0;
+  // Every chosen placement is one the mobile app mounts no slot for. Unlike the
+  // two rules below, the API does NOT refuse this — see the warning it feeds.
+  const { showsNowhere, undelivered } = placementDelivery(placements);
   // Both of these SAVE fine and are refused only by `activate()` — see the
   // schema header. So they are warnings, and they say which action they block.
   const missingCreativeUrl = creativeUrlMissing({ creativeType, creativeUrl });
@@ -243,7 +256,7 @@ export function SponsorForm({
       // A form may set its own measure — a readable line length is a property of
       // the form, not of the page. It must never set `mx-auto` or page padding:
       // the form owns WIDTH, the layout owns POSITION (see PageLayout).
-      className="max-w-[var(--container-wide)] space-y-5"
+      className="max-w-(--container-wide) space-y-5"
     >
       {errors.root?.message ? (
         <p
@@ -277,9 +290,22 @@ export function SponsorForm({
               placeholder="Feed Tamil Nadu 2026"
             />
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* THE HINT IS NOT DECORATION — IT CORRECTS A REASONABLE
+                  ASSUMPTION. A field called "Category", on a screen whose other
+                  fields all change where and when the campaign runs, reads as
+                  targeting. It is not. Verified against the running API on
+                  2026-09-02: `GET /sponsors?placement=home&category=Food`
+                  returns a sponsor whose category is "Medical" — the citizen
+                  endpoint accepts the parameter and does not filter on it, so a
+                  campaign appears on every category screen regardless of what
+                  is typed here. What the value DOES do is feed this console's
+                  search box. Saying so is the difference between an operator
+                  choosing a label and an operator believing they bought
+                  category-scoped placement. */}
               <TextField
                 label="Category"
                 error={errors.category?.message}
+                hint="A label for finding this sponsor in the console's search. It does not restrict which screens the campaign appears on."
                 registration={register("category")}
                 placeholder="Food donation"
               />
@@ -418,6 +444,26 @@ export function SponsorForm({
                   </span>
                 </p>
               ) : null}
+
+              {/* THE WORSE VERSION OF THE WARNING ABOVE, because the API does
+                  NOT catch this one. `activate()` checks that the list is
+                  non-empty, never that anything renders it, so a campaign with
+                  only undeliverable placements activates cleanly and shows to
+                  nobody — with a green toast, until this was fixed. The console
+                  is the only place that knows, so it is the only place that can
+                  say it. */}
+              {showsNowhere ? (
+                <p className="flex items-start gap-2 rounded-control border border-warning-soft-border bg-warning-soft px-3 py-2 text-xs text-warning-fg">
+                  <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    {undelivered.map(placementLabel).join(" and ")}{" "}
+                    {undelivered.length === 1 ? "is" : "are"} the only placement
+                    {undelivered.length === 1 ? "" : "s"} selected, and no screen in the app renders{" "}
+                    {undelivered.length === 1 ? "it" : "them"} yet. This will save AND activate
+                    without complaint, and still reach no citizen. Add a placement the app renders.
+                  </span>
+                </p>
+              ) : null}
             </CardBody>
           </Card>
         </div>
@@ -436,11 +482,22 @@ export function SponsorForm({
             hint="Leave blank and it runs from the moment it's activated. Set a future date to book it ahead — activating keeps the date rather than overwriting it."
             registration={register("startDate")}
           />
+          {/* THE END DATE IS EXCLUSIVE AND THE START DATE IS NOT, WHICH NOBODY
+              WOULD GUESS. The console writes each picked day as midnight IST
+              (./dates.ts) and the API's predicate is
+              `start_date <= now() AND end_date > now()`
+              (apps/api/src/sponsors/sponsor-status.ts). So the campaign stops
+              the instant the end day BEGINS. Verified against the running API
+              on 2026-09-02: a campaign given today's date as its end date came
+              back already `Expired` and served nothing to the citizen endpoint.
+              An operator setting "Ends 30 Sep" for a month-end campaign loses
+              the 30th, and the failure is invisible afterwards — the badge just
+              says Expired a day early. Said here, where the date is chosen. */}
           <TextField
             label={`Ends (${TIMEZONE_LABEL})`}
             type="date"
             error={errors.endDate?.message}
-            hint="Leave blank and it runs until somebody pauses it."
+            hint="The campaign stops at the START of this day, so the last day it runs is the day before. Leave blank and it runs until somebody pauses it."
             registration={register("endDate")}
           />
         </CardBody>
@@ -457,9 +514,7 @@ export function SponsorForm({
 
         {secondaryActions}
 
-        <Button type="button" variant="ghost" size="sm" asChild>
-          <Link href={SPONSORS_INDEX}>Back to sponsors</Link>
-        </Button>
+        <BackButton href={SPONSORS_INDEX} label="Back to sponsors" variant="outline" size="sm" />
 
         {/* Rule 4. */}
         <Button type="submit" size="sm" disabled={isSubmitting}>
@@ -516,7 +571,7 @@ function PlacementPicker({
           return (
             <label
               key={placement.key}
-              className="flex cursor-pointer items-start gap-2.5 rounded-control border border-border bg-surface-inset px-3 py-2.5 transition-colors hover:border-border-strong has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+              className="flex cursor-pointer items-start gap-2.5 rounded-control border border-border bg-surface-inset px-3 py-2.5 transition-colors hover:border-border-strong has-focus-visible:ring-2 has-focus-visible:ring-ring"
             >
               <input
                 type="checkbox"
@@ -526,7 +581,18 @@ function PlacementPicker({
                 className="mt-0.5 size-4 shrink-0 accent-primary"
               />
               <span className="min-w-0">
-                <span className="block font-semibold text-fg">{placement.label}</span>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold text-fg">{placement.label}</span>
+                  {/* OFFERED, BUT LABELLED. The API accepts this key and
+                      `activate()` counts it as a real placement, so removing the
+                      box would refuse something the server allows — and would
+                      silently drop the key from records that already carry it
+                      the next time Save is pressed. Marking it lets an operator
+                      make the choice knowing the outcome. */}
+                  {placement.renderedByApp ? null : (
+                    <Badge tone="warning">Not rendered yet</Badge>
+                  )}
+                </span>
                 <span className="block text-[11px] text-fg-faint">{placement.hint}</span>
               </span>
             </label>

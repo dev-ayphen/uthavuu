@@ -18,6 +18,7 @@ import {
   type FilterDef,
   type ListConfig,
 } from "@/components/data";
+import { Alert } from "@/components/ui";
 import { reportDetailHref } from "@/features/moderation/routes";
 import { MODERATION_TABLE } from "@/features/moderation/table-surface";
 import { apiFetch } from "@/lib/api-client";
@@ -250,10 +251,9 @@ export function ReportsTable() {
           to announce itself — otherwise the table looks like the whole queue
           and the counts look wrong. "Clear all" in the FilterBar removes it. */}
       {scopedToReporter ? (
-        <p className="flex items-center gap-2 rounded-control border border-primary-soft-border bg-primary-soft px-3 py-2 text-xs text-primary-soft-fg">
-          <Megaphone aria-hidden className="size-3.5 shrink-0" />
+        <Alert tone="primary" align="center" icon={Megaphone}>
           Showing only reports filed by one member. Use “Clear all” to see the whole queue.
-        </p>
+        </Alert>
       ) : null}
 
       <DataTable

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Ban, Eye, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { ConfirmActionDialog } from "@/features/moderation/confirm-action-dialog";
 import { invalidateAll, runModerationAction } from "@/features/moderation/actions";
 import type { AdminUserDetail } from "./types";
@@ -112,12 +112,9 @@ export function UserStatusActions({ user }: { user: AdminUserDetail }) {
 /** The sentence that stops a moderator expecting a takedown. */
 export function ContentStaysVisibleNote() {
   return (
-    <p className="flex items-start gap-2 rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
-      <Eye aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>
-        Suspension blocks sign-in only. Their reports, comments and impact stories stay visible to
-        everyone. To take content down, remove it from Reports or Comments.
-      </span>
-    </p>
+    <Alert tone="info" icon={Eye}>
+      Suspension blocks sign-in only. Their reports, comments and impact stories stay visible to
+      everyone. To take content down, remove it from Reports or Comments.
+    </Alert>
   );
 }

@@ -2,11 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Info, RotateCcw, Save } from "lucide-react";
+import { Info, RotateCcw, Save } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
-import { Button, Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
+import { Alert, Button, Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
 import { moderationErrorMessage } from "@/features/moderation/moderation-errors";
 import { ApiError } from "@/lib/api-error";
 import { RadiusChoice, SettingNumberField, SettingTextField } from "./setting-fields";
@@ -170,15 +170,7 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
       // padding: the form owns WIDTH, the layout owns POSITION.
       className="max-w-[var(--container-default)] space-y-5"
     >
-      {errors.root?.message ? (
-        <p
-          role="alert"
-          className="flex items-start gap-2 rounded-card border border-danger-soft-border bg-danger-soft px-3.5 py-3 text-sm text-danger-fg"
-        >
-          <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-          <span>{errors.root.message}</span>
-        </p>
-      ) : null}
+      {errors.root?.message ? <Alert size="md">{errors.root.message}</Alert> : null}
 
       <Card>
         <CardHeader>
@@ -285,13 +277,10 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
               the API accepts. It is still worth naming: flagging with no
               comments to flag is a switch that does nothing. */}
           {commentFlaggingEnabled && !commentsEnabled ? (
-            <p className="flex items-start gap-2 rounded-control border border-info-soft-border bg-info-soft px-3 py-2 text-xs text-info-fg">
-              <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              <span>
-                Flagging is on but comments are off, so there is nothing for a citizen to flag. The
-                moderation queue will simply stay empty.
-              </span>
-            </p>
+            <Alert tone="info" icon={Info}>
+              Flagging is on but comments are off, so there is nothing for a citizen to flag. The
+              moderation queue will simply stay empty.
+            </Alert>
           ) : null}
         </CardBody>
       </Card>

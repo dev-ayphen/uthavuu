@@ -1,21 +1,19 @@
 "use client";
 
-import { KeyRound, ShieldAlert } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { useState } from "react";
 
-import { Button, EmptyState } from "@/components/ui";
+import { AccessDeniedState, Button } from "@/components/ui";
+import { ACCESS_DENIED } from "@/lib/access-denied-copy";
 import { ChangeOwnPasswordDialog } from "./password-dialogs";
 
 /**
  * What an ops admin sees on this section.
  *
- * An EmptyState, NOT an ErrorState — the same call
- * `features/announcements/updates-access-denied.tsx` makes for the same reason.
- * A red "something went wrong" over a correctly-enforced permission invites an
- * operator to file a bug against the system working as designed, and it hides
- * the one useful next step: knowing who to ask.
+ * The only refusal in the console that is still a component rather than a line
+ * of copy in `@/lib/access-denied-copy`, because it owns dialog state.
  *
- * WHY IT CARRIES AN ACTION WHERE THE ANNOUNCEMENTS VERSION DOES NOT
+ * WHY IT CARRIES AN ACTION WHERE THE OTHERS DO NOT
  * ───────────────────────────────────────────────────────────────────────────
  * `platform:manage` gates the LIST and everything done to another admin. It
  * does not gate the two things an admin does to themselves — and one of those,
@@ -34,10 +32,8 @@ export function AdminsAccessDenied() {
 
   return (
     <>
-      <EmptyState
-        icon={<ShieldAlert className="size-10" />}
-        title="Only super admins can manage console access"
-        description="Your role covers moderation — reports, comments and community members — but adding, suspending or removing admin accounts is restricted. Ask a super admin if you need this. You can still change your own password."
+      <AccessDeniedState
+        {...ACCESS_DENIED.admins}
         action={
           <Button variant="secondary" size="sm" onClick={() => setChangePasswordOpen(true)}>
             <KeyRound />

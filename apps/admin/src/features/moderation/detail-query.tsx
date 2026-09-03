@@ -5,12 +5,11 @@ import { FileQuestion } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 
 import { ListFailureState } from "@/components/data";
-import { EmptyState, Button } from "@/components/ui";
+import { EmptyState, BackButton } from "@/components/ui";
 import { apiFetch } from "@/lib/api-client";
 import { ApiError } from "@/lib/api-error";
 import { classifyListFailure, type ListFailure } from "@/lib/list-failure";
 import { shouldRetryListError } from "@/hooks/use-list-query";
-import Link from "next/link";
 import type { Route } from "next";
 
 /**
@@ -102,11 +101,7 @@ export function DetailFallback({
       icon={<FileQuestion className="size-10" />}
       title={notFoundTitle}
       description={notFoundDescription}
-      action={
-        <Button variant="secondary" size="sm" asChild>
-          <Link href={backHref}>{backLabel}</Link>
-        </Button>
-      }
+      action={<BackButton href={backHref} label={backLabel} />}
     />
   );
 }

@@ -2,12 +2,21 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 
-import { Button, Field, Input } from "@/components/ui";
-import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/features/moderation/dialog";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  Field,
+  Input,
+  LockedField,
+} from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
 import { runCategoryAction } from "./api";
@@ -239,15 +248,7 @@ function CategoryFormBody({
           noValidate
           className="space-y-4"
         >
-          {errors.root?.message ? (
-            <p
-              role="alert"
-              className="flex items-start gap-2 rounded-control border border-danger-soft-border bg-danger-soft px-3 py-2 text-xs text-danger-fg"
-            >
-              <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              <span>{errors.root.message}</span>
-            </p>
-          ) : null}
+          {errors.root?.message ? <Alert>{errors.root.message}</Alert> : null}
 
           {editing ? (
             // The key is immutable, and the honest way to show that is the real
@@ -352,19 +353,19 @@ function CategoryFormBody({
 /** The immutable key, shown with the reason it cannot be edited. */
 function ReadOnlyKey({ value }: { value: string }) {
   return (
-    <div className="space-y-1.5">
-      <span className="micro-label block text-fg-muted">Key</span>
-      <p className="flex items-center gap-2 rounded-control border border-dashed border-border bg-surface-2 px-3 py-2.5">
-        <Lock aria-hidden className="size-3.5 shrink-0 text-fg-faint" />
-        <code className="truncate font-mono text-xs text-fg">{value}</code>
-      </p>
-      <p className="text-xs text-fg-faint">
-        Fixed for the life of the category. The mobile app posts reports against this key, the
-        API&rsquo;s seed matches on it, and the citizen category list is ordered by it — renaming
-        it would orphan every client still sending the old one. A category whose key is wrong has
-        to be replaced, not renamed.
-      </p>
-    </div>
+    <LockedField
+      label="Key"
+      reason={
+        <>
+          Fixed for the life of the category. The mobile app posts reports against this key, the
+          API&rsquo;s seed matches on it, and the citizen category list is ordered by it — renaming
+          it would orphan every client still sending the old one. A category whose key is wrong has
+          to be replaced, not renamed.
+        </>
+      }
+    >
+      <code className="truncate font-mono text-xs text-fg">{value}</code>
+    </LockedField>
   );
 }
 
@@ -466,14 +467,11 @@ function CitizenSelectableField({
  */
 function SeedOverwriteNote() {
   return (
-    <p className="flex items-start gap-2 rounded-control border border-warning-soft-border bg-warning-soft px-3 py-2 text-[11px] text-warning-fg">
-      <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>
-        If this category also exists in the API&rsquo;s seed data, running{" "}
-        <code className="font-mono">pnpm db:seed</code> will overwrite these four values with the
-        seeded ones. Categories created here are never touched by it.
-      </span>
-    </p>
+    <Alert tone="warning" icon={AlertTriangle} className="text-[11px]">
+      If this category also exists in the API&rsquo;s seed data, running{" "}
+      <code className="font-mono">pnpm db:seed</code> will overwrite these four values with the
+      seeded ones. Categories created here are never touched by it.
+    </Alert>
   );
 }
 

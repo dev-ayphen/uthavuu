@@ -4,7 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
-import { Field, Input } from "@/components/ui";
+import { Alert, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { RADIUS_OPTIONS, isRadiusOption } from "./types";
 
@@ -181,9 +181,8 @@ export function RadiusChoice({
 /** A note that does NOT block a save. Amber, never red — red means refused. */
 export function FieldWarning({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-start gap-2 rounded-control border border-warning-soft-border bg-warning-soft px-3 py-2 text-xs text-warning-fg">
-      <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>{children}</span>
-    </p>
+    <Alert tone="warning" icon={AlertTriangle}>
+      {children}
+    </Alert>
   );
 }

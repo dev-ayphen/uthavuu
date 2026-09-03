@@ -2,12 +2,22 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Lock } from "lucide-react";
+
 import { useId, useMemo, useState } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 
-import { Button, Field, Input, Select } from "@/components/ui";
-import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/features/moderation/dialog";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  Field,
+  Input,
+  LockedField,
+  Select,
+} from "@/components/ui";
 import { ApiError } from "@/lib/api-error";
 import type { AdminRoleRef } from "@/lib/roles";
 import { CODE_TO_FIELD, adminAccountErrorMessage } from "./admin-errors";
@@ -230,15 +240,7 @@ function EditAdminBody({
           noValidate
           className="space-y-4"
         >
-          {errors.root?.message ? (
-            <p
-              role="alert"
-              className="flex items-start gap-2 rounded-control border border-danger-soft-border bg-danger-soft px-3 py-2 text-xs text-danger-fg"
-            >
-              <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              <span>{errors.root.message}</span>
-            </p>
-          ) : null}
+          {errors.root?.message ? <Alert>{errors.root.message}</Alert> : null}
 
           <TextField
             label="Full name"
@@ -332,21 +334,21 @@ function EditAdminBody({
  */
 function LockedRole({ role }: { role: AdminRoleRef | undefined }) {
   return (
-    <div className="space-y-1.5">
-      <span className="micro-label block text-fg-muted">Role</span>
-      <p className="flex items-center gap-2 rounded-control border border-dashed border-border bg-surface-2 px-3 py-2.5">
-        <Lock aria-hidden className="size-3.5 shrink-0 text-fg-faint" />
-        <span className="truncate text-xs font-semibold text-fg">
-          {role?.label || humanizeRoleKey(role?.key ?? "")}
-        </span>
-      </p>
-      <p className="text-xs text-fg-faint">
-        This is the last super admin. Moving them to another role would leave the console with
-        nobody who can manage admin accounts, restore a role, or unlock a suspension — so the API
-        refuses it, and so does this form. Promote someone else to Super Admin first, and this
-        field unlocks by itself.
-      </p>
-    </div>
+    <LockedField
+      label="Role"
+      reason={
+        <>
+          This is the last super admin. Moving them to another role would leave the console with
+          nobody who can manage admin accounts, restore a role, or unlock a suspension — so the API
+          refuses it, and so does this form. Promote someone else to Super Admin first, and this
+          field unlocks by itself.
+        </>
+      }
+    >
+      <span className="truncate text-xs font-semibold text-fg">
+        {role?.label || humanizeRoleKey(role?.key ?? "")}
+      </span>
+    </LockedField>
   );
 }
 

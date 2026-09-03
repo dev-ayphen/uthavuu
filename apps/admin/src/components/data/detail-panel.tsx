@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, MousePointerSquareDashed } from "lucide-react";
+import { MousePointerSquareDashed } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Card, Skeleton } from "@/components/ui";
+import { BackButton, Card, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 /**
@@ -41,13 +40,9 @@ export function DetailHeader({
     <div className={cn("flex flex-wrap items-start justify-between gap-x-6 gap-y-3", className)}>
       <div className="min-w-0">
         {backHref ? (
-          <Link
-            href={backHref}
-            className="mb-2 inline-flex items-center gap-1 rounded-control text-[11px] font-semibold text-fg-faint transition-colors hover:text-fg-muted focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowLeft className="size-3" aria-hidden />
-            {backLabel}
-          </Link>
+          <div className="mb-2.5">
+            <BackButton href={backHref} label={backLabel} />
+          </div>
         ) : null}
         {eyebrow ? <p className="micro-label mb-1">{eyebrow}</p> : null}
         <h2 className="truncate text-lg font-extrabold tracking-tight text-fg">{title}</h2>
