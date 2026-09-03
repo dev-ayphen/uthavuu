@@ -37,5 +37,8 @@
   "decrease": "குறை",
   "increase": "கூட்டு",
   "requiredField": "தேவை",
-  "dismiss": "நிராகரி"
+  "dismiss": "நிராகரி",
+  "noFilterMatches": "இந்த வடிகட்டிகளில் எதுவும் இல்லை",
+  "noFilterMatchesHint": "வேறு ஒரு சொல்லை முயற்சிக்கவும், அல்லது வடிகட்டிகளை அழிக்கவும்.",
+  "clearFilters": "வடிகட்டிகளை அழி"
 }

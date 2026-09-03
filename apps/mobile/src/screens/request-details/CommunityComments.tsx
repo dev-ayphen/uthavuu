@@ -45,7 +45,7 @@ export default function CommunityComments({ reportId }: Props) {
   );
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe });
-  const { data: comments, isLoading } = useQuery({
+  const { data: comments, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['comments', reportId],
     queryFn: () => listComments(reportId),
   });
@@ -106,6 +106,26 @@ export default function CommunityComments({ reportId }: Props) {
         <View style={styles.list}>
           <Skeleton width="70%" height={32} borderRadius={RADIUS.md} style={styles.skeletonRow} />
           <Skeleton width="55%" height={32} borderRadius={RADIUS.md} style={styles.skeletonRow} />
+        </View>
+      ) : isError && !comments ? (
+        /*
+         * Error before empty. A failed fetch leaves `comments` undefined, so
+         * the length check below was true and a broken request rendered the
+         * "no comments yet" copy — telling the reporter nobody had replied
+         * when in fact nothing had loaded.
+         */
+        <View style={styles.errorRow}>
+          <Text style={styles.empty}>{t('common:somethingWentWrong')}</Text>
+          <TouchableOpacity
+            onPress={() => void refetch()}
+            disabled={isFetching}
+            accessibilityRole="button"
+            accessibilityLabel={t('common:retry')}
+          >
+            <Text style={[styles.retryText, isFetching && styles.retryOff]}>
+              {isFetching ? t('common:loading') : t('common:retry')}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (comments ?? []).length === 0 ? (
         <Text style={styles.empty}>{t('emptyComments')}</Text>
@@ -192,6 +212,9 @@ const createStyles = (colors: ColorScheme) =>
     subtitle: { ...TYPE.caption, color: colors.textSecondary, marginTop: 1 },
     list: { marginTop: 2 },
     empty: { ...TYPE.caption, color: colors.textSecondary, textAlign: 'center', paddingVertical: SPACING.xs },
+    errorRow: { alignItems: 'center', gap: 2, paddingVertical: SPACING.xs },
+    retryText: { ...TYPE.captionStrong, color: colors.primaryGreen },
+    retryOff: { opacity: 0.5 },
     row: { paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border },
     firstRow: { borderTopWidth: 0, paddingTop: 0 },
     rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

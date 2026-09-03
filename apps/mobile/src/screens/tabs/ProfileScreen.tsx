@@ -125,13 +125,10 @@ export default function ProfileScreen() {
       {/* Top Profile Card */}
       <View style={styles.profileCard}>
         <View style={styles.profileHeader}>
-          <Avatar uri={me?.avatarUrl} label={me?.name || 'User'} size={38} style={styles.avatar} />
+          <Avatar uri={me?.avatarUrl} label={me?.name || t('profile.defaultName')} size={38} style={styles.avatar} />
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1}>{me?.name || 'User'}</Text>
-              <View style={styles.verifiedBadge}>
-                <Text style={styles.verifiedText}>Verified</Text>
-              </View>
+              <Text style={styles.name} numberOfLines={1}>{me?.name || t('profile.defaultName')}</Text>
             </View>
             <Text style={styles.location} numberOfLines={1}>
               {me?.city === me?.district || !me?.district ? me?.city ?? 'Location not set' : `${me?.city}, ${me?.district}`}
@@ -141,19 +138,43 @@ export default function ProfileScreen() {
             style={styles.editProfilePill}
             onPress={() => navigation.navigate('EditProfile')}
           >
-            <Text style={styles.editProfileText}>Edit Profile</Text>
+            <Text style={styles.editProfileText}>{t('profile.editProfileButton')}</Text>
           </TouchableOpacity>
         </View>
 
+        {/*
+         * The only two trust signals this product can honestly show.
+         *
+         * GET /users/me/stats returns exactly `reportsCount` and
+         * `missionsCount` — real totals, counted in Postgres. It deliberately
+         * returns no reliability or success rate, because mission-completion
+         * data can't support one yet (users.service.ts getStats says so in
+         * full). This card used to render a hardcoded "96% Reliability" beside
+         * a `?? 32` fallback that told a brand-new user they had 32 helps.
+         *
+         * Both were inventions, and the reliability figure was the same
+         * fabricated trust score docs/PRODUCT-DECISIONS.md Decision 1 exists to
+         * forbid — the prototype's "⭐ 4.9" in a different glyph. Do not
+         * reintroduce either. If a number cannot be counted, it does not go on
+         * this card; while it is loading it is a skeleton, never a guess.
+         */}
         <View style={styles.statsRow}>
           <View style={styles.statCell}>
-            <Text style={styles.statValue}>{stats?.missionsCount ?? 32}</Text>
-            <Text style={styles.statLabel}>Total Helps</Text>
+            {statsLoading ? (
+              <Skeleton width={28} height={19} />
+            ) : (
+              <Text style={styles.statValue}>{stats?.missionsCount ?? 0}</Text>
+            )}
+            <Text style={styles.statLabel}>{t('profile.missionsJoinedLabel')}</Text>
           </View>
           <Divider orientation="vertical" length={22} />
           <View style={styles.statCell}>
-            <Text style={styles.statValue}>96%</Text>
-            <Text style={styles.statLabel}>Reliability</Text>
+            {statsLoading ? (
+              <Skeleton width={28} height={19} />
+            ) : (
+              <Text style={styles.statValue}>{stats?.reportsCount ?? 0}</Text>
+            )}
+            <Text style={styles.statLabel}>{t('profile.reportsPostedLabel')}</Text>
           </View>
         </View>
 
@@ -220,53 +241,18 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Badges Strip */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Badges & Achievements</Text>
-        <Text style={styles.badgeCountText}>4 Unlocked</Text>
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesContainer}>
-        <View style={styles.badgeItem}>
-          <View style={[styles.badgeIconBox, { backgroundColor: '#FEF3C7' }]}>
-            <Text style={styles.badgeEmoji}>🥇</Text>
-          </View>
-          <Text style={styles.badgeLabel}>First Helper</Text>
-          <Text style={styles.badgeSub}>1st Mission Done</Text>
-        </View>
-
-        <View style={styles.badgeItem}>
-          <View style={[styles.badgeIconBox, { backgroundColor: '#FFE4E6' }]}>
-            <Text style={styles.badgeEmoji}>🐶</Text>
-          </View>
-          <Text style={styles.badgeLabel}>Animal Guardian</Text>
-          <Text style={styles.badgeSub}>5 Rescues Completed</Text>
-        </View>
-
-        <View style={styles.badgeItem}>
-          <View style={[styles.badgeIconBox, { backgroundColor: '#DCFCE7' }]}>
-            <Text style={styles.badgeEmoji}>❤️</Text>
-          </View>
-          <Text style={styles.badgeLabel}>Community Hero</Text>
-          <Text style={styles.badgeSub}>10+ Helps Completed</Text>
-        </View>
-
-        <View style={styles.badgeItem}>
-          <View style={[styles.badgeIconBox, { backgroundColor: '#DBEAFE' }]}>
-            <Text style={styles.badgeEmoji}>🍱</Text>
-          </View>
-          <Text style={styles.badgeLabel}>Food Captain</Text>
-          <Text style={styles.badgeSub}>Food Drive Hero</Text>
-        </View>
-
-        <View style={[styles.badgeItem, styles.badgeLocked]}>
-          <View style={[styles.badgeIconBox, { backgroundColor: colors.bgElevated }]}>
-            <Text style={styles.badgeEmoji}>⭐</Text>
-          </View>
-          <Text style={styles.badgeLabel}>Super Volunteer</Text>
-          <Text style={styles.badgeSub}>25 Missions Needed</Text>
-        </View>
-      </ScrollView>
+      {/*
+       * NO BADGES STRIP. A "Badges & Achievements" carousel used to sit here:
+       * five hardcoded <View>s — First Helper, Animal Guardian, Community Hero,
+       * Food Captain, Super Volunteer — with a literal "4 Unlocked" count. Four
+       * rendered as earned for every user on first launch, including someone
+       * who had never opened a mission.
+       *
+       * There is no achievements table, no endpoint, and no product decision
+       * defining what any of those badges mean. Rebuilding the carousel means
+       * designing the feature first; until then an empty space is honest and a
+       * fake trophy is not. See docs/PRODUCT-DECISIONS.md Decision 1.
+       */}
 
       {/* Menu List */}
       <SectionHeading title={t('profile.menuHeading')} />
@@ -295,7 +281,7 @@ export default function ProfileScreen() {
         disabled={logoutMutation.isPending}
       >
         <LogOut size={18} color={colors.danger} />
-        <Text style={styles.logoutText}>{logoutMutation.isPending ? t('profile.loggingOut') : 'Logout'}</Text>
+        <Text style={styles.logoutText}>{logoutMutation.isPending ? t('profile.loggingOut') : t('profile.logOut')}</Text>
       </TouchableOpacity>
 
       {/* Version footer */}
@@ -335,19 +321,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     profileInfo: { flex: 1, minWidth: 0 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
     name: { ...TYPE.subheadStrong, fontSize: 15, color: colors.textPrimary, flexShrink: 1, fontWeight: '700' },
-    verifiedBadge: {
-      backgroundColor: '#DCFCE7',
-      paddingHorizontal: 6,
-      paddingVertical: 1,
-      borderRadius: RADIUS.pill,
-      borderWidth: 1,
-      borderColor: '#BBF7D0',
-    },
-    verifiedText: {
-      ...TYPE.captionStrong,
-      fontSize: 9.5,
-      color: '#15803D',
-    },
     location: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary, marginTop: 0 },
     editProfilePill: {
       paddingHorizontal: 10,
@@ -433,37 +406,6 @@ const createStyles = (colors: ColorScheme, insets: { top: number }) =>
     impactBody: { flex: 1 },
     impactTitle: { ...TYPE.bodyStrong, fontSize: 13, color: colors.textPrimary },
     impactSub: { ...TYPE.caption, fontSize: 11, color: colors.textSecondary, marginTop: 1 },
-
-    badgeCountText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
-    badgesContainer: {
-      gap: SPACING.xs,
-      marginBottom: SPACING.lg,
-    },
-    badgeItem: {
-      alignItems: 'center',
-      backgroundColor: colors.bgElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.xl,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm + 2,
-      minWidth: 116,
-    },
-    badgeLocked: {
-      opacity: 0.55,
-      borderStyle: 'dashed',
-    },
-    badgeIconBox: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: SPACING.xs - 2,
-    },
-    badgeEmoji: { fontSize: 22 },
-    badgeLabel: { ...TYPE.footnote, color: colors.textPrimary, fontWeight: '800', textAlign: 'center' },
-    badgeSub: { ...TYPE.caption, fontSize: 10, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
 
     menuCard: {
       backgroundColor: colors.bgElevated,

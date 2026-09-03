@@ -37,5 +37,8 @@
   "decrease": "Decrease",
   "increase": "Increase",
   "requiredField": "required",
-  "dismiss": "Dismiss"
+  "dismiss": "Dismiss",
+  "noFilterMatches": "Nothing under these filters",
+  "noFilterMatchesHint": "Try a different word, or clear the filters.",
+  "clearFilters": "Clear filters"
 }

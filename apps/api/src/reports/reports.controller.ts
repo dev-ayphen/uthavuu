@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -18,6 +19,14 @@ import { ListReportsDto } from './dto/list-reports.dto';
 import { ReportsSummaryDto } from './dto/reports-summary.dto';
 import { CommunityStatsDto } from './dto/community-stats.dto';
 
+/**
+ * Every `:id` here is parsed with ParseUUIDPipe. `reports.id` and
+ * `report_comments.id` are real uuid columns, so a malformed id must fail as a
+ * 400 at the edge — without it the raw string reaches Postgres and comes back
+ * as error 22P02, which Nest surfaces as an unhandled 500. Same rule, same
+ * reason, as the admin controllers (see admin-reports.controller.ts); user ids
+ * are deliberately NOT parsed anywhere, because Better Auth's `user.id` is text.
+ */
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
@@ -57,7 +66,7 @@ export class ReportsController {
   @Get(':id')
   findOne(
     @Session() session: UserSession<typeof auth>,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.reportsService.findOne(id, session.user.id);
   }
@@ -65,7 +74,7 @@ export class ReportsController {
   @Patch(':id')
   update(
     @Session() session: UserSession<typeof auth>,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateReportDto,
   ) {
     return this.reportsService.update(id, session.user.id, body);
@@ -74,34 +83,40 @@ export class ReportsController {
   @Post(':id/photos')
   addPhoto(
     @Session() session: UserSession<typeof auth>,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: AddPhotoDto,
   ) {
     return this.reportsService.addPhoto(id, session.user.id, body.url);
   }
 
   @Post(':id/close')
-  close(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  close(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.reportsService.close(id, session.user.id);
   }
 
   @Delete(':id')
   delete(
     @Session() session: UserSession<typeof auth>,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.reportsService.delete(id, session.user.id);
   }
 
   @Post(':id/save')
-  save(@Session() session: UserSession<typeof auth>, @Param('id') id: string) {
+  save(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.reportsService.save(id, session.user.id);
   }
 
   @Delete(':id/save')
   unsave(
     @Session() session: UserSession<typeof auth>,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.reportsService.unsave(id, session.user.id);
   }

@@ -12,7 +12,7 @@ import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import { COLORS, RADIUS, SIZES, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { listReports, type ReportWithDistance } from '@uthavu/libs-mobile/api/reports';
-import { CATEGORIES } from '@uthavu/libs-mobile/data/categories';
+import { useCategories } from '../../hooks/useCategories';
 import { formatTimeRemaining, getUrgencyTone } from '@uthavu/libs-mobile/lib/urgency';
 import { formatRelativeTime } from '@uthavu/libs-mobile/lib/time';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
@@ -30,7 +30,8 @@ export default function CategoryListScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const config = useConfig();
   const { categoryKey, lat, lng, radiusKm, locationLabel } = route.params;
-  const categoryMeta = CATEGORIES.find((c) => c.id === categoryKey);
+  const { categories } = useCategories();
+  const categoryMeta = categories.find((c) => c.id === categoryKey);
 
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +50,57 @@ export default function CategoryListScreen({ navigation, route }: Props) {
       refetch();
     }, [refetch])
   );
+
+  /*
+   * Search, status and sort are applied HERE, over the fetched page, rather
+   * than sent to the API — GET /reports takes categoryKey/lat/lng/radiusKm and
+   * nothing else, and inventing query params the server ignores is how these
+   * controls came to be decorative in the first place. Distance stays server-
+   * side because radiusKm is a real parameter and a wider radius needs more
+   * rows, not a different filter over the same ones.
+   *
+   * "Urgent" and "Most Urgent" both defer to getUrgencyTone(), the same
+   * expiry-derived definition the report cards and the Home tab already use,
+   * so a request called urgent in one place is urgent everywhere.
+   */
+  const visibleReports = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = (reportsList ?? []).filter((r) => {
+      if (query) {
+        const haystack = `${r.title} ${r.description} ${r.landmark ?? ''}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      if (statusFilter === 'Open Only' && r.status !== 'open') return false;
+      if (statusFilter === 'Urgent') {
+        const tone = getUrgencyTone(r.expiryAt);
+        if (tone !== 'critical' && tone !== 'soon') return false;
+      }
+      return true;
+    });
+
+    // Copy before sorting — Array.prototype.sort mutates, and this array is
+    // React Query's cached data.
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'Newest') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === 'Most Urgent') {
+        return new Date(a.expiryAt).getTime() - new Date(b.expiryAt).getTime();
+      }
+      return a.distanceKm - b.distanceKm;
+    });
+  }, [reportsList, searchQuery, statusFilter, sortBy]);
+
+  const filtersAreDefault =
+    searchQuery.trim() === '' && statusFilter === 'All' && sortBy === 'Nearby';
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('All');
+    setSortBy('Nearby');
+    setSelectedDistance(radiusKm ?? config.defaultRadiusKm);
+  };
+
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}>
@@ -97,22 +149,42 @@ export default function CategoryListScreen({ navigation, route }: Props) {
         <ErrorState onRetry={refetch} retrying={isFetching} />
       ) : (
         <FlatList
-          data={reportsList ?? []}
+          data={visibleReports}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, { paddingTop: SPACING.md }]}
           refreshControl={
             <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primaryGreen} />
           }
           ListEmptyComponent={
+            /*
+             * Two different empty states, because they mean different things and
+             * have different exits. "Nothing within 5 km" is the world being
+             * quiet; "nothing matches your filters" is the user having narrowed
+             * themselves into a corner, and the way out is a button, not a pull
+             * to refresh. Showing the first message for the second case told
+             * people no one nearby needed help when the API had returned rows.
+             */
             <View style={styles.empty}>
               <PackageOpen size={40} color={colors.textSecondary} strokeWidth={1.5} />
-              <Text style={styles.emptyTitle}>{t('categoryList.emptyTitle')}</Text>
-              <Text style={styles.emptySubtitle}>
-                {t('categoryList.emptySubtitle', {
-                  category: categoryMeta?.title.toLowerCase(),
-                  radius: selectedDistance,
-                })}
-              </Text>
+              {filtersAreDefault ? (
+                <>
+                  <Text style={styles.emptyTitle}>{t('categoryList.emptyTitle')}</Text>
+                  <Text style={styles.emptySubtitle}>
+                    {t('categoryList.emptySubtitle', {
+                      category: categoryMeta?.title.toLowerCase(),
+                      radius: selectedDistance,
+                    })}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>{t('common:noFilterMatches')}</Text>
+                  <Text style={styles.emptySubtitle}>{t('common:noFilterMatchesHint')}</Text>
+                  <TouchableOpacity onPress={resetFilters} accessibilityRole="button">
+                    <Text style={styles.clearFiltersText}>{t('common:clearFilters')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           }
           /* Sponsor slot — FOOTER, never a header. An ad above this list would
@@ -184,7 +256,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
             ))}
 
             <View style={styles.filterModalButtonRow}>
-              <TouchableOpacity style={styles.resetBtn} onPress={() => setFilterModalOpen(false)}>
+              <TouchableOpacity style={styles.resetBtn} onPress={resetFilters}>
                 <Text style={styles.resetBtnText}>Reset</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.applyBtn} onPress={() => setFilterModalOpen(false)}>
@@ -202,7 +274,7 @@ export default function CategoryListScreen({ navigation, route }: Props) {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Select Category</Text>
             <ScrollView contentContainerStyle={styles.categoryPickerList} showsVerticalScrollIndicator={false}>
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const isSelected = cat.id === categoryKey;
                 return (
                   <TouchableOpacity
@@ -546,6 +618,7 @@ const createStyles = (colors: ColorScheme) =>
     empty: { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.xs, paddingHorizontal: SPACING.xl },
     emptyTitle: { ...TYPE.title, color: colors.textPrimary, marginTop: SPACING.xs },
     emptySubtitle: { ...TYPE.subhead, color: colors.textSecondary, textAlign: 'center' },
+    clearFiltersText: { ...TYPE.captionStrong, color: colors.primaryGreen, marginTop: SPACING.sm },
 
     /* Category Picker Styles */
     categoryPickerList: { paddingBottom: SPACING.lg, gap: 2 },

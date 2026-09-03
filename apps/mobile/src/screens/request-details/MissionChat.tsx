@@ -19,9 +19,19 @@ export default function MissionChat({ reportId, locked = false }: Props) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
 
-  const { data: messages, isLoading } = useQuery({
+  // Mission Chat is REST poll/send — there is no realtime transport in this
+  // product (CLAUDE.md § App Profile, Realtime: none). Without an interval the
+  // thread only updated when the whole screen remounted, so two people
+  // coordinating an emergency each sat looking at their own last message.
+  //
+  // Polling stops once the mission is complete: `locked` means the server has
+  // already made the thread read-only, so there is nothing new to fetch and no
+  // reason to keep a timer alive behind a finished mission.
+  const { data: messages, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['missionMessages', reportId],
     queryFn: () => listMissionMessages(reportId),
+    refetchInterval: locked ? false : 15_000,
+    refetchOnWindowFocus: !locked,
   });
 
   const sendMutation = useMutation({
@@ -56,6 +66,27 @@ export default function MissionChat({ reportId, locked = false }: Props) {
         <View style={styles.bubbleList}>
           <Skeleton width="60%" height={28} borderRadius={RADIUS.md} style={styles.skLeft} />
           <Skeleton width="45%" height={28} borderRadius={RADIUS.md} style={styles.skRight} />
+        </View>
+      ) : isError && !messages ? (
+        /*
+         * loading → error → empty → content. The error arm has to come BEFORE
+         * the empty one: a failed fetch leaves `messages` undefined, so
+         * `count === 0` was true and a dead connection rendered "No messages
+         * yet — say hello." On a private channel two people are using to find
+         * each other in an emergency, silence and failure must not look alike.
+         */
+        <View style={styles.errorRow}>
+          <Text style={styles.emptyHint}>{t('common:somethingWentWrong')}</Text>
+          <TouchableOpacity
+            onPress={() => void refetch()}
+            disabled={isFetching}
+            accessibilityRole="button"
+            accessibilityLabel={t('common:retry')}
+          >
+            <Text style={[styles.retryText, isFetching && styles.retryOff]}>
+              {isFetching ? t('common:loading') : t('common:retry')}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : count === 0 ? (
         <Text style={styles.emptyHint}>{t('emptyMessages')}</Text>
@@ -149,6 +180,16 @@ const createStyles = (colors: ColorScheme) =>
       textAlign: 'center',
       paddingVertical: SPACING.xs,
     },
+    errorRow: {
+      alignItems: 'center',
+      gap: 2,
+      paddingVertical: SPACING.xs,
+    },
+    retryText: {
+      ...TYPE.captionStrong,
+      color: colors.primaryGreen,
+    },
+    retryOff: { opacity: 0.5 },
     lockedRow: {
       flexDirection: 'row',
       alignItems: 'center',

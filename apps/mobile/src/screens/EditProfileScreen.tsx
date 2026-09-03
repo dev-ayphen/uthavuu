@@ -30,6 +30,7 @@ import ToggleRow from '@uthavu/libs-mobile/components/ToggleRow';
 import ProfessionPicker from '@uthavu/libs-mobile/components/ProfessionPicker';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Skeleton from '@uthavu/libs-mobile/components/Skeleton';
+import ErrorState from '@uthavu/libs-mobile/components/ErrorState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -48,9 +49,23 @@ export default function EditProfileScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
   const queryClient = useQueryClient();
 
-  const { data: me, isLoading } = useQuery({ queryKey: ['me'], queryFn: getMe });
+  const { data: me, isLoading, isError, isFetching, refetch } = useQuery({ queryKey: ['me'], queryFn: getMe });
 
-  return isLoading || !me ? (
+  // Order matters: loading → error → content, the same branch order ProfileScreen
+  // uses on the same query. This used to read `isLoading || !me ? skeleton : form`,
+  // which looks total but isn't — a failed getMe leaves isLoading false and `me`
+  // undefined, so the screen sat on a skeleton forever with nothing to tap. The
+  // `&& !me` on the error arm keeps a cached profile editable through a failed
+  // background refetch instead of replacing a working form with an error.
+  if (isLoading) {
+    return <EditProfileSkeleton insets={insets} colors={colors} />;
+  }
+
+  if (isError && !me) {
+    return <ErrorState onRetry={refetch} retrying={isFetching} />;
+  }
+
+  return !me ? (
     <EditProfileSkeleton insets={insets} colors={colors} />
   ) : (
     <EditProfileForm me={me} colors={colors} insets={insets} styles={styles} navigation={navigation} queryClient={queryClient} />
