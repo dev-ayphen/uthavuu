@@ -1,8 +1,39 @@
 appId: host.exp.Exponent
 ---
-# Critical journey 2/4: report a request end to end (category -> photo ->
-# details -> location -> privacy -> review -> publish). See ../README.md.
+# Critical journey 2/4: report a request.
+#
+# ── WHAT THIS FLOW COVERS, AND WHERE IT DELIBERATELY STOPS ──────────────────
+#
+# It drives the real two-step report flow (Add Details → Location & Privacy),
+# asserts the form the redesign actually produced, and proves the business rule
+# that gates it: a report cannot proceed without a photo
+# (ReportFlowScreen's `canProceedDetails` requires `draft.photos.length > 0`).
+# It then opens the camera and stops there, asserting the camera really opened.
+#
+# It stops there because it must. Report photos are camera-only by design — a
+# live photo is what makes a report trustworthy, so there is no library-picker
+# fallback — and the iOS Simulator has no camera hardware. The native camera UI
+# opens and "Take Picture" can be tapped, but nothing is captured, so the flow
+# can never reach Publish on a Simulator. Same wall as 04-complete-mission.
+#
+# Rather than fail every run at a step no Simulator can pass, this flow ends at
+# that boundary with a real assertion. Everything before the boundary is a
+# genuine red/green signal; publishing is covered by 03/04's HTTP seeding and
+# by the API's own integration tests. To cover the whole journey through
+# publish, run on a physical device: `maestro test --device <udid>`.
+#
+# ── WHY THIS FILE WAS REWRITTEN ─────────────────────────────────────────────
+#
+# The previous version tested a UI that no longer exists. It expected a
+# category-picker screen after the FAB, then "Take a photo", "Title",
+# "Description", three "Next" taps, "Publish Report" and "Report published".
+# The flow is now two steps with the category as a dropdown ON the details
+# page; `"Publish Report"` and `"Report published"` survive only as orphaned
+# i18n keys, in no screen. It failed on its second step for that reason, not
+# because of any defect. See ../README.md.
+
 - evalScript: ${output.phoneDigits = '8' + String(Date.now()).slice(-9)}
+- evalScript: ${output.reportTitle = 'Maestro report test ' + Date.now()}
 
 - runFlow:
     file: utils/login.yaml
@@ -15,43 +46,50 @@ appId: host.exp.Exponent
     env:
       FULL_NAME: "Maestro Reporter"
 
+# ── Step 1: Add Details ─────────────────────────────────────────────────────
+# The FAB's accessible name is its tab label (MainTabs.tsx's
+# tabBarAccessibilityLabel), not any visible text — it renders as a bare "+".
 - tapOn: "Report a help request"
-- tapOn: "Medical Help"
+- assertVisible: "Add Details"
 
-# Photo step — camera-only capture (report-a-request.md BR: a live photo
-# is required). Shutter button's real accessible name is "Take Picture"
-# (confirmed via a real screen-hierarchy dump — the class name
-# "PhotoCapture" shown there is not what Maestro's tapOn text selector
-# matches against, an earlier version of this flow guessed wrong).
-- tapOn: "Take a photo"
+# The fields the redesign actually renders. Asserting these is what would have
+# caught the old flow's staleness immediately instead of via a tap timeout.
+- assertVisible: ".*Category.*"
+- assertVisible: ".*Photos.*"
+- assertVisible: ".*What's happening.*"
+- assertVisible: ".*Short Title.*"
+- assertVisible: "Volunteers Needed"
+
+- tapOn: "Describe what help is needed…"
+- inputText: "Seeded by the report-a-request Maestro flow. Safe to ignore or delete."
+- hideKeyboard
+
+- tapOn: "e.g. Injured dog near bus stop"
+- inputText: ${output.reportTitle}
+- hideKeyboard
+
+# ── The photo-required rule ─────────────────────────────────────────────────
+# Title and description are filled but no photo has been taken, so the Next
+# button is disabled and this tap must NOT advance the flow. Still being on
+# "Add Details" afterwards is the assertion: it proves the rule is enforced in
+# the UI and not only by the API.
+- tapOn:
+    text: ".*Next: Location & Privacy.*"
+    optional: true
+- assertVisible: "Add Details"
+
+# ── Camera launch — the documented boundary ────────────────────────────────
+# The empty slot is a TouchableOpacity wrapping "Photo 1" and "Tap to add", so
+# it collapses into one accessibility node containing both.
+- tapOn: ".*Photo 1.*"
 - tapOn:
     text: "Allow|OK"
     optional: true
 - waitForAnimationToEnd
-- tapOn: "Take Picture"
-- waitForAnimationToEnd
-- tapOn:
-    text: "Use Photo|Choose"
-    optional: true
-- waitForAnimationToEnd
 
-- tapOn: "Title"
-- inputText: "Maestro test — injured dog near the market"
-- tapOn: "Description"
-- inputText: "Seeded by the report-a-request Maestro flow. Safe to ignore/delete."
-- hideKeyboard
-- tapOn: "Next"
-
-# Location — auto-detected from the simulator's location (Features > Location
-# in the Simulator, or a scripted default); no input needed here.
-- tapOn: "Next"
-
-# Privacy — defaults are fine (not anonymous, phone private).
-- tapOn: "Next"
-
-- tapOn: "Publish Report"
-- assertVisible: "Report published"
-- tapOn: "OK"
-
-# Confirms the round trip actually worked, not just that the UI didn't crash.
-- assertVisible: "Maestro test — injured dog near the market"
+# "Take Picture" is the native shutter's real accessible name (confirmed from a
+# screen-hierarchy dump — the "PhotoCapture" class name a screenshot might
+# suggest is not what a text selector matches). Asserting it proves the
+# camera-only capture path really opened, which is the last thing verifiable
+# without camera hardware.
+- assertVisible: "Take Picture"

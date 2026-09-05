@@ -40,3 +40,22 @@ export function reportsByReporterHref(reporterId: string): Route {
 export function commentsForReportHref(reportId: string): Route {
   return `/reports/comments?reportId=${encodeURIComponent(reportId)}`;
 }
+
+/**
+ * One quarantined photo in the verification queue.
+ *
+ * Lives here with the other two casts rather than in `features/report-photos/`,
+ * so the console still has exactly one place where a dynamic href is asserted.
+ * A `photo_uploads` id is a UUIDv7 arriving from an API response, so
+ * `encodeURIComponent` matters for the same reason it does above.
+ */
+export function reportPhotoDetailHref(photoId: string): Route {
+  return `/reports/photo-verification/${encodeURIComponent(photoId)}` as Route;
+}
+
+/** The verification queue, optionally scoped to one report. Static route + query. */
+export function photoVerificationHref(reportId?: string): Route {
+  return reportId
+    ? `/reports/photo-verification?reportId=${encodeURIComponent(reportId)}`
+    : "/reports/photo-verification";
+}

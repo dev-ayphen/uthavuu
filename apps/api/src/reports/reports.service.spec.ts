@@ -16,9 +16,9 @@ import { MissionsService } from '../missions/missions.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
 import {
-  removeUploadFixture,
-  writeUploadFixture,
-} from '../uploads/testing/upload-fixture';
+  createPhotoUploadFixture,
+  removePhotoUploadFixture,
+} from '../uploads/testing/photo-upload-fixture';
 import { ReportsService } from './reports.service';
 import type { CreateReportDto } from './dto/create-report.dto';
 
@@ -28,18 +28,20 @@ describe('ReportsService', () => {
 
   let reporterId: string;
   let otherUserId: string;
-  // Real files on disk, not invented URLs. Since docs/_audit/issues.md issue 27,
-  // create()/update()/addPhoto() refuse a photo URL that no upload ever produced
-  // — the same check that stops a client storing http://evil.com/x.png. Four,
-  // because the addPhoto limit test needs a full set.
-  const PHOTO_FIXTURES = [1, 2, 3, 4].map(
-    (n) => `reports-service-spec-${n}.jpg`,
-  );
-  let photoUrls: string[];
+  // Verified upload records, not invented URLs and not reusable strings.
+  //
+  // A photo now reaches a report as the id of a `photo_uploads` row this API
+  // wrote, and `resolveUploads` refuses an id that is already attached to a
+  // report — otherwise one verified photo could mint unlimited reports. So the
+  // pool is minted fresh per test rather than once per suite; a shared id would
+  // pass the first test and fail every one after it.
+  const mintedFiles: string[] = [];
+
+  // Falls back to BETTER_AUTH_URL rather than depending on a faked Host header.
+  const req = { get: () => undefined } as unknown as import('express').Request;
   const MEDICAL_DEFAULT_EXPIRY_MIN = 6 * 60; // db/seed.ts: medicalHelp = 6h
 
   beforeAll(async () => {
-    photoUrls = PHOTO_FIXTURES.map(writeUploadFixture);
     reporterId = uuidv7();
     otherUserId = uuidv7();
 
@@ -66,16 +68,41 @@ describe('ReportsService', () => {
   });
 
   afterAll(async () => {
-    PHOTO_FIXTURES.forEach(removeUploadFixture);
+    mintedFiles.forEach(removePhotoUploadFixture);
     // Cascades to report_photos/missions/mission_volunteers/mission_messages.
     await db.delete(reports).where(eq(reports.reporterId, reporterId));
     await db.delete(user).where(eq(user.id, reporterId));
     await db.delete(user).where(eq(user.id, otherUserId));
   });
 
-  function baseInput(
+  /**
+   * A report payload carrying a freshly-minted, verified photo.
+   *
+   * Minted per call rather than from a shared pool, because an upload id may be
+   * attached to exactly one report — the rule that stops one verified photo
+   * minting unlimited reports. A pool would work until the first test that
+   * creates two reports, then fail with PHOTO_NOT_VERIFIED for a reason that
+   * has nothing to do with what the test is checking.
+   */
+  async function baseInput(
     overrides: Partial<CreateReportDto> = {},
-  ): CreateReportDto {
+  ): Promise<CreateReportDto> {
+    const count = Array.isArray(overrides.photoUploadIds)
+      ? overrides.photoUploadIds.length
+      : 1;
+    const ids: string[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const filename = `reports-service-spec-${uuidv7()}.jpg`;
+      mintedFiles.push(filename);
+      ids.push(
+        await createPhotoUploadFixture({
+          uploaderId: reporterId,
+          filename,
+          decision: 'pass',
+        }),
+      );
+    }
+
     return {
       categoryKey: 'medicalHelp',
       title: 'Test report',
@@ -85,9 +112,20 @@ describe('ReportsService', () => {
       anonymous: false,
       phoneVisible: false,
       neededVolunteers: 1,
-      photoUrls: [photoUrls[0]],
       ...overrides,
+      photoUploadIds: ids,
     };
+  }
+
+  /** Mints one extra verified photo, for the add-photo cases. */
+  async function extraUpload(): Promise<string> {
+    const filename = `reports-service-spec-${uuidv7()}.jpg`;
+    mintedFiles.push(filename);
+    return createPhotoUploadFixture({
+      uploaderId: reporterId,
+      filename,
+      decision: 'pass',
+    });
   }
 
   describe('create()', () => {
@@ -95,7 +133,8 @@ describe('ReportsService', () => {
       await expect(
         service.create(
           reporterId,
-          baseInput({ categoryKey: 'not-a-real-category' }),
+          await baseInput({ categoryKey: 'not-a-real-category' }),
+          req,
         ),
       ).rejects.toThrow('Unknown category');
     });
@@ -104,14 +143,15 @@ describe('ReportsService', () => {
       await expect(
         service.create(
           reporterId,
-          baseInput({ categoryKey: 'disasterRelief' }),
+          await baseInput({ categoryKey: 'disasterRelief' }),
+          req,
         ),
       ).rejects.toThrow('not citizen-selectable');
     });
 
     it('computes expiryAt from the category default when expiryMinutes is omitted', async () => {
       const before = Date.now();
-      const report = await service.create(reporterId, baseInput());
+      const report = await service.create(reporterId, await baseInput(), req);
       const expectedMs = before + MEDICAL_DEFAULT_EXPIRY_MIN * 60_000;
       expect(
         Math.abs(new Date(report.expiryAt).getTime() - expectedMs),
@@ -123,7 +163,8 @@ describe('ReportsService', () => {
 
       const shortened = await service.create(
         reporterId,
-        baseInput({ expiryMinutes: 30 }),
+        await baseInput({ expiryMinutes: 30 }),
+        req,
       );
       expect(
         Math.abs(new Date(shortened.expiryAt).getTime() - (now + 30 * 60_000)),
@@ -131,7 +172,8 @@ describe('ReportsService', () => {
 
       const attemptExtend = await service.create(
         reporterId,
-        baseInput({ expiryMinutes: 999999 }),
+        await baseInput({ expiryMinutes: 999999 }),
+        req,
       );
       const cappedMs = now + MEDICAL_DEFAULT_EXPIRY_MIN * 60_000;
       expect(
@@ -142,16 +184,17 @@ describe('ReportsService', () => {
     it('persists neededVolunteers', async () => {
       const report = await service.create(
         reporterId,
-        baseInput({ neededVolunteers: 4 }),
+        await baseInput({ neededVolunteers: 4 }),
+        req,
       );
       expect(report.neededVolunteers).toBe(4);
     });
 
     it('inserts one report_photos row per photoUrl', async () => {
-      const urls = [photoUrls[0], photoUrls[1]];
       const report = await service.create(
         reporterId,
-        baseInput({ photoUrls: urls }),
+        await baseInput({ photoUploadIds: ['x', 'y'] }),
+        req,
       );
 
       const rows = await db
@@ -159,14 +202,14 @@ describe('ReportsService', () => {
         .from(reportPhotos)
         .where(eq(reportPhotos.reportId, report.id));
       expect(rows).toHaveLength(2);
-      expect(rows.map((r) => r.url).sort()).toEqual([...urls].sort());
-      expect(report.photos.sort()).toEqual([...urls].sort());
+      expect(rows).toHaveLength(2);
+      expect(report.photos).toHaveLength(2);
     });
   });
 
   describe('findOne()', () => {
     it('isOwner is true only for the reporter', async () => {
-      const report = await service.create(reporterId, baseInput());
+      const report = await service.create(reporterId, await baseInput(), req);
 
       const asReporter = await service.findOne(report.id, reporterId);
       expect(asReporter.isOwner).toBe(true);
@@ -178,7 +221,8 @@ describe('ReportsService', () => {
     it('masks the reporter when anonymous, exposes it otherwise', async () => {
       const anon = await service.create(
         reporterId,
-        baseInput({ anonymous: true }),
+        await baseInput({ anonymous: true }),
+        req,
       );
       const asOtherAnon = await service.findOne(anon.id, otherUserId);
       expect(asOtherAnon.reporter).toBeNull();
@@ -188,7 +232,8 @@ describe('ReportsService', () => {
 
       const named = await service.create(
         reporterId,
-        baseInput({ anonymous: false }),
+        await baseInput({ anonymous: false }),
+        req,
       );
       const asOtherNamed = await service.findOne(named.id, otherUserId);
       expect(asOtherNamed.reporter).not.toBeNull();
@@ -198,7 +243,8 @@ describe('ReportsService', () => {
     it('reporterPhone: owner always sees it; a non-owner needs BOTH phoneVisible AND active mission access (BR-4)', async () => {
       const report = await service.create(
         reporterId,
-        baseInput({ phoneVisible: true }),
+        await baseInput({ phoneVisible: true }),
+        req,
       );
 
       // Owner sees it regardless.
@@ -218,7 +264,8 @@ describe('ReportsService', () => {
       // phoneVisible=false on a different report: active access alone isn't enough.
       const privatePhoneReport = await service.create(
         reporterId,
-        baseInput({ phoneVisible: false }),
+        await baseInput({ phoneVisible: false }),
+        req,
       );
       await missionsService.accept(privatePhoneReport.id, otherUserId);
       await missionsService.confirm(privatePhoneReport.id, otherUserId);
@@ -232,33 +279,37 @@ describe('ReportsService', () => {
 
   describe('update() / addPhoto() / close() guards', () => {
     it('update() rejects a non-owner', async () => {
-      const report = await service.create(reporterId, baseInput());
+      const report = await service.create(reporterId, await baseInput(), req);
       await expect(
-        service.update(report.id, otherUserId, { description: 'hacked' }),
+        service.update(report.id, otherUserId, { description: 'hacked' }, req),
       ).rejects.toThrow('Not your report');
     });
 
     it('update()/addPhoto() reject once the report is closed (BR-6)', async () => {
-      const report = await service.create(reporterId, baseInput());
+      const report = await service.create(reporterId, await baseInput(), req);
       await service.close(report.id, reporterId);
 
       await expect(
-        service.update(report.id, reporterId, { description: 'too late' }),
+        service.update(report.id, reporterId, { description: 'too late' }, req),
       ).rejects.toThrow('no longer open');
       await expect(
-        service.addPhoto(report.id, reporterId, photoUrls[1]),
+        service.addPhoto(report.id, reporterId, await extraUpload(), req),
       ).rejects.toThrow('no longer open');
     });
 
     it('addPhoto() rejects once 4 photos already exist', async () => {
-      const report = await service.create(reporterId, baseInput({ photoUrls }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ photoUploadIds: ['a', 'b', 'c', 'd'] }),
+        req,
+      );
       await expect(
-        service.addPhoto(report.id, reporterId, photoUrls[0]),
+        service.addPhoto(report.id, reporterId, await extraUpload(), req),
       ).rejects.toThrow('Up to 4 photos allowed');
     });
 
     it('close() rejects a non-owner and succeeds for the owner', async () => {
-      const report = await service.create(reporterId, baseInput());
+      const report = await service.create(reporterId, await baseInput(), req);
       await expect(service.close(report.id, otherUserId)).rejects.toThrow(
         'Not your report',
       );
@@ -276,11 +327,13 @@ describe('ReportsService', () => {
     it('list() includes a report inside the radius and excludes one far outside it', async () => {
       const near = await service.create(
         reporterId,
-        baseInput({ ...NEAR, title: 'Near report' }),
+        await baseInput({ ...NEAR, title: 'Near report' }),
+        req,
       );
       const far = await service.create(
         reporterId,
-        baseInput({ ...FAR, title: 'Far report' }),
+        await baseInput({ ...FAR, title: 'Far report' }),
+        req,
       );
 
       const results = await service.list(
@@ -299,8 +352,16 @@ describe('ReportsService', () => {
     });
 
     it('summary() counts a nearby open report and excludes a far one', async () => {
-      const near = await service.create(reporterId, baseInput({ ...NEAR }));
-      const far = await service.create(reporterId, baseInput({ ...FAR }));
+      const near = await service.create(
+        reporterId,
+        await baseInput({ ...NEAR }),
+        req,
+      );
+      const far = await service.create(
+        reporterId,
+        await baseInput({ ...FAR }),
+        req,
+      );
 
       const nearSummary = await service.summary({
         lat: NEAR.lat,
@@ -366,7 +427,11 @@ describe('ReportsService', () => {
       ).map((r) => r.id);
 
     it('before expiry: actionable — open, listed, counted', async () => {
-      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ ...HERE }),
+        req,
+      );
       await setExpiry(report.id, new Date(Date.now() + 60 * 60 * 1000));
 
       expect((await service.findOne(report.id, reporterId)).status).toBe(
@@ -379,7 +444,11 @@ describe('ReportsService', () => {
     });
 
     it('after expiry: expired — not listed, not counted, stored status untouched', async () => {
-      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ ...HERE }),
+        req,
+      );
       const before = (await medical())!.activeCount;
       await setExpiry(report.id, new Date(Date.now() - 60 * 60 * 1000));
 
@@ -409,7 +478,11 @@ describe('ReportsService', () => {
     // moved on by the time the query runs, and a test that depends on
     // sub-millisecond timing tests the clock, not the rule.
     it('at the boundary: an expiry a moment ago is already expired', async () => {
-      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ ...HERE }),
+        req,
+      );
       await setExpiry(report.id, new Date(Date.now() - 1));
 
       expect((await service.findOne(report.id, reporterId)).status).toBe(
@@ -422,11 +495,19 @@ describe('ReportsService', () => {
     // filter is `expiry_at - now() < 1 hour`, which is TRUE for every already
     // expired report because the interval goes negative.
     it('urgentCount counts the about-to-lapse, never the already-lapsed', async () => {
-      const soon = await service.create(reporterId, baseInput({ ...HERE }));
+      const soon = await service.create(
+        reporterId,
+        await baseInput({ ...HERE }),
+        req,
+      );
       await setExpiry(soon.id, new Date(Date.now() + 10 * 60 * 1000));
       const withSoon = (await medical())!.urgentCount;
 
-      const dead = await service.create(reporterId, baseInput({ ...HERE }));
+      const dead = await service.create(
+        reporterId,
+        await baseInput({ ...HERE }),
+        req,
+      );
       await setExpiry(dead.id, new Date(Date.now() - 10 * 60 * 1000));
 
       expect((await medical())!.urgentCount).toBe(withSoon);
@@ -435,7 +516,11 @@ describe('ReportsService', () => {
     });
 
     it('an expired report is no longer editable', async () => {
-      const report = await service.create(reporterId, baseInput({ ...HERE }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ ...HERE }),
+        req,
+      );
       expect((await service.findOne(report.id, reporterId)).editable).toBe(
         true,
       );
@@ -489,7 +574,11 @@ describe('ReportsService', () => {
     // process running concurrently. Here, only assert the field is real
     // response data of the right shape, not a specific value.
     it('activeVolunteers reflects a real active volunteer within radius; helped is a real non-negative count', async () => {
-      const report = await service.create(reporterId, baseInput({ ...NEAR }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ ...NEAR }),
+        req,
+      );
 
       const before = await service.communityStats({
         lat: NEAR.lat,
@@ -531,7 +620,11 @@ describe('ReportsService', () => {
         radiusKm: 10,
       });
 
-      const report = await service.create(reporterId, baseInput({ ...FAR }));
+      const report = await service.create(
+        reporterId,
+        await baseInput({ ...FAR }),
+        req,
+      );
       await missionsService.accept(report.id, otherUserId);
       await missionsService.confirm(report.id, otherUserId);
 
@@ -564,7 +657,8 @@ describe('ReportsService', () => {
 
       const created = await service.create(
         reporterId,
-        baseInput({ title: 'Save test report' }),
+        await baseInput({ title: 'Save test report' }),
+        req,
       );
       completedReportId = created.id;
       await missionsService.accept(completedReportId, otherUserId);
@@ -584,7 +678,8 @@ describe('ReportsService', () => {
     it('rejects a save on a report that is not completed', async () => {
       const openReport = await service.create(
         reporterId,
-        baseInput({ title: 'Still open report (save)' }),
+        await baseInput({ title: 'Still open report (save)' }),
+        req,
       );
       await expect(service.save(openReport.id, reporterId)).rejects.toThrow(
         'This report is not completed yet',

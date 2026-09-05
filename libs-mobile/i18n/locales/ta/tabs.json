@@ -220,6 +220,15 @@
     "badgeCancelled": "ரத்து செய்யப்பட்டது",
     "badgeExpired": "காலாவதியானது",
     "badgeActiveMission": "செயலில் உள்ள பணி",
-    "badgeOpen": "நிலை: திறந்துள்ளது"
+    "badgeOpen": "நிலை: திறந்துள்ளது",
+    "tabPendingReview": "பரிசீலனையில்",
+    "tabRejected": "நிராகரிக்கப்பட்டது",
+    "emptyPendingReviewTitle": "பரிசீலனைக்கு எதுவும் இல்லை",
+    "emptyPendingReviewSubtitle": "சரிபார்க்கப்படும் கோரிக்கைகள் இங்கே தோன்றும்.",
+    "emptyRejectedTitle": "நிராகரிக்கப்பட்ட கோரிக்கைகள் இல்லை",
+    "badgePendingReview": "பரிசீலனையில்",
+    "badgeRejected": "நிராகரிக்கப்பட்டது",
+    "badgeUnknown": "நிலை கிடைக்கவில்லை",
+    "volunteersJoined": "{{joined}} / {{needed}} தன்னார்வலர்கள் இணைந்துள்ளனர்"
   }
 }

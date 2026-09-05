@@ -70,8 +70,14 @@ control what's exposed about me**.
 As a **citizen**, I can **publish my report** so that **it's visible to nearby users
 immediately**.
 
-- **AC1:** Given I submit a complete report, when the API accepts it, then it's immediately
-  visible to nearby users within their radius — no moderation delay (BR-5).
+- **AC1:** Given I submit a complete report **whose photos all passed verification**, when the API
+  accepts it, then it's immediately visible to nearby users within their radius — no moderation
+  delay (BR-5 as amended).
+- **AC1a:** Given a photo was held for review, when I submit, then the report is created but is
+  **not public** (`pending_review`) and only I can see it — see
+  [ADR 0014](../decisions/0014-photo-verification-publication-gate.md).
+- **AC1b:** Given a photo was rejected, when I try to attach it, then **no report is created** and
+  I'm asked to capture another. *(Added 2026-09-04 by ADR 0014.)*
 - **AC2:** Given I submit with a missing required field, when I try to publish, then I see
   field-level validation errors and nothing is created.
 
@@ -104,6 +110,16 @@ can correct/add detail or stand it down once it's no longer needed**.
 - **BR-5:** Reports publish immediately on submission — no pre-publish moderation gate. An
   emergency-help product can't hold real help behind a review queue. Moderation is reactive:
   flagging can hide/remove a live report after the fact (a separate `moderation` feature).
+
+  > **⚠️ AMENDED — partially superseded by
+  > [ADR 0014](../decisions/0014-photo-verification-publication-gate.md) (2026-09-04).**
+  > Server-side photo verification now runs **before** publication, so the literal claim above —
+  > "no pre-publish moderation gate" — is no longer true. What survives is BR-5's *intent*: a
+  > **PASS publishes immediately with no human step and no queue**, exactly as this rule requires.
+  > The gate is asymmetric — only a photo the automated check could not clear (`REVIEW`) creates a
+  > non-public `pending_review` report for a moderator, and a `REJECT` creates no report at all.
+  > Reactive moderation is unchanged and still applies to live reports. Read BR-5 together with
+  > ADR 0014; do not read either alone.
 - **BR-6:** Once published, a reporter may edit description and landmark, and add (never remove)
   photos, and may manually close the report early. Category and location are immutable after
   publish, protecting volunteers who already responded to the request's original terms.
@@ -113,16 +129,35 @@ can correct/add detail or stand it down once it's no longer needed**.
 | Table | New / changed | Notes |
 |---|---|---|
 | `reports` | new | `category`, `title`, `description`, `urgency`, `expiry_at`, `anonymous`, `phone_visible`, `share_ngo`, `lat`, `lng`, `landmark`, `status`, `reporter_id` (FK → `user`), `created_at`, `closed_at` |
-| `report_photos` | new | `report_id` (FK), `url`, `captured_live` flag, `created_at` — one row per photo, up to 4 |
+| `report_photos` | new | `report_id` (FK), `url`, `captured_live` flag, `created_at` — one row per photo, up to 4. **Since ADR 0014:** also `upload_id` (FK → `photo_uploads`, nullable — null means the row predates verification) |
+| `photo_uploads`, `photo_verification_statuses` | new (ADR 0014) | The quarantine + verdict record a photo needs *before* a report exists. See [`photo-verification.md`](./photo-verification.md) |
 
-**Invariants this introduces:** a report has ≥1 photo at creation (BR-1) — enforce at the DTO
-layer (reject the create request) and note in `architecture/data.md` whether the DB also gets a
-constraint or trigger, or relies on the API being the only write path. **Known enforcement gap to
-resolve at the architecture stage:** "live-captured" is a client-asserted flag today — nothing
-server-side currently verifies a photo wasn't picked from the gallery and relabeled; decide
-during Stage 5 whether this needs EXIF/metadata checking or stays trust-based for v0.1.
-`expiry_at` is computed server-side from category + reporter's chosen (or default) duration, never
-trusted from a raw client-supplied timestamp.
+**Invariants this introduces:** a report has ≥1 photo at creation (BR-1) — enforced at the DTO
+layer (`photoUploadIds` is `.min(1).max(4)`, `apps/api/src/reports/dto/create-report.dto.ts:41-44`)
+and again at the attach gate (`report-photo-attachment.ts:52-57`). `expiry_at` is computed
+server-side from category + reporter's chosen (or default) duration, never trusted from a raw
+client-supplied timestamp.
+
+**RESOLVED — the "live-captured" enforcement gap.** The original question here was *"decide during
+Stage 5 whether this needs EXIF/metadata checking or stays trust-based for v0.1."* The answer is
+**neither: it became server-side content verification instead.** See
+[ADR 0014](../decisions/0014-photo-verification-publication-gate.md) and
+[`photo-verification.md`](./photo-verification.md).
+
+What the server now establishes about a report photo, by inspecting the bytes rather than trusting
+a flag: that it really is a JPEG or PNG (magic bytes, not the client's `Content-Type`), that it
+decodes intact, that its dimensions are usable, its SHA-256 and perceptual fingerprint, whether it
+duplicates a recent upload, and a moderation verdict from Amazon Rekognition plus Uthavu's own
+decision engine. The client submits **upload ids, never URLs and never verdicts**, and the verdict
+is re-read from the database on every attach.
+
+**But the gap this paragraph originally named is not closed, and must not be read as closed.**
+`report_photos.captured_live` **remains an unverified client assertion** — written unconditionally
+as `PHOTO_CAPTURE_UNVERIFIED` and read by nothing
+(`apps/api/src/reports/report-photos.ts:13-25`). Verification answers *"is this image safe and
+roughly relevant"*. It says nothing about whether a camera or a gallery produced it, and no EXIF or
+metadata check was built. **Do not read `captured_live` as provenance.** BR-1's "live-captured"
+requirement is still enforced by the mobile capture UI alone.
 
 ## Screens
 
@@ -145,7 +180,11 @@ Exact route paths are illustrative — finalize against the actual navigation st
 
 ## Open questions
 
-None — resolved during the brainstorming interview with the product owner (2026-08-19).
+None outstanding for this feature. The "live-captured enforcement gap" recorded under **Data
+touched** was resolved on 2026-09-04 by [ADR 0014](../decisions/0014-photo-verification-publication-gate.md)
+— with the honest caveat, recorded there and above, that `captured_live` itself is still
+unverified. Everything else was resolved during the brainstorming interview with the product owner
+(2026-08-19).
 
 ## Related docs
 
@@ -154,3 +193,12 @@ None — resolved during the brainstorming interview with the product owner (202
   real code, see `docs/README.md`)
 - Data: [`../architecture/data.md`](../architecture/data.md)
 - Related feature: [`auth.md`](./auth.md) (BR-4 city/district precedent for GPS-as-authority)
+- Related feature: [`photo-verification.md`](./photo-verification.md) — the pre-publication gate
+- Decision: [`../decisions/0014-photo-verification-publication-gate.md`](../decisions/0014-photo-verification-publication-gate.md)
+  — amends BR-5 and resolves the enforcement gap above
+
+---
+
+_BR-5 amendment and the Data-touched resolution last verified 2026-09-04 against commit `15136b5`
+(photo-verification code still uncommitted in the working tree). The rest of this doc predates that
+pass and was not re-verified._

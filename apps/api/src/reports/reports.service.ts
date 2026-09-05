@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
@@ -26,14 +26,24 @@ import type { ListReportsDto } from './dto/list-reports.dto';
 import type { ReportsSummaryDto } from './dto/reports-summary.dto';
 import type { CommunityStatsDto } from './dto/community-stats.dto';
 import { MissionsService } from '../missions/missions.service';
+import type { Request } from 'express';
 import { AlertsService } from '../alerts/alerts.service';
 import {
+  notPrePublication,
   requireVisibleReport,
   throwForMissingReport,
 } from './report-visibility';
 import { getPlatformConfig } from '../config/platform-settings';
 import { assertStoredUploads } from '../uploads/stored-upload';
 import { PHOTO_CAPTURE_UNVERIFIED } from './report-photos';
+import { restoredWindow } from '../moderation/photo-moderation.service';
+import {
+  assertAllPassed,
+  detachUploadsFrom,
+  linkUploadsToReport,
+  publishUploads,
+  resolveUploads,
+} from './report-photo-attachment';
 import { effectiveStatusOf, isActionableSql } from './report-effective-status';
 
 // Great-circle distance in km via the haversine formula, expressed directly
@@ -164,7 +174,7 @@ export class ReportsService {
     assertStoredUploads(urls);
   }
 
-  async create(reporterId: string, input: CreateReportDto) {
+  async create(reporterId: string, input: CreateReportDto, req: Request) {
     const [category] = await db
       .select()
       .from(reportCategories)
@@ -183,11 +193,20 @@ export class ReportsService {
     // actually be read. A setting nothing reads is the failure
     // docs/webadmin/07-platform-settings.md §2A is a post-mortem of.
     await this.assertReportLimits({
-      photoCount: input.photoUrls.length,
+      photoCount: input.photoUploadIds.length,
       neededVolunteers: input.neededVolunteers,
       anonymous: input.anonymous,
     });
-    this.assertPhotosAreOurUploads(input.photoUrls);
+
+    // The gate. Verdicts are re-read from `photo_uploads` here — the request
+    // carries ids only, never a decision — so a client cannot assert that its
+    // own photo passed. A rejected photo throws; anything short of an explicit
+    // pass holds the whole report.
+    const plan = await resolveUploads(
+      input.photoUploadIds,
+      reporterId,
+      category.id,
+    );
 
     // BR-2: the reporter may shorten the category's default expiry, never extend it.
     const expiryMinutes = Math.min(
@@ -195,7 +214,15 @@ export class ReportsService {
       category.defaultExpiryMinutes,
     );
     const expiryAt = new Date(Date.now() + expiryMinutes * 60_000);
-    const openStatusId = await this.getStatusIdByKey('open');
+
+    // ONE held photo holds the whole report, rather than publishing the rest.
+    // A report is a single artefact — title, location and pictures together —
+    // and publishing three of four photos would put a partially-moderated
+    // emergency in front of volunteers while a moderator was still deciding
+    // whether the fourth was acceptable.
+    const statusId = await this.getStatusIdByKey(
+      plan.holdForReview ? 'pending_review' : 'open',
+    );
 
     const reportId = uuidv7();
     const [created] = await db
@@ -204,7 +231,7 @@ export class ReportsService {
         id: reportId,
         reporterId,
         categoryId: category.id,
-        statusId: openStatusId,
+        statusId,
         title: input.title,
         description: input.description,
         lat: input.lat,
@@ -217,14 +244,25 @@ export class ReportsService {
       })
       .returning();
 
-    await db.insert(reportPhotos).values(
-      input.photoUrls.map((url) => ({
-        id: uuidv7(),
-        reportId,
-        url,
-        capturedLive: PHOTO_CAPTURE_UNVERIFIED,
-      })),
-    );
+    // The uploads are linked to the report either way, so the moderation queue
+    // can find a held report's photos — they have no `report_photos` row yet.
+    await linkUploadsToReport(plan, reportId);
+
+    if (!plan.holdForReview) {
+      // Files become publicly readable only AFTER the report row exists and its
+      // status says `open`. Promoting first would leave a window where the bytes
+      // are reachable and nothing in the database says they should be.
+      const published = await publishUploads(plan, req);
+      await db.insert(reportPhotos).values(
+        published.map((photo) => ({
+          id: uuidv7(),
+          reportId,
+          url: photo.url,
+          capturedLive: PHOTO_CAPTURE_UNVERIFIED,
+          uploadId: photo.uploadId,
+        })),
+      );
+    }
 
     return this.findOne(created.id, reporterId);
   }
@@ -241,7 +279,23 @@ export class ReportsService {
       .innerJoin(reportCategories, eq(reports.categoryId, reportCategories.id))
       .innerJoin(reportStatuses, eq(reports.statusId, reportStatuses.id))
       .leftJoin(user, eq(reports.reporterId, user.id))
-      .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
+      .where(
+        and(
+          eq(reports.id, reportId),
+          isNull(reports.deletedAt),
+          // A report held for photo moderation is visible to ITS REPORTER and to
+          // nobody else. Without this arm, `GET /reports/:id` would serve a
+          // pending_review report to any citizen holding the id — the photo has
+          // no public URL, but the title, description, landmark and exact
+          // lat/lng would all be readable, which defeats the point of holding it.
+          //
+          // It is an OR rather than a blanket exclusion because the reporter must
+          // still be able to open their own held report and see its pending state
+          // (docs: the reporter sees "photo review pending", other citizens see
+          // nothing at all). `listMine` already relies on the same asymmetry.
+          or(notPrePublication, eq(reports.reporterId, requestingUserId)),
+        ),
+      );
 
     // The single most important place for the honest state: this is the
     // endpoint a volunteer's stale My Helps card, and every alert deep link,
@@ -569,6 +623,7 @@ export class ReportsService {
     reportId: string,
     requestingUserId: string,
     input: UpdateReportDto,
+    req: Request,
   ) {
     const existing = await this.requireOwnedOpenReport(
       reportId,
@@ -583,49 +638,87 @@ export class ReportsService {
     // The same configured limits as create() — an edit is the other way to
     // exceed them.
     await this.assertReportLimits({
-      photoCount: input.photoUrls?.length,
+      photoCount: input.photoUploadIds?.length,
       neededVolunteers: input.neededVolunteers,
       anonymous: input.anonymous,
     });
-    this.assertPhotosAreOurUploads(input.photoUrls);
 
-    await db
-      .update(reports)
-      .set({
-        ...(input.title !== undefined && { title: input.title }),
-        ...(input.description !== undefined && {
-          description: input.description,
-        }),
-        ...(input.landmark !== undefined && { landmark: input.landmark }),
-        ...(input.neededVolunteers !== undefined && {
-          neededVolunteers: input.neededVolunteers,
-        }),
-        ...(input.anonymous !== undefined && { anonymous: input.anonymous }),
-        ...(input.phoneVisible !== undefined && {
-          phoneVisible: input.phoneVisible,
-        }),
-      })
-      .where(eq(reports.id, existing.id));
+    // Built first and checked for emptiness, because Drizzle throws
+    // "No values to set" on an empty `set()`. That is reachable whenever an edit
+    // changes ONLY the photos — a real case the mobile edit form produces when
+    // the reporter swaps a picture and touches nothing else. It was reachable
+    // before this feature too, with `photoUrls` in place of `photoUploadIds`;
+    // the verification specs are simply the first thing to exercise it.
+    const scalarChanges = {
+      ...(input.title !== undefined && { title: input.title }),
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
+      ...(input.landmark !== undefined && { landmark: input.landmark }),
+      ...(input.neededVolunteers !== undefined && {
+        neededVolunteers: input.neededVolunteers,
+      }),
+      ...(input.anonymous !== undefined && { anonymous: input.anonymous }),
+      ...(input.phoneVisible !== undefined && {
+        phoneVisible: input.phoneVisible,
+      }),
+    };
 
-    if (input.photoUrls !== undefined) {
-      // Full replace — the mobile edit form always sends the complete set
-      // it wants, not a delta.
+    if (Object.keys(scalarChanges).length > 0) {
+      await db
+        .update(reports)
+        .set(scalarChanges)
+        .where(eq(reports.id, existing.id));
+    }
+
+    if (input.photoUploadIds !== undefined) {
+      // Full replace — the mobile edit form always sends the complete set it
+      // wants, not a delta. Only already-passed photos may be attached to a
+      // report that is already live; see assertAllPassed.
+      //
+      // JUDGED AGAINST THIS REPORT'S CATEGORY, exactly as create() does. An
+      // explicit `pass` is not enough on its own: `communityHelp` has no
+      // expected labels, so relevance is skipped there and any safe photo
+      // passes. Without the category argument a reporter could collect that
+      // pass under Community Help and then replace an Animal Rescue report's
+      // entire photo set with it — a two-request route around the very bypass
+      // resolveUploads' `expectedCategoryId` exists to close. The mismatch now
+      // sets holdForReview, which assertAllPassed turns into PHOTO_NEEDS_REVIEW:
+      // a live report is never un-published, the reporter is asked to retake.
+      const plan = await resolveUploads(
+        input.photoUploadIds,
+        requestingUserId,
+        existing.categoryId,
+      );
+      assertAllPassed(plan);
+
+      const published = await publishUploads(plan, req);
       await db.delete(reportPhotos).where(eq(reportPhotos.reportId, reportId));
       await db.insert(reportPhotos).values(
-        input.photoUrls.map((url) => ({
+        published.map((photo) => ({
           id: uuidv7(),
           reportId,
-          url,
+          url: photo.url,
           capturedLive: PHOTO_CAPTURE_UNVERIFIED,
+          uploadId: photo.uploadId,
         })),
       );
+      await linkUploadsToReport(plan, reportId);
     }
 
     return this.findOne(reportId, requestingUserId);
   }
 
-  async addPhoto(reportId: string, requestingUserId: string, url: string) {
-    await this.requireOwnedOpenReport(reportId, requestingUserId);
+  async addPhoto(
+    reportId: string,
+    requestingUserId: string,
+    uploadId: string,
+    req: Request,
+  ) {
+    const existing = await this.requireOwnedOpenReport(
+      reportId,
+      requestingUserId,
+    );
 
     const existingPhotos = await db
       .select()
@@ -635,14 +728,28 @@ export class ReportsService {
     // lowers on Platform -> App Settings has to bind here too, or "max photos
     // per report" would be a setting that only applies to the first save.
     await this.assertReportLimits({ photoCount: existingPhotos.length + 1 });
-    this.assertPhotosAreOurUploads([url]);
+
+    // BR-6 lets a reporter add photos after publishing, so this is the third
+    // route into report_photos and gets the same gate. Post-publish, so passed
+    // only — AND judged against this report's category, same as create() and
+    // update(). A pass earned under a category with no expected labels is not a
+    // pass for this one; see the note in update().
+    const plan = await resolveUploads(
+      [uploadId],
+      requestingUserId,
+      existing.categoryId,
+    );
+    assertAllPassed(plan);
+    const [published] = await publishUploads(plan, req);
 
     await db.insert(reportPhotos).values({
       id: uuidv7(),
       reportId,
-      url,
+      url: published.url,
       capturedLive: PHOTO_CAPTURE_UNVERIFIED,
+      uploadId: published.uploadId,
     });
+    await linkUploadsToReport(plan, reportId);
 
     return this.findOne(reportId, requestingUserId);
   }
@@ -741,6 +848,102 @@ export class ReportsService {
 
   // Shared guard for the three write paths that only the reporter may use,
   // and only while the report is still open (BR-6).
+  /**
+   * The reporter's answer to "please send us a different photo".
+   *
+   * WHY THIS IS ITS OWN METHOD AND NOT `addPhoto`/`update`. Both of those go
+   * through `requireOwnedOpenReport()`, which refuses anything that is not
+   * `open` — so before this existed, a reporter told by a moderator to retake
+   * their photo literally could not. The alert was correct copy for behaviour
+   * that was not wired, which is the worst kind of gap: it looks finished.
+   *
+   * FULL REPLACE, and the superseded uploads are DETACHED rather than left in
+   * place. `requestNew` leaves the old upload with status `rejected`, and
+   * `PhotoModerationService.standingFor()` counts `rejected` as `refused`, which
+   * blocks `publishIfReady()` permanently. Leaving it attached would mean the
+   * reporter satisfies the request, passes verification, and still never
+   * publishes — a dead end with no error raised anywhere. The detached rows keep
+   * their verdict, reviewer and reason; only the link goes.
+   *
+   * The replacement is verified by exactly the same pipeline as any first
+   * capture — `resolveUploads` re-reads the verdict from the database, refuses
+   * anything already adjudicated, and refuses a category switch. There is no
+   * second, gentler path in for a photo that has already annoyed a moderator.
+   */
+  async replaceHeldPhotos(
+    reportId: string,
+    requestingUserId: string,
+    uploadIds: string[],
+    req: Request,
+  ) {
+    const [existing] = await db
+      .select()
+      .from(reports)
+      .where(and(eq(reports.id, reportId), isNull(reports.deletedAt)));
+    if (!existing) throw new NotFoundException('Report not found');
+    if (existing.reporterId !== requestingUserId)
+      throw new ForbiddenException('Not your report');
+
+    const [status] = await db
+      .select()
+      .from(reportStatuses)
+      .where(eq(reportStatuses.id, existing.statusId));
+    if (status?.key !== 'pending_review') {
+      throw new BadRequestException({
+        code: 'REPORT_NOT_AWAITING_PHOTO',
+        message: 'This request is not waiting for a new photo.',
+      });
+    }
+
+    await this.assertReportLimits({ photoCount: uploadIds.length });
+
+    // Judged against the category the report is actually filed under, same as
+    // create() — a replacement is not a way around the relevance check.
+    const plan = await resolveUploads(
+      uploadIds,
+      requestingUserId,
+      existing.categoryId,
+    );
+
+    await detachUploadsFrom(reportId);
+    await linkUploadsToReport(plan, reportId);
+
+    if (!plan.holdForReview) {
+      // Every replacement passed, so the report earns publication the same way
+      // any other passing report does. The moderator asked for a usable photo
+      // and got one; requiring them to look again would make "request new photo"
+      // strictly worse for both sides than "reject".
+      const published = await publishUploads(plan, req);
+      await db.delete(reportPhotos).where(eq(reportPhotos.reportId, reportId));
+      await db.insert(reportPhotos).values(
+        published.map((photo) => ({
+          id: uuidv7(),
+          reportId,
+          url: photo.url,
+          capturedLive: PHOTO_CAPTURE_UNVERIFIED,
+          uploadId: photo.uploadId,
+        })),
+      );
+      await db
+        .update(reports)
+        .set({
+          statusId: await this.getStatusIdByKey('open'),
+          updatedAt: new Date(),
+          // PV-17, and it belongs here as much as it does on the moderator's
+          // path. This is the OTHER exit from `pending_review`: the reporter
+          // answering "send us another photo". Skipping it published an
+          // already-expired report whenever moderation plus the reporter's own
+          // turnaround outlasted the window — which this path is the MOST likely
+          // to hit, because it is the only outcome that asks the citizen to go
+          // back out and take another photograph.
+          ...restoredWindow(existing.createdAt, existing.expiryAt),
+        })
+        .where(eq(reports.id, reportId));
+    }
+
+    return this.findOne(reportId, requestingUserId);
+  }
+
   private async requireOwnedOpenReport(
     reportId: string,
     requestingUserId: string,

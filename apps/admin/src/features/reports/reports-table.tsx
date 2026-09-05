@@ -48,15 +48,32 @@ export const REPORTS_LIST: ListConfig = {
   defaultFilters: { status: "all", includeDeleted: "false" },
 };
 
+/**
+ * The status filter, in lifecycle order.
+ *
+ * The API derives this enum from `EFFECTIVE_STATUSES`
+ * (`apps/api/src/reports/report-effective-status.ts`), so every value here is
+ * one the endpoint accepts — including the two that arrived with photo
+ * verification. `pending_review` and `rejected` are FIRST-CLASS statuses, not
+ * edge cases: a report whose photo is held is invisible to citizens and is the
+ * single most useful thing to filter this queue down to, and without the option
+ * an operator could receive those rows and never ask for them.
+ */
 const STATUS_FILTER: FilterDef = {
   id: "status",
   label: "Status",
   options: [
     { value: "all", label: "Any status" },
     { value: "open", label: "Open" },
+    // Held by photo verification. Not public, and it carries no photo record
+    // until a moderator approves — see Reports -> Photo Verification.
+    { value: "pending_review", label: "Pending review" },
     { value: "expired", label: "Expired" },
     { value: "closed", label: "Closed" },
     { value: "completed", label: "Completed" },
+    // Moderation refused the photo. The report exists for its reporter and
+    // never becomes public.
+    { value: "rejected", label: "Rejected" },
     { value: "deleted", label: "Hidden / removed" },
   ],
 };

@@ -7,14 +7,18 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
+  Req,
 } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import type { Request } from 'express';
 import type { auth } from '../auth/auth';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { AddPhotoDto } from './dto/add-photo.dto';
+import { ReplaceHeldPhotosDto } from './dto/replace-held-photos.dto';
 import { ListReportsDto } from './dto/list-reports.dto';
 import { ReportsSummaryDto } from './dto/reports-summary.dto';
 import { CommunityStatsDto } from './dto/community-stats.dto';
@@ -35,8 +39,12 @@ export class ReportsController {
   create(
     @Session() session: UserSession<typeof auth>,
     @Body() body: CreateReportDto,
+    // Needed to build the stored photo URL from a declared origin — the same
+    // request-derived rule POST /uploads uses, so a phone on the LAN gets a URL
+    // it can actually fetch. See uploads/upload-url.ts.
+    @Req() req: Request,
   ) {
-    return this.reportsService.create(session.user.id, body);
+    return this.reportsService.create(session.user.id, body, req);
   }
 
   @Get()
@@ -76,8 +84,9 @@ export class ReportsController {
     @Session() session: UserSession<typeof auth>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateReportDto,
+    @Req() req: Request,
   ) {
-    return this.reportsService.update(id, session.user.id, body);
+    return this.reportsService.update(id, session.user.id, body, req);
   }
 
   @Post(':id/photos')
@@ -85,8 +94,37 @@ export class ReportsController {
     @Session() session: UserSession<typeof auth>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: AddPhotoDto,
+    @Req() req: Request,
   ) {
-    return this.reportsService.addPhoto(id, session.user.id, body.url);
+    return this.reportsService.addPhoto(
+      id,
+      session.user.id,
+      body.uploadId,
+      req,
+    );
+  }
+
+  /**
+   * The reporter's reply to "please send us a different photo".
+   *
+   * PUT, not POST: it is a full replace of the report's photo set, and it is
+   * idempotent in the sense that matters — sending the same set twice does not
+   * accumulate photos. Distinct from `POST :id/photos`, which ADDS one to a live
+   * report and is refused on a held one.
+   */
+  @Put(':id/photos')
+  replaceHeldPhotos(
+    @Session() session: UserSession<typeof auth>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ReplaceHeldPhotosDto,
+    @Req() req: Request,
+  ) {
+    return this.reportsService.replaceHeldPhotos(
+      id,
+      session.user.id,
+      body.photoUploadIds,
+      req,
+    );
   }
 
   @Post(':id/close')

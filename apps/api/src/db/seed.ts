@@ -6,6 +6,7 @@ import { uuidv7 } from 'uuidv7';
 import { sql } from 'drizzle-orm';
 import { db } from './index';
 import { reportCategories, reportStatuses } from './schema/reports-schema';
+import { photoVerificationStatuses } from './schema/photo-verification-schema';
 import {
   missionCompletionStatuses,
   missionVolunteerStatuses,
@@ -45,6 +46,17 @@ const CATEGORIES = [
     emoji: '🐶',
     defaultExpiryMinutes: 12 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Animal',
+      'Dog',
+      'Cat',
+      'Bird',
+      'Cattle',
+      'Livestock',
+      'Wildlife',
+      'Pet',
+      'Animals and Pets',
+    ],
   },
   {
     key: 'medicalHelp',
@@ -52,6 +64,18 @@ const CATEGORIES = [
     emoji: '❤️',
     defaultExpiryMinutes: 6 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Person',
+      'Human',
+      'Hospital',
+      'Clinic',
+      'First Aid',
+      'Ambulance',
+      'Injury',
+      'Wound',
+      'Medication',
+      'Health',
+    ],
   },
   {
     key: 'foodDonation',
@@ -59,6 +83,19 @@ const CATEGORIES = [
     emoji: '🍱',
     defaultExpiryMinutes: 12 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Food',
+      'Meal',
+      'Groceries',
+      'Bread',
+      'Rice',
+      'Vegetable',
+      'Fruit',
+      'Box',
+      'Package',
+      'Bag',
+      'Food and Beverage',
+    ],
   },
   {
     key: 'roadsideHelp',
@@ -66,6 +103,19 @@ const CATEGORIES = [
     emoji: '🚗',
     defaultExpiryMinutes: 6 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Car',
+      'Vehicle',
+      'Truck',
+      'Bus',
+      'Motorcycle',
+      'Tire',
+      'Wheel',
+      'Road',
+      'Highway',
+      'Transportation',
+      'Machine',
+    ],
   },
   {
     key: 'elderlySupport',
@@ -73,6 +123,16 @@ const CATEGORIES = [
     emoji: '👴',
     defaultExpiryMinutes: 24 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Person',
+      'Human',
+      'Adult',
+      'Senior Citizen',
+      'Wheelchair',
+      'Walking Cane',
+      'Face',
+      'People',
+    ],
   },
   {
     key: 'bloodDonation',
@@ -80,6 +140,16 @@ const CATEGORIES = [
     emoji: '🩸',
     defaultExpiryMinutes: 4 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Person',
+      'Human',
+      'Hospital',
+      'Clinic',
+      'Blood',
+      'Syringe',
+      'First Aid',
+      'Health',
+    ],
   },
   {
     key: 'communityHelp',
@@ -87,6 +157,11 @@ const CATEGORIES = [
     emoji: '🤝',
     defaultExpiryMinutes: 72 * 60,
     citizenSelectable: true,
+    // Deliberately NO expectedLabels. "Community help" has no characteristic
+    // imagery — a broken streetlight, a flooded lane and a stack of donated
+    // books are all legitimate — so a relevance rule here would hold real
+    // reports and teach moderators to rubber-stamp the queue. Null means the
+    // check is skipped, and that is the right answer rather than a missing one.
   },
   {
     key: 'lostAndFound',
@@ -94,6 +169,20 @@ const CATEGORIES = [
     emoji: '🔍',
     defaultExpiryMinutes: 72 * 60,
     citizenSelectable: true,
+    expectedLabels: [
+      'Person',
+      'Human',
+      'Bag',
+      'Wallet',
+      'Phone',
+      'Key',
+      'Jewelry',
+      'Backpack',
+      'Animal',
+      'Dog',
+      'Cat',
+      'Accessories',
+    ],
   },
   // BR-3: exists for the schema/admin milestone, not citizen-selectable yet.
   {
@@ -110,6 +199,26 @@ const STATUSES = [
   { key: 'closed', label: 'Closed' },
   { key: 'expired', label: 'Expired' },
   { key: 'completed', label: 'Completed' },
+  // Added with photo verification. Both are PRE-PUBLICATION states: a report
+  // holding either one must never appear in a citizen feed, a nearby search, or
+  // a volunteer's list. That exclusion is enforced centrally in
+  // reports/report-visibility.ts rather than at each call site — the earlier
+  // soft-delete leak across six read paths is exactly what happens otherwise.
+  { key: 'pending_review', label: 'Pending review' },
+  { key: 'rejected', label: 'Rejected' },
+] as const;
+
+// Verification lifecycle for a single uploaded photo. `failed` is deliberately
+// distinct from `review_required`: both put the photo in front of a human, but
+// only one means the provider never answered, and an operator staring at a
+// suddenly-full queue needs to tell "the model is flagging things" from
+// "Rekognition is down".
+const PHOTO_VERIFICATION_STATUSES = [
+  { key: 'verifying', label: 'Verifying', sortOrder: 10 },
+  { key: 'passed', label: 'Passed', sortOrder: 20 },
+  { key: 'review_required', label: 'Review required', sortOrder: 30 },
+  { key: 'rejected', label: 'Rejected', sortOrder: 40 },
+  { key: 'failed', label: 'Verification failed', sortOrder: 50 },
 ] as const;
 
 // accept-and-mission-chat.md — a volunteer's own participation state, not
@@ -276,7 +385,12 @@ async function seed() {
   for (const category of CATEGORIES) {
     await db
       .insert(reportCategories)
-      .values({ id: uuidv7(), ...category })
+      .values({
+        id: uuidv7(),
+        ...category,
+        expectedLabels:
+          'expectedLabels' in category ? [...category.expectedLabels] : null,
+      })
       .onConflictDoUpdate({
         target: reportCategories.key,
         set: {
@@ -284,6 +398,12 @@ async function seed() {
           emoji: category.emoji,
           defaultExpiryMinutes: category.defaultExpiryMinutes,
           citizenSelectable: category.citizenSelectable,
+          // Spread-in rather than always-set: categories with no expectations
+          // must keep NULL, and writing `undefined` here would leave whatever
+          // an operator had configured intact rather than clobbering it.
+          ...('expectedLabels' in category
+            ? { expectedLabels: [...category.expectedLabels] }
+            : {}),
           updatedAt: sql`now()`,
         },
       });
@@ -296,6 +416,20 @@ async function seed() {
       .onConflictDoUpdate({
         target: reportStatuses.key,
         set: { label: status.label, updatedAt: sql`now()` },
+      });
+  }
+
+  for (const status of PHOTO_VERIFICATION_STATUSES) {
+    await db
+      .insert(photoVerificationStatuses)
+      .values({ id: uuidv7(), ...status })
+      .onConflictDoUpdate({
+        target: photoVerificationStatuses.key,
+        set: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          updatedAt: sql`now()`,
+        },
       });
   }
 
@@ -506,7 +640,7 @@ async function seed() {
   const audit = await seedAuditCatalogue();
 
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`,
+    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${PHOTO_VERIFICATION_STATUSES.length} photo verification statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`,
   );
   process.exit(0);
 }

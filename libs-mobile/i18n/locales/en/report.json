@@ -18,7 +18,9 @@
     "publishedTitle": "Report published",
     "publishedMessage": "Nearby volunteers can now see your request.",
     "ok": "OK",
-    "publishError": "Could not publish your report. Try again."
+    "publishError": "Could not publish your report. Try again.",
+    "pageAddDetails": "Add Details",
+    "pageLocationPrivacy": "Location & Privacy"
   },
   "edit": {
     "title": "Edit Report",
@@ -124,6 +126,58 @@
     "postedTitle": "Request Posted ✅",
     "postedMessage": "Your request is now live for nearby volunteers and community members.",
     "viewRequest": "View Request",
-    "goHome": "Go to Home"
+    "goHome": "Go to Home",
+    "postedPendingTitle": "Request submitted",
+    "postedPendingMessage": "One of your photos is being checked. Your request goes out to nearby volunteers as soon as that's done."
+  },
+  "photoVerification": {
+    "checking": "Checking photo…",
+    "verified": "Photo verified",
+    "needsReview": "This photo needs review",
+    "needsReviewHelp": "You can still post. We'll check it first.",
+    "heldNotice": "One of your photos needs a check, so your request won't be visible to volunteers until we've looked at it. This is usually quick.",
+    "whatWeCheck": "Photos are checked for safety and clarity before a request goes live.",
+    "retake": "Retake",
+    "uploadFailed": "We couldn't send this photo. Take it again.",
+    "offline": "No connection. Check your network and take the photo again.",
+    "rateLimited": "You've sent a lot of photos just now. Wait a moment and try again.",
+    "rateLimitedIn": "You've sent a lot of photos just now. Try again in {{seconds}} seconds.",
+    "reason": {
+      "guidelines": "This photo doesn't meet our image guidelines. Take another one showing what's happening and what help is needed.",
+      "quality": "This photo is too dark or too blurry to make out. Try again in better light, holding your phone steady.",
+      "file": "This file couldn't be opened as a photo. Take a new one with your camera.",
+      "notPhotographic": "This needs to be a photo of the real situation — not a screenshot, drawing or graphic.",
+      "categoryMismatch": "This photo doesn't look like it matches the category you chose. Check the category, or take a photo of the situation itself.",
+      "duplicate": "This photo has already been used on a request. Take a new one of what's happening now.",
+      "unavailable": "We couldn't check this photo just now.",
+      "unknown": "This photo can't be used. Please take another one."
+    },
+    "publishError": {
+      "notVerified": "Your photos couldn't be attached. Please take them again.",
+      "rejected": "One of your photos can't be used. Take another one and try again.",
+      "needsReview": "This photo needs to be checked before it can be added. Please take a different one.",
+      "required": "Your request needs at least one photo.",
+      "unavailable": "A photo couldn't be attached. Please take it again."
+    },
+    "replaceError": {
+      "notAwaiting": "This request isn't waiting for a photo any more. Pull down to refresh and see where it stands."
+    }
+  },
+  "heldReport": {
+    "title": "Waiting on a photo check",
+    "body": "A photo on this request is still being checked, so nearby volunteers can't see it yet.",
+    "replacePrompt": "Asked for a different photo?",
+    "replaceHelp": "If we've asked you for a new photo, take one here. It has to be a fresh camera photo — the one already on this request can't be sent again.",
+    "takePhoto": "Take a new photo",
+    "addAnother": "Add another photo",
+    "send_one": "Send this photo",
+    "send_other": "Send these photos",
+    "stillHeldNote": "This photo needs a check too, so your request stays hidden until we've looked at it.",
+    "replacesAll": "This replaces every photo on the request.",
+    "sendFailed": "We couldn't send this photo. Try again.",
+    "sentLiveTitle": "Your request is live",
+    "sentLiveMessage": "The new photo passed, and nearby volunteers can see your request now.",
+    "sentHeldTitle": "Photo sent",
+    "sentHeldMessage": "We're checking it now. Your request goes out to nearby volunteers as soon as that's done."
   }
 }

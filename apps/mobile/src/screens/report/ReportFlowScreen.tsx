@@ -14,23 +14,30 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { ChevronRight, CheckCircle2 } from 'lucide-react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, Clock } from 'lucide-react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
-import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { RADIUS, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { type CategoryId } from '@uthavu/libs-mobile/data/categories';
-import { listReportCategories, createReport } from '@uthavu/libs-mobile/api/reports';
-import { getMe, uploadImage } from '@uthavu/libs-mobile/api/users';
+import { listReportCategories, createReport, type Report } from '@uthavu/libs-mobile/api/reports';
+import { getMe } from '@uthavu/libs-mobile/api/users';
+import { UPLOAD_RATE_LIMITED, uploadReportPhoto } from '@uthavu/libs-mobile/api/reportPhotos';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Button from '@uthavu/libs-mobile/components/Button';
 import { useConfig } from '../../hooks/useConfig';
-import { DESCRIPTION_MIN_LENGTH, EMPTY_DRAFT, type ReportDraft } from './reportDraft';
+import {
+  DESCRIPTION_MIN_LENGTH,
+  EMPTY_DRAFT,
+  type PhotoDraft,
+  type ReportDraft,
+} from './reportDraft';
+import { publishErrorCopyKey } from './photoVerdictCopy';
 import ReportDetailsPage from './steps/ReportDetailsPage';
 import ReportLocationPage from './steps/ReportLocationPage';
 
@@ -52,16 +59,11 @@ const CAT_ACCENT: Record<CategoryId, { iconBg: string }> = {
   lostAndFound:   { iconBg: '#FEF9C3' },
 };
 
-const CAT_TAGLINE: Record<CategoryId, string> = {
-  animalRescue:   'Injured, stray or trapped animals',
-  medicalHelp:    'Emergency medical assistance',
-  foodDonation:   'Meals, groceries & supplies',
-  roadsideHelp:   'Vehicle breakdowns & accidents',
-  elderlySupport: 'Care & support for senior citizens',
-  bloodDonation:  'Urgent blood donor needed',
-  communityHelp:  'Neighbourhood & public help',
-  lostAndFound:   'Missing people or belongings',
-};
+// CAT_TAGLINE lived here: eight English category taglines in a module-level
+// map, rendered by no component in this file since the category picker moved
+// onto ReportDetailsPage. Deleted rather than translated — a catalogue entry
+// nothing reads is worse than no entry, because the next i18n audit counts it
+// as covered.
 
 export default function ReportFlowScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
@@ -81,12 +83,15 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
   const [draft, setDraft] = useState<ReportDraft>({ ...EMPTY_DRAFT });
   const [locating, setLocating] = useState(true);
   const [locationError, setLocationError] = useState('');
-  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
 
-  // Success modal
-  const [createdReportId, setCreatedReportId] = useState<string | null>(null);
+  // The created report, not just its id — the success modal has to tell the
+  // truth about whether it is live, and only `status` knows that.
+  const [created, setCreated] = useState<Report | null>(null);
+  // Set the instant publishing starts and never cleared on success. See
+  // onPublishInternal for why this can't be `publishMutation.isPending`.
+  const publishGuard = useRef(false);
 
   const { data: categories } = useQuery({
     queryKey: ['reportCategories'],
@@ -144,51 +149,160 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
     }
   };
 
-  // Camera-only photo capture
-  const onTakePhoto = async () => {
-    // The cap the server enforces (create-report.dto.ts photoUrls.max), now
-    // read from /config instead of being implied by the number of slots the
-    // details page happened to draw. Guarding here as well as there covers the
-    // double-tap on the last empty slot.
-    if (draft.photos.length >= config.maxPhotosPerReport) return;
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (perm.status !== 'granted') {
-      Alert.alert(t('flow.cameraNeededTitle'), t('flow.cameraNeededMessage'));
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (result.canceled || !result.assets?.[0]) return;
-    const localUri = result.assets[0].uri;
+  // Guards a second camera launch while the first is still opening. A ref, not
+  // state: `setState` doesn't land before the second tap's handler runs, so a
+  // state flag reads stale and both taps proceed — two cameras, and on the
+  // append path a photo past maxPhotosPerReport.
+  const capturingRef = useRef(false);
+  // Per-capture identity. A counter rather than the local URI, which is not
+  // guaranteed unique across captures — see PhotoDraft.key.
+  const photoKeySeq = useRef(0);
+
+  /**
+   * Applies an update to one photo, by key.
+   *
+   * The `map` is what makes a late verification response safe: if the reporter
+   * removed or retook that photo while it was in flight, no entry matches and
+   * the response is dropped instead of resurrecting a deleted photo or
+   * overwriting its replacement's verdict.
+   */
+  const updatePhoto = (key: string, patch: Partial<PhotoDraft>) => {
     setDraft((d) => ({
       ...d,
-      photos: [...d.photos, { localUri, uploadedUrl: null, uploading: true, error: '' }],
+      photos: d.photos.map((p) => (p.key === key ? { ...p, ...patch } : p)),
     }));
-    try {
-      const uploaded = await uploadImage(localUri);
-      setDraft((d) => ({
-        ...d,
-        photos: d.photos.map((p) =>
-          p.localUri === localUri ? { ...p, uploadedUrl: uploaded.url, uploading: false } : p,
-        ),
-      }));
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : t('flow.uploadFailed');
-      setDraft((d) => ({
-        ...d,
-        photos: d.photos.map((p) =>
-          p.localUri === localUri ? { ...p, uploading: false, error: msg } : p,
-        ),
-      }));
+  };
+
+  const uploadErrorMessage = (e: unknown): string => {
+    if (e instanceof ApiError) {
+      if (e.code === UPLOAD_RATE_LIMITED) {
+        // The server knows the real wait; saying "later" when it told us "42
+        // seconds" invites exactly the retry loop the limit exists to stop.
+        return e.retryAfterSeconds
+          ? t('photoVerification.rateLimitedIn', { seconds: e.retryAfterSeconds })
+          : t('photoVerification.rateLimited');
+      }
+      if (e.code === 'NETWORK_UNREACHABLE') return t('photoVerification.offline');
     }
+    // Deliberately NOT `e.message`: the API speaks English only and this app
+    // ships in two languages. Nothing actionable is lost — a photo's own
+    // outcome always arrives as a 200 verdict, never as an error.
+    return t('photoVerification.uploadFailed');
+  };
+
+  /** Sends one capture for a verdict and folds the answer into its draft entry. */
+  const verifyPhoto = async (key: string, localUri: string) => {
+    try {
+      const result = await uploadReportPhoto(localUri, selectedCategory);
+
+      // A pass/review with no id would be a contract violation, and treating it
+      // as attachable would put a photo in the grid whose id can never reach
+      // POST /reports — the reporter would see a verified photo and publish a
+      // report without it. Treated as a failed upload, which is retakeable.
+      if (result.verdict !== 'reject' && !result.uploadId) {
+        updatePhoto(key, {
+          uploadId: null,
+          state: 'failed',
+          reason: null,
+          error: t('photoVerification.uploadFailed'),
+        });
+        return;
+      }
+
+      updatePhoto(key, {
+        // Null for a reject, by contract and by belt-and-braces: this is the
+        // field the publish payload is built from, so a refused photo
+        // physically cannot contribute an id to it.
+        uploadId: result.verdict === 'reject' ? null : result.uploadId,
+        state: result.verdict,
+        reason: result.reason,
+        error: '',
+      });
+    } catch (e) {
+      updatePhoto(key, {
+        uploadId: null,
+        state: 'failed',
+        reason: null,
+        error: uploadErrorMessage(e),
+      });
+    }
+  };
+
+  /**
+   * Camera-only photo capture, then verification.
+   *
+   * `replaceIndex` is the retake path: it swaps the photo in place rather than
+   * appending, so retaking photo 1 of 3 doesn't shuffle the other two under
+   * their slot labels, and the refused capture doesn't linger in the grid
+   * beside its replacement.
+   */
+  const capturePhoto = async (replaceIndex?: number) => {
+    if (capturingRef.current) return;
+    // The cap the server enforces (create-report.dto.ts photoUploadIds.max),
+    // read from /config instead of being implied by the number of slots the
+    // details page happened to draw. A retake consumes no new slot.
+    if (replaceIndex === undefined && draft.photos.length >= config.maxPhotosPerReport) return;
+
+    capturingRef.current = true;
+    let localUri: string;
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Alert.alert(t('flow.cameraNeededTitle'), t('flow.cameraNeededMessage'));
+        return;
+      }
+      // `mediaTypes` was missing at this one call site and present at every
+      // other capture site in the app. The default admits video, so a held
+      // shutter produced a .mov that the uploader labelled image/jpeg and the
+      // API refused as an unreadable file — a rejection the app inflicted on
+      // its own user, with no way for them to understand or avoid it.
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      localUri = result.assets[0].uri;
+    } finally {
+      // Released once the camera closes, NOT after verification — a second
+      // photo can be taken while the first is still being checked, which is how
+      // this flow already behaved and what a multi-slot grid implies.
+      capturingRef.current = false;
+    }
+
+    const key = `photo-${++photoKeySeq.current}`;
+    const pending: PhotoDraft = {
+      key,
+      localUri,
+      uploadId: null,
+      state: 'verifying',
+      reason: null,
+      error: '',
+    };
+
+    setDraft((d) => {
+      const photos = [...d.photos];
+      if (replaceIndex === undefined) photos.push(pending);
+      else photos.splice(replaceIndex, 1, pending);
+      return { ...d, photos };
+    });
+
+    void verifyPhoto(key, localUri);
   };
 
   const onRemovePhoto = (index: number) => {
     setDraft((d) => ({ ...d, photos: d.photos.filter((_, i) => i !== index) }));
   };
 
-  const canProceedDetails =
+  // Every photo has an id the server will accept. A 'review' counts: it is
+  // attachable, it just holds the report — which the details page says out loud
+  // before the reporter gets here. 'verifying', 'reject' and 'failed' all block,
+  // for three different reasons the rows on that page spell out individually.
+  const photosReady =
     draft.photos.length > 0 &&
-    draft.photos.every((p) => p.uploadedUrl && !p.uploading) &&
+    draft.photos.every((p) => (p.state === 'pass' || p.state === 'review') && p.uploadId);
+
+  const canProceedDetails =
+    photosReady &&
     draft.title.trim().length > 0 &&
     draft.description.trim().length >= DESCRIPTION_MIN_LENGTH;
 
@@ -199,14 +313,18 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
 
   const onNext = () => setPage((p) => p + 1);
 
-  const canPublish = confirmed && !locating && draft.lat !== null && draft.lng !== null;
+  const canPublish =
+    confirmed && photosReady && !locating && draft.lat !== null && draft.lng !== null;
 
-  const onPublishInternal = async () => {
-    if (!selectedCategory || draft.lat === null || draft.lng === null || publishing) return;
-    setPublishing(true);
-    setError('');
-    try {
-      const created = await createReport({
+  const publishMutation = useMutation({
+    mutationFn: () => {
+      // Narrowed here rather than trusted from `canPublish`: mutationFn is the
+      // only place the payload is built, so it is the only place these have to
+      // be non-null for the types to hold.
+      if (draft.lat === null || draft.lng === null) {
+        throw new ApiError(0, t('flow.publishError'));
+      }
+      return createReport({
         categoryKey: selectedCategory,
         title: draft.title.trim(),
         description: draft.description.trim(),
@@ -224,20 +342,53 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         // lets the category default stand.
         expiryMinutes:
           draft.customExpiryHours === null ? undefined : draft.customExpiryHours * 60,
-        photoUrls: draft.photos
-          .map((p) => p.uploadedUrl)
-          .filter((url): url is string => Boolean(url)),
+        // Verified-upload ids, not URLs. `photosReady` has already established
+        // that every photo has one, so the filter narrows the type rather than
+        // silently dropping a photo the reporter can see on screen.
+        photoUploadIds: draft.photos
+          .map((p) => p.uploadId)
+          .filter((id): id is string => Boolean(id)),
       });
+    },
+    onSuccess: (report) => {
       queryClient.invalidateQueries({ queryKey: ['myReports'] });
-      setCreatedReportId(created.id);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : t('flow.publishError'));
-    } finally {
-      setPublishing(false);
-    }
+      setCreated(report);
+      // publishGuard stays latched deliberately. The modal is now the only exit
+      // from this screen, and the draft's upload ids have been spent — a second
+      // POST could only ever produce a duplicate report or PHOTO_NOT_VERIFIED.
+    },
+    onError: (e) => {
+      publishGuard.current = false;
+      const code = e instanceof ApiError ? e.code : undefined;
+      // A photo-gate refusal gets its own sentence, in the reporter's language,
+      // because it is the one class of publish failure they can act on: the
+      // photos have to be captured again. Everything else is the generic
+      // message — the API's own `message` is English-only and this app is not.
+      const photoCopyKey = publishErrorCopyKey(code);
+      setError(photoCopyKey ? t(photoCopyKey) : t('flow.publishError'));
+    },
+  });
+
+  const onPublishInternal = () => {
+    // Latched BEFORE mutate(), and in a ref. `publishMutation.isPending` is
+    // state: two taps in the same frame both read `false` and both POST, which
+    // is two identical live reports and two sets of spent upload ids.
+    if (publishGuard.current || !canPublish) return;
+    publishGuard.current = true;
+    setError('');
+    publishMutation.mutate();
   };
 
-  const pageTitles = ['Add Details', 'Location & Privacy'];
+  // Read off the created report, never derived from the draft's own verdicts —
+  // the client's photo states are an input to the server's decision, not the
+  // decision itself, and a client that decides this for itself will eventually
+  // disagree with the report it just created.
+  const heldForReview = created?.status === 'pending_review';
+
+  // Through the catalogue, not a literal array. This is the nav header on both
+  // steps of the report flow — a hardcoded English array here is invisible to a
+  // JSX-text i18n sweep, which is exactly how it survived one.
+  const pageTitles = [t('flow.pageAddDetails'), t('flow.pageLocationPrivacy')];
 
   return (
     <KeyboardAvoidingView
@@ -272,6 +423,16 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
           <ReportDetailsPage
             draft={draft}
             categoryKey={selectedCategory}
+            // KNOWN LIMITATION, deliberately not "fixed" here. A photo's verdict
+            // is computed against the category that was selected when it was
+            // captured (relevance is judged against that category's expected
+            // labels), so changing the category afterwards leaves the verdict
+            // stale. Re-verifying every photo on every category tap would spend
+            // the reporter's upload rate limit — and a paid provider call — on
+            // somebody scrolling a dropdown. The exposure is small: category
+            // relevance only ever produces `review`, never `reject`, so the
+            // worst case is a report that should have been held isn't. The real
+            // fix belongs server-side, re-checking relevance at attach time.
             onChangeCategory={(catKey) => setSelectedCategory(catKey as CategoryId)}
             onChangeTitle={(title) => setDraft((d) => ({ ...d, title }))}
             onChangeDescription={(description) => setDraft((d) => ({ ...d, description }))}
@@ -280,8 +441,9 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
             }
             maxPhotos={config.maxPhotosPerReport}
             maxVolunteers={config.maxVolunteersPerReport}
-            onTakePhoto={onTakePhoto}
+            onTakePhoto={() => capturePhoto()}
             onRemovePhoto={onRemovePhoto}
+            onRetakePhoto={(index) => capturePhoto(index)}
           />
         )}
 
@@ -329,38 +491,59 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
       )}
       {page === 1 && (
         <View style={styles.footer}>
+          {/* Repeated from the details page on purpose. This is the button that
+              commits, and it is labelled "Publish" — a reporter who scrolled
+              past the notice two screens ago would otherwise tap it believing
+              help is being summoned right now. */}
+          {draft.photos.some((p) => p.state === 'review') && (
+            <Text style={styles.holdFooterNote}>{t('photoVerification.heldNotice')}</Text>
+          )}
           <Button
             label={t('flow.publish')}
             onPress={onPublishInternal}
-            loading={publishing}
+            loading={publishMutation.isPending}
             disabled={!canPublish}
           />
         </View>
       )}
 
-      {/* ── Success modal ── */}
-      <Modal visible={Boolean(createdReportId)} transparent animationType="fade">
+      {/* ── Success modal ──
+          Two variants, because there are two outcomes. "Your request is now
+          live for nearby volunteers" is simply false for a held report: nobody
+          can see it, and telling the reporter otherwise means they stand there
+          waiting for help that was never dispatched. The server decides which
+          one this is (status 'pending_review'), not the client's guess about
+          its own photos. */}
+      <Modal visible={Boolean(created)} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.successCard}>
-            <View style={styles.successIconBadge}>
-              <CheckCircle2 size={36} color={colors.primaryGreen} />
-            </View>
-            <Text style={styles.successTitle}>{t('flowExtra.postedTitle')}</Text>
+            {heldForReview ? (
+              <View style={[styles.successIconBadge, styles.pendingIconBadge]}>
+                <Clock size={36} color={TONES.soon.fg} />
+              </View>
+            ) : (
+              <View style={styles.successIconBadge}>
+                <CheckCircle2 size={36} color={colors.primaryGreen} />
+              </View>
+            )}
+            <Text style={styles.successTitle}>
+              {heldForReview ? t('flowExtra.postedPendingTitle') : t('flowExtra.postedTitle')}
+            </Text>
             <Text style={styles.successSub}>
-              {t('flowExtra.postedMessage')}
+              {heldForReview ? t('flowExtra.postedPendingMessage') : t('flowExtra.postedMessage')}
             </Text>
             <View style={styles.successBtnStack}>
               <Button
                 label={t('flowExtra.viewRequest')}
                 onPress={() => {
-                  const id = createdReportId;
-                  setCreatedReportId(null);
+                  const id = created?.id;
+                  setCreated(null);
                   if (id) navigation.replace('RequestDetails', { reportId: id });
                 }}
               />
               <TouchableOpacity
                 style={styles.homeBtn}
-                onPress={() => { setCreatedReportId(null); navigation.navigate('MainTabs'); }}
+                onPress={() => { setCreated(null); navigation.navigate('MainTabs'); }}
               >
                 <Text style={styles.homeBtnText}>{t('flowExtra.goHome')}</Text>
               </TouchableOpacity>
@@ -411,6 +594,12 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       gap: SPACING.xs,
     },
     locationErrorText: { ...TYPE.body, color: colors.danger },
+    holdFooterNote: {
+      ...TYPE.caption,
+      color: TONES.soon.fg,
+      marginBottom: SPACING.xs,
+      lineHeight: 16,
+    },
     locationRetryText: { ...TYPE.footnote, color: colors.primaryGreen, fontWeight: '700' },
 
     footer: {
@@ -489,6 +678,9 @@ const createStyles = (colors: ColorScheme, insets: { top: number; bottom: number
       justifyContent: 'center',
       marginBottom: SPACING.sm,
     },
+    // Amber, not green. The badge is the first thing read, and a green tick
+    // over "your request is being checked" contradicts the sentence under it.
+    pendingIconBadge: { backgroundColor: TONES.soon.fill },
     successTitle: { ...TYPE.display, color: colors.textPrimary },
     successSub: { ...TYPE.body, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.xxs, marginBottom: SPACING.lg, lineHeight: 19 },
     successBtnStack: { width: '100%', gap: SPACING.xs },

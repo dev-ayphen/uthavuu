@@ -220,6 +220,15 @@
     "badgeCancelled": "Cancelled",
     "badgeExpired": "Expired",
     "badgeActiveMission": "Active Mission",
-    "badgeOpen": "Status: Open"
+    "badgeOpen": "Status: Open",
+    "tabPendingReview": "Pending review",
+    "tabRejected": "Rejected",
+    "emptyPendingReviewTitle": "Nothing awaiting review",
+    "emptyPendingReviewSubtitle": "Requests being checked appear here.",
+    "emptyRejectedTitle": "No rejected requests",
+    "badgePendingReview": "Pending review",
+    "badgeRejected": "Rejected",
+    "badgeUnknown": "Status unavailable",
+    "volunteersJoined": "{{joined}} / {{needed}} volunteers joined"
   }
 }

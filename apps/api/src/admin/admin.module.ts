@@ -15,6 +15,8 @@ import { AdminCommentsController } from './admin-comments.controller';
 import { AdminCommentsService } from './admin-comments.service';
 import { AdminReportsController } from './admin-reports.controller';
 import { AdminReportsService } from './admin-reports.service';
+import { AdminReportPhotosController } from './admin-report-photos.controller';
+import { AdminReportPhotosService } from './admin-report-photos.service';
 import { AdminImpactStoriesController } from './admin-impact-stories.controller';
 import { AdminImpactStoriesService } from './admin-impact-stories.service';
 import { AdminAnalyticsController } from './admin-analytics.controller';
@@ -37,6 +39,7 @@ import { AdminActivityController } from './admin-activity.controller';
 import { AdminActivityService } from './admin-activity.service';
 import { AdminBroadcastsController } from './admin-broadcasts.controller';
 import { AdminBroadcastsService } from './admin-broadcasts.service';
+import { PhotoModerationService } from '../moderation/photo-moderation.service';
 import { AlertsModule } from '../alerts/alerts.module';
 import { PushModule } from '../push/push.module';
 
@@ -66,6 +69,7 @@ import { PushModule } from '../push/push.module';
     AdminSupportController,
     AdminCommentsController,
     AdminReportsController,
+    AdminReportPhotosController,
     AdminImpactStoriesController,
     AdminAnalyticsController,
     AdminCommunityUpdatesController,
@@ -89,6 +93,15 @@ import { PushModule } from '../push/push.module';
     AdminSupportService,
     AdminCommentsService,
     AdminReportsService,
+    AdminReportPhotosService,
+    // Provided here rather than imported from ModerationModule, deliberately.
+    // ModerationModule wires the Rekognition provider — an AWS SDK client and
+    // its credential resolution — and none of that is needed to answer "is this
+    // report still waiting on a photo". PhotoModerationService has no
+    // dependencies of its own, so listing the class is the whole of the wiring,
+    // and AdminModule does not acquire a transitive dependency on a paid
+    // external service in order to release a report.
+    PhotoModerationService,
     AdminImpactStoriesService,
     AdminAnalyticsService,
     AdminSystemHealthService,

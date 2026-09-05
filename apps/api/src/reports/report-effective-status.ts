@@ -63,12 +63,24 @@ import { reportStatuses, reports } from '../db/schema/reports-schema';
  * way, because it never trusted the column in the first place.
  */
 
-/** The five values an admin surface can see. */
+/**
+ * Every value an admin surface can see.
+ *
+ * `pending_review` and `rejected` joined this list with photo verification and
+ * are FIRST-CLASS, not special cases bolted on at the edges. They are stored
+ * keys like `closed` and `completed`, so the `else` branch of the SQL below
+ * already returns them — but the union, the admin status filter (which derives
+ * its enum from this constant), the badges and the per-status counts all read
+ * from here, and leaving them out would have produced a status the console
+ * could receive and could not name.
+ */
 export const EFFECTIVE_STATUSES = [
   'open',
+  'pending_review',
   'expired',
   'closed',
   'completed',
+  'rejected',
   'deleted',
 ] as const;
 

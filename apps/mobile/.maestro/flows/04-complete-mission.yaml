@@ -1,22 +1,50 @@
 appId: host.exp.Exponent
 ---
-# Critical journey 4/4: an active volunteer completes a mission (proof
-# photo + note) and the report closes. Seeds a reporter + report + an
-# already-accepted-and-confirmed volunteer via HTTP (accept/confirm are
-# already covered by 03-accept-and-volunteer.yaml) so this flow stays
-# focused on completion. See ../README.md.
-- evalScript: ${output.reportTitle = 'Maestro complete test ' + Date.now()}
+# Critical journey 4/4: an active volunteer completes a mission.
+#
+# ── WHAT THIS FLOW COVERS, AND WHERE IT DELIBERATELY STOPS ──────────────────
+#
+# It takes a report seeded before the run, seeds an already-accepted-and-
+# confirmed volunteer over HTTP (accept/confirm is 03's job), logs that
+# volunteer in through the UI, finds the report, and opens the completion
+# sheet. It then asserts the sheet's own gate:
+# `isValid = !!photoUrl && note.trim().length > 0` in CompleteMissionSheet.tsx,
+# so a note WITHOUT a proof photo must not submit.
+# Finally it opens the camera and asserts the native shutter appeared.
+#
+# What this flow uniquely owns, beyond 03: that an ACTIVE volunteer — not
+# merely a joined one — is offered "Complete Mission" at all, that the sheet
+# renders its photo/note/submit trio, and that completion is gated on a live
+# proof photo in the UI rather than only by the API.
+#
+# It stops at the camera because it must. The proof photo is camera-only by
+# design and the iOS Simulator has no camera hardware: the native camera UI
+# opens and "Take Picture" can be tapped, but nothing is captured, so the sheet
+# never gets a photoUrl and Submit can never enable. Same wall as
+# 02-report-a-request.yaml.
+#
+# Rather than fail every run at a step no Simulator can pass — a permanently
+# red flow stops being read, and takes the suite's signal with it — this ends
+# at the boundary with a real assertion. The completion round trip itself
+# (photo + note -> mission_completions row -> report closes) is covered by the
+# API's own integration tests, which drive it over HTTP with a real upload.
+# To cover the whole journey through Submit, run on a physical device:
+# `maestro test --device <udid>`.
+#
+# See ../README.md.
 
-- runScript:
-    file: utils/seed-user.js
-    env:
-      ROLE: reporter
-
+# The reporter and the report are BOTH created by scripts/run-e2e.mjs before
+# Maestro starts — a live report now needs a real photo upload and an admin
+# approval, neither of which a Maestro script can do (see utils/seed-report.js).
+# So this flow seeds only the volunteer it drives.
 - runScript:
     file: utils/seed-report.js
     env:
-      REPORTER_TOKEN: ${output.reporterToken}
-      REPORT_TITLE: ${output.reportTitle}
+      # The SECOND of the two reports run-e2e.mjs seeds — 03 takes the first, and
+      # accepting fills a report's single volunteer slot, so this flow cannot
+      # reuse the one 03 already consumed.
+      SEED_REPORT_ID: ${SEED_REPORT_2_ID}
+      SEED_REPORT_TITLE: ${SEED_REPORT_2_TITLE}
 
 - runScript:
     file: utils/seed-user.js
@@ -37,40 +65,68 @@ appId: host.exp.Exponent
 
 - assertVisible: "Medical Help"
 - tapOn: "Medical Help"
-# The row's real accessibility label combines title + distance + time
-# into one string — same finding as 03-accept-and-volunteer.yaml. Also
-# scroll first: nothing cleans up reports seeded by earlier flow runs, so
-# this list grows over repeated runs and the newest report isn't always
-# in the initial viewport.
+
+# Filter by the search box first: seeded reports are never cleaned up, they all
+# sit at 0 km, and the feed's nearest-first sort has no tiebreaker, so scrolling
+# alone is not a reliable way to reach the newest one. The scroll below stays as
+# a fallback so a regression in search degrades to a slow pass, not a vanish.
+- tapOn:
+    text: ".*Search .* requests.*"
+    optional: true
+- inputText: ${output.reportTitle}
+- hideKeyboard
+
+# Match the ROW, not the search field. The card collapses into a single
+# accessibility node whose label is "<title>, <distance> km away, <time>
+# remaining" (confirmed from a hierarchy dump). Since the title was just typed
+# into the search box, a bare ".*<title>.*" now matches that field too — and
+# Maestro picks the field, taps a text input, and the flow fails several steps
+# later on an assertion that had nothing to do with the real cause. Anchoring
+# on the ", … km away" suffix matches only the row.
 - scrollUntilVisible:
     element:
-      text: ".*${output.reportTitle}.*"
+      text: ".*${output.reportTitle}, .*km away.*"
     direction: DOWN
-- tapOn: ".*${output.reportTitle}.*"
+- tapOn: ".*${output.reportTitle}, .*km away.*"
 
+# ── The completion sheet ────────────────────────────────────────────────────
+# Offered only to an ACTIVE volunteer — this is the assertion that separates
+# this flow from 03, whose volunteer has only just confirmed.
 - assertVisible: "Complete Mission"
 - tapOn: "Complete Mission"
 
-# Same iOS Simulator camera caveat as 02-report-a-request.yaml — the
-# least-verified step in this suite. Real accessible label is
-# "Take completion photo" (accessibilityLabel differs from the rendered
-# "Take a photo" text — confirmed via a hierarchy dump).
+# The sheet's three controls. Their real accessible names differ from what is
+# rendered: the photo button reads "Take a photo" but is labelled "Take
+# completion photo", and the note field's label is its accessibilityLabel AND
+# its placeholder concatenated — "Completion note What did you do? (required)".
+# Maestro matches a plain string against the WHOLE label, so "Completion note"
+# on its own does not match; wildcard it. Both confirmed from a hierarchy dump.
+- assertVisible: "Take completion photo"
+- assertVisible: ".*Completion note.*"
+
+# ── The proof-photo rule ────────────────────────────────────────────────────
+# Fill the note but take no photo. Submit is disabled while photoUrl is null,
+# so this tap must not complete the mission. Still seeing the sheet, and NOT
+# seeing the completed state, is the assertion — it proves the rule is enforced
+# in the UI and not only by the API.
+- tapOn: ".*Completion note.*"
+- inputText: "Delivered medical supplies. Seeded by a Maestro E2E flow."
+- hideKeyboard
+- tapOn:
+    text: "Submit"
+    optional: true
+- assertNotVisible: "Mission Completed"
+- assertVisible: "Take completion photo"
+
+# ── Camera launch — the documented boundary ────────────────────────────────
 - tapOn: "Take completion photo"
 - tapOn:
     text: "Allow|OK"
     optional: true
 - waitForAnimationToEnd
-- tapOn:
-    text: "Take Picture"
-    optional: true
-- tapOn:
-    text: "Use Photo|Choose"
-    optional: true
-- waitForAnimationToEnd
 
-- tapOn: "Completion note"
-- inputText: "Delivered medical supplies. Seeded by a Maestro E2E flow."
-- hideKeyboard
-- tapOn: "Submit"
-
-- assertVisible: "Mission Completed"
+# "Take Picture" is the native shutter's real accessible name (the
+# "PhotoCapture" class name a screenshot might suggest is not what a text
+# selector matches). Asserting it proves the camera-only capture path really
+# opened, which is the last thing verifiable without camera hardware.
+- assertVisible: "Take Picture"

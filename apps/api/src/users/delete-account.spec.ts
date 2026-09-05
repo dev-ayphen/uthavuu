@@ -24,9 +24,9 @@ import { AlertsService } from '../alerts/alerts.service';
 import { CommentsService } from '../comments/comments.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
 import {
-  removeUploadFixture,
-  writeUploadFixture,
-} from '../uploads/testing/upload-fixture';
+  createPhotoUploadFixture,
+  removePhotoUploadFixture,
+} from '../uploads/testing/photo-upload-fixture';
 import type { CreateReportDto } from '../reports/dto/create-report.dto';
 
 describe('Account deletion — community mission preservation', () => {
@@ -42,15 +42,14 @@ describe('Account deletion — community mission preservation', () => {
   // A real file, because create() now refuses a photo URL no upload produced
   // (docs/_audit/issues.md issue 27). Named per-suite: UPLOADS_DIR is shared by
   // every Jest worker.
-  const REPORT_PHOTO_FIXTURE = 'delete-account-spec-report.jpg';
-  let reportPhotoUrl: string;
+  const mintedFiles: string[] = [];
+  // Falls back to BETTER_AUTH_URL rather than depending on a faked Host header.
+  const req = { get: () => undefined } as unknown as import('express').Request;
 
-  beforeAll(() => {
-    reportPhotoUrl = writeUploadFixture(REPORT_PHOTO_FIXTURE);
-  });
+  beforeAll(() => {});
 
   afterAll(async () => {
-    removeUploadFixture(REPORT_PHOTO_FIXTURE);
+    mintedFiles.forEach(removePhotoUploadFixture);
     // Whatever's left of each test's fixtures — deleteAccount() itself
     // already removed the users under test, this just mops up the rest
     // (reports belonging to any user that survived a test, or a
@@ -73,9 +72,26 @@ describe('Account deletion — community mission preservation', () => {
     return id;
   }
 
-  function baseInput(
+  /**
+   * A report payload with a freshly-minted, verified photo for THIS reporter.
+   *
+   * Async and per-reporter because an upload id belongs to one uploader and may
+   * be attached to one report — the two rules that stop a verified photo being
+   * borrowed or reused. Every test here makes its own user, so a shared fixture
+   * would fail the ownership check rather than the thing under test.
+   */
+  async function baseInput(
+    reporterId: string,
     overrides: Partial<CreateReportDto> = {},
-  ): CreateReportDto {
+  ): Promise<CreateReportDto> {
+    const filename = `delete-account-${uuidv7()}.jpg`;
+    mintedFiles.push(filename);
+    const uploadId = await createPhotoUploadFixture({
+      uploaderId: reporterId,
+      filename,
+      decision: 'pass',
+    });
+
     return {
       categoryKey: 'medicalHelp',
       title: 'Test report',
@@ -85,7 +101,7 @@ describe('Account deletion — community mission preservation', () => {
       anonymous: false,
       phoneVisible: false,
       neededVolunteers: 1,
-      photoUrls: [reportPhotoUrl],
+      photoUploadIds: [uploadId],
       ...overrides,
     };
   }
@@ -93,7 +109,11 @@ describe('Account deletion — community mission preservation', () => {
   describe('Rule 1 — nobody ever volunteered', () => {
     it('soft-deletes the report via the existing Delete Report mechanism, not a hard delete', async () => {
       const reporterId = await makeUser('Unclaimed Reporter');
-      const created = await reportsService.create(reporterId, baseInput());
+      const created = await reportsService.create(
+        reporterId,
+        await baseInput(reporterId),
+        req,
+      );
 
       await usersService.deleteAccount(reporterId);
 
@@ -122,7 +142,11 @@ describe('Account deletion — community mission preservation', () => {
     it('leaves a report alone if a volunteer ever joined, even after they released', async () => {
       const reporterId = await makeUser('Once-Claimed Reporter');
       const volunteerId = await makeUser('Volunteer Who Left');
-      const created = await reportsService.create(reporterId, baseInput());
+      const created = await reportsService.create(
+        reporterId,
+        await baseInput(reporterId),
+        req,
+      );
 
       await missionsService.accept(created.id, volunteerId);
       await missionsService.leave(created.id, volunteerId);
@@ -163,7 +187,8 @@ describe('Account deletion — community mission preservation', () => {
         // Reporter creates.
         const created = await reportsService.create(
           reporterId,
-          baseInput({ title: 'Need groceries urgently' }),
+          await baseInput(reporterId, { title: 'Need groceries urgently' }),
+          req,
         );
 
         // Volunteer accepts.
@@ -259,7 +284,8 @@ describe('Account deletion — community mission preservation', () => {
 
       const created = await reportsService.create(
         reporterId,
-        baseInput({ neededVolunteers: 1 }),
+        await baseInput(reporterId, { neededVolunteers: 1 }),
+        req,
       );
 
       await missionsService.accept(created.id, volunteerId);

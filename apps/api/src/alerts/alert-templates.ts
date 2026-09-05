@@ -25,7 +25,23 @@ export type AlertType =
   | 'volunteer_accepted'
   | 'volunteer_released'
   | 'mission_completed'
-  | 'report_cancelled';
+  | 'report_cancelled'
+  // Photo review. These three are the only alerts in this file raised by a
+  // MODERATOR rather than by another citizen's action, and they are the only
+  // channel by which a reporter learns why a request they submitted did not
+  // appear. Without them a held report is silent failure: the reporter sees it
+  // sitting in their own list, nobody else ever sees it, and nothing says why.
+  //
+  // ⚠️ NONE OF THIS COPY MAY DESCRIBE THE MACHINE'S REASONING. No confidence
+  // score, no label name, no threshold, and not the moderator's own written
+  // reason either — that sentence is internal, English-only, and written for
+  // the audit log rather than for the person it is about. A citizen who learns
+  // which signal held their photo has learned how to tune the next one until it
+  // passes, which is the same rule photo-verification.service.ts applies to the
+  // upload response.
+  | 'report_photo_approved'
+  | 'report_photo_rejected'
+  | 'report_photo_replacement_requested';
 
 export const ALERT_LOCALES = ['en', 'ta'] as const;
 export type AlertLocale = (typeof ALERT_LOCALES)[number];
@@ -76,6 +92,29 @@ const TEMPLATES: Record<
       body: (p) =>
         `The request you joined ("${p.reportTitle}") has been cancelled by the reporter.`,
     },
+    // Sent when the review RELEASES the report, not when one photo is approved
+    // — see AdminReportPhotosService.approve(). "Your photo passed" would be a
+    // fact the reporter cannot act on and, on a multi-photo report, would be
+    // sent while the request was still invisible to everyone.
+    report_photo_approved: {
+      title: 'Request Published',
+      body: (p) =>
+        `Your request ("${p.reportTitle}") has been reviewed and is now visible to nearby volunteers.`,
+    },
+    // Deliberately says the request was not published rather than naming what
+    // was wrong with the picture. It is also the one alert of the three raised
+    // WITHOUT a reportId (see AdminReportPhotosService.reject) — the wording
+    // therefore has to stand on its own, because it is not a link to anything.
+    report_photo_rejected: {
+      title: 'Request Not Published',
+      body: (p) =>
+        `Your request ("${p.reportTitle}") could not be published because a photo on it does not meet Uthavu's photo guidelines.`,
+    },
+    report_photo_replacement_requested: {
+      title: 'New Photo Needed',
+      body: (p) =>
+        `Your request ("${p.reportTitle}") needs a different photo before it can be published. Please add another one.`,
+    },
   },
   ta: {
     anonymousVolunteer: 'ஒரு தன்னார்வலர்',
@@ -98,6 +137,26 @@ const TEMPLATES: Record<
       title: 'கோரிக்கை ரத்து செய்யப்பட்டது',
       body: (p) =>
         `நீங்கள் இணைந்த கோரிக்கை ("${p.reportTitle}") புகாரளித்தவரால் ரத்து செய்யப்பட்டது.`,
+    },
+    // ⚠️ MACHINE-TRANSLATED, NOT REVIEWED. The file-level caveat above applies
+    // to every Tamil string here, and it applies hardest to these three: they
+    // are the copy that tells a person in an emergency why their request for
+    // help did not appear. A native-speaker pass is required before production
+    // — do not treat these as final.
+    report_photo_approved: {
+      title: 'கோரிக்கை வெளியிடப்பட்டது',
+      body: (p) =>
+        `உங்கள் கோரிக்கை ("${p.reportTitle}") சரிபார்க்கப்பட்டு, இப்போது அருகிலுள்ள தன்னார்வலர்களுக்குத் தெரிகிறது.`,
+    },
+    report_photo_rejected: {
+      title: 'கோரிக்கை வெளியிடப்படவில்லை',
+      body: (p) =>
+        `உங்கள் கோரிக்கையில் ("${p.reportTitle}") உள்ள ஒரு புகைப்படம் உதவு-வின் புகைப்பட வழிகாட்டுதல்களுக்கு உட்படாததால், அது வெளியிடப்படவில்லை.`,
+    },
+    report_photo_replacement_requested: {
+      title: 'புதிய புகைப்படம் தேவை',
+      body: (p) =>
+        `உங்கள் கோரிக்கை ("${p.reportTitle}") வெளியிடப்படுவதற்கு முன், வேறு ஒரு புகைப்படம் தேவை. தயவுசெய்து மற்றொன்றைச் சேர்க்கவும்.`,
     },
   },
 };

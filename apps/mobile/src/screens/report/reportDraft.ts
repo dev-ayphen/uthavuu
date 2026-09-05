@@ -4,10 +4,43 @@
 // Matches CreateReportSchema/UpdateReportSchema server-side (apps/api/src/reports/dto) —
 // long enough to reject "help"/"asap" without being onerous for a genuine request.
 export const DESCRIPTION_MIN_LENGTH = 20;
+
+/**
+ * Where one captured photo is in the verification round trip.
+ *
+ *   verifying — the upload is in flight; no verdict exists yet.
+ *   pass      — attachable, and publishes with the report immediately.
+ *   review    — attachable, but attaching it HOLDS the whole report.
+ *   reject    — refused. There is no upload id; the photo cannot be attached
+ *               and the only way forward is a new capture.
+ *   failed    — the request never produced a verdict (offline, rate-limited,
+ *               server error). Deliberately NOT folded into `reject`: one means
+ *               "this picture is not allowed", the other means "we never got to
+ *               look", and telling a person the first when the second happened
+ *               is both wrong and unfixable from their side.
+ */
+export type PhotoDraftState = 'verifying' | 'pass' | 'review' | 'reject' | 'failed';
+
 export type PhotoDraft = {
+  /**
+   * Identity for this capture attempt, and the key every async update matches
+   * on. NOT the local URI: two captures can in principle land on the same path,
+   * and matching on the URI would let a late response for a removed photo write
+   * itself onto its replacement. A `map` keyed on this simply finds nothing when
+   * the entry is gone, which is the behaviour a removed-mid-upload photo needs.
+   */
+  key: string;
   localUri: string;
-  uploadedUrl: string | null;
-  uploading: boolean;
+  /** Set for 'pass' and 'review' only — the currency `POST /reports` accepts. */
+  uploadId: string | null;
+  state: PhotoDraftState;
+  /**
+   * The API's machine reason code, untranslated. Rendered through
+   * photoVerdictCopy.ts; never shown raw, and never accompanied by a score,
+   * label, threshold or provider name.
+   */
+  reason: string | null;
+  /** Already-localised text for `state === 'failed'` only. */
   error: string;
 };
 

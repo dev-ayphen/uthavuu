@@ -14,7 +14,8 @@
     "db:generate": "pnpm --filter api db:generate",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:studio": "pnpm --filter api db:studio",
-    "db:seed": "pnpm --filter api db:seed"
+    "db:seed": "pnpm --filter api db:seed",
+    "verify:photo": "bash scripts/verification/photo-verification-e2e.sh && bash scripts/verification/photo-verification-journeys.sh"
   },
   "devDependencies": {
     "marked": "^18.0.10"

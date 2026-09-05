@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
-import { eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
-import { reports } from '../db/schema/reports-schema';
+import { reportStatuses, reports } from '../db/schema/reports-schema';
 
 type ReportRow = typeof reports.$inferSelect;
 
@@ -19,7 +19,60 @@ type ReportRow = typeof reports.$inferSelect;
  * rows via `?includeDeleted=true`, and its "reinstate" flow could not exist if it
  * could not see them. That exception is audited and intentional.
  */
-export const notRemoved = isNull(reports.deletedAt);
+export const removedFilter = isNull(reports.deletedAt);
+
+/**
+ * Report statuses that exist BEFORE a report is published, and therefore must
+ * never appear on a citizen surface.
+ *
+ * `pending_review` — a photo needs a moderator; the report is real and the
+ *                    reporter can see it in their own list, but nobody else may.
+ * `rejected`       — moderation refused it. It stays for the reporter's own
+ *                    history and never becomes public.
+ */
+export const PRE_PUBLICATION_STATUS_KEYS = [
+  'pending_review',
+  'rejected',
+] as const;
+
+/**
+ * `status_id` is not one of the pre-publication statuses.
+ *
+ * Written as a subquery against the lookup table rather than a joined
+ * comparison, deliberately: several citizen queries do not join
+ * `report_statuses` at all, and a predicate that silently required a join would
+ * be a predicate people quietly drop. `report_statuses` has six rows, so the
+ * planner turns this into a trivial hashed subplan.
+ */
+export const notPrePublication = sql`${reports.statusId} not in (
+  select id from report_statuses where key in ('pending_review', 'rejected')
+)`;
+
+/**
+ * The predicate every citizen-facing query over `reports` must carry.
+ *
+ * docs/architecture/data.md invariant 1 states the soft-delete half; this
+ * constant exists so a new listing can satisfy the whole rule by importing
+ * something rather than by remembering two things.
+ *
+ * ⚠️ THE PRE-PUBLICATION HALF WAS ADDED HERE, NOT AS A SECOND EXPORT, ON
+ * PURPOSE. The soft-delete invariant was already enforced by discipline alone
+ * and the end-to-end audit found it leaking on six separate mobile read paths —
+ * `ReportsService` had it right on all seven of its own queries and every other
+ * service had it wrong on all of theirs. Publishing a second predicate that
+ * callers must ALSO remember would reproduce that failure exactly, and the
+ * consequence this time is a report held for moderation appearing in the public
+ * feed, which defeats the entire verification feature. Widening the predicate
+ * every existing caller already imports means they were all fixed the moment
+ * this line changed.
+ *
+ * Admin paths deliberately do NOT use this: `AdminReportsService` reaches hidden
+ * rows via `?includeDeleted=true`, and its "reinstate" flow could not exist if it
+ * could not see them. That exception is audited and intentional. The photo
+ * review queue relies on the same exemption to show a moderator the very reports
+ * this predicate hides from citizens.
+ */
+export const notRemoved = and(removedFilter, notPrePublication)!;
 
 /**
  * A 404 that says *why*, for a report that no longer exists for citizens.
@@ -92,7 +145,41 @@ export async function requireVisibleReport(
     .where(eq(reports.id, reportId));
   if (!report || report.deletedAt !== null)
     await throwForMissingReport(reportId, report);
+  // A report still awaiting photo moderation is not yet public, so every
+  // citizen path that guards a read or a write with this must refuse it —
+  // including the writes. Without this branch a stranger holding the id could
+  // post a public Community Comment onto a report no moderator had cleared,
+  // which is the same class of bug ReportRemovedException was written for.
+  //
+  // NOT `ReportRemovedException`, which is what this threw first. Its message is
+  // "This request has been removed and is no longer available" — and that is
+  // simply FALSE about a report awaiting moderation. It has not been removed; it
+  // has not been published yet. The reporter can still open it, edit it and send
+  // a replacement photo, and telling them their own live request was removed
+  // would be a worse lie than saying nothing.
+  //
+  // `REPORT_NOT_FOUND` discloses nothing a stranger could not already infer from
+  // a 404, and is the honest answer on this guard, which does not know WHO is
+  // asking — `findOne` is the path that knows, and it lets the owner through.
+  if (await isPrePublication(report.statusId)) {
+    throw new NotFoundException({
+      code: 'REPORT_NOT_FOUND',
+      message: 'Report not found',
+    });
+  }
   return report;
+}
+
+/** True when this status_id is one of the pre-publication keys. */
+async function isPrePublication(statusId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ key: reportStatuses.key })
+    .from(reportStatuses)
+    .where(eq(reportStatuses.id, statusId));
+  return (
+    row !== undefined &&
+    (PRE_PUBLICATION_STATUS_KEYS as readonly string[]).includes(row.key)
+  );
 }
 
 /**

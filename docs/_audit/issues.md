@@ -861,3 +861,110 @@ written when one is refused.
 **Still open from issue 26**, unchanged by this: storing a **relative** `/uploads/<file>` and letting
 each client resolve it. It would make this check a pure path question with no origin in it at all,
 but it needs a coordinated mobile change plus a backfill of all three columns.
+
+---
+
+*Raised 2026-09-05 by the architecture agent during the photo-verification documentation closure
+pass. All three were found by reading the code against
+[ADR 0014](../decisions/0014-photo-verification-publication-gate.md) and
+[`features/photo-verification.md`](../features/photo-verification.md). **Nothing was fixed** — this
+agent is document-only. Citations are against the uncommitted working tree at `HEAD = 15136b5`.*
+
+## HIGH — 28. Two ways out of `pending_review` disagree about the expiry window
+
+A report whose `expiry_at` passes while it sits in the moderation queue keeps reading as
+`pending_review` — `effectiveStatusSql` only maps a *stored* `open` to `expired`
+(`apps/api/src/reports/report-effective-status.ts:94-103`), which is correct while it is queued and
+is exactly why the problem only appears at the moment of release.
+
+**The moderator path handles it.** `PhotoModerationService.publishIfReady()` applies
+`restoredWindow()` (`apps/api/src/moderation/photo-moderation.service.ts:209`, function at
+`:358-399`): if the window had already closed, it restarts from the approval instant for the
+reporter's original duration (`expiry_at − created_at`), and it deliberately does nothing when the
+approval lands inside the window. Five tests pin it
+(`admin-report-photos.service.spec.ts:210,243,289,300,312`), and ADR 0014 records the reasoning:
+the delay was the platform's, not the reporter's.
+
+**The citizen path does not.** `ReportsService.replaceHeldPhotos()` writes `open` itself rather than
+going through `publishIfReady()`:
+
+```ts
+// apps/api/src/reports/reports.service.ts:926-932
+await db
+  .update(reports)
+  .set({
+    statusId: await this.getStatusIdByKey('open'),
+    updatedAt: new Date(),
+  })
+  .where(eq(reports.id, reportId));
+```
+
+No `expiryAt`. So the sequence a moderator's `request_new` sets up produces exactly the outcome
+PV-17 exists to prevent:
+
+```
+10:00  citizen submits                        -> pending_review
+10:20  moderator asks for a different photo    -> still pending_review
+12:00  expiry_at passes while the reporter is out of signal
+12:30  reporter sends a replacement, it passes -> open, and INSTANTLY reads `expired`
+```
+
+The reporter did what they were asked and got a dead card, with nothing anywhere naming why.
+
+**Severity is HIGH rather than MEDIUM** because `request_new` is the *only* moderation outcome that
+asks the citizen to do more work, so it is the one most likely to outlast a short window — and the
+categories with short defaults are the urgent ones.
+
+**Not proposing the fix here**, but the shape is visible: `replaceHeldPhotos()` re-implements the
+release rather than calling it. Routing it through `publishIfReady()` would give one release rule
+instead of two, and `restoredWindow()` would come with it. That is a code change, and this pass does
+not make code changes.
+
+## HIGH — 29. `PUT /reports/:id/photos` has no client. The reporter is asked for a photo they cannot send.
+
+`report_photo.request_new` exists, is audited, and alerts the reporter in English and Tamil
+(`apps/api/src/alerts/alert-templates.ts:113-118,156-160`). The endpoint that answers it exists too,
+and it is thorough — `PUT /reports/:id/photos`
+(`apps/api/src/reports/reports.controller.ts:107-128`,
+`reports.service.ts:872-936`), with detach semantics, a category re-check, an
+already-adjudicated guard and six tests (`report-photo-gate.spec.ts:545-681`).
+
+**Nothing calls it.**
+
+```
+$ grep -rn "method: 'PUT'" libs-mobile apps/mobile/src   → no matches
+$ grep -rn "photos" libs-mobile/api/reports.ts           → only `photos: string[]` and a comment
+```
+
+`libs-mobile/api/reports.ts` exposes `updateReport` (PATCH), `cancelReport`, `deleteReport` and
+`getMyReports`, and nothing for the replacement route. `MyReportsScreen` renders a `pendingReview`
+tab (`apps/mobile/src/screens/report/MyReportsScreen.tsx:32-74`) but offers no action from it.
+
+So the product ships a moderator action whose entire purpose is to ask the citizen for something,
+and the citizen's app has no way to give it. From the reporter's side the report is stuck in
+"pending review" forever; from the moderator's side they made a decision that can never resolve, and
+the photo they refused sits in `standingFor()` as `refused`, blocking `publishIfReady()` permanently
+(`photo-moderation.service.ts:137,195`).
+
+**Two ways out, and the choice is a product one:** ship the mobile replacement screen, or hide
+`request_new` in the admin console until it exists. Shipping the action without the reply is the
+worse of the two, because it looks finished from every angle except the one that matters.
+
+## LOW — 30. `summary()`'s docblock still describes the bug that was fixed below it
+
+`apps/api/src/admin/admin-report-photos.service.ts:277-278` reads:
+
+```
+ *   pendingReview  EXACTLY the population `list()` returns with its default
+ *                  filter — attached to a report, status `review_required`.
+```
+
+The **code** twelve lines below it is correct and carries its own ⚠️ explaining why counting only
+`review_required` was wrong (`:304-316`): with no provider configured every photo is recorded
+`failed`, so the badge read zero over a full queue. Both the list default and the summary now use
+`AWAITING_DECISION_STATUS_KEYS` — `['review_required', 'failed']`.
+
+Only the docblock above still names the old, single status. It is the first thing a reader hits, it
+describes the exact defect the code beneath it exists to prevent, and the whole argument for the
+shared constant was that this condition should be spelled out in one place rather than several. A
+two-word change; left to the owning session because this pass does not edit application code.

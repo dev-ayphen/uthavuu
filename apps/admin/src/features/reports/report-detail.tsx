@@ -17,6 +17,7 @@ import {
 } from "@/components/data";
 import { Alert, Badge, CalloutCard, Card, MetricTile } from "@/components/ui";
 import { DetailFallback, useDetailQuery } from "@/features/moderation/detail-query";
+import { PendingPhotoBanner } from "@/features/report-photos/pending-photo-banner";
 import { commentsForReportHref, userDetailHref } from "@/features/moderation/routes";
 import { cn } from "@/lib/cn";
 import { ReportActions } from "./report-actions";
@@ -75,6 +76,14 @@ export function ReportDetail({ reportId }: { reportId: string }) {
         }
         actions={<ReportActions report={report} />}
       />
+
+      {/*
+        Held by photo verification. The banner says why the Photos section
+        below is empty — a `pending_review` report has NO `report_photos` rows,
+        by design, until a moderator approves the quarantined image. Rendering
+        that absence without explanation reads as data loss.
+      */}
+      {report.status === "pending_review" ? <PendingPhotoBanner /> : null}
 
       {hidden ? (
         <CalloutCard tone="danger" icon={EyeOff} title="This report is hidden">

@@ -14,6 +14,7 @@ import {
   progressStatuses,
 } from '../../db/schema/missions-schema';
 import { flagStatuses } from '../../db/schema/comments-schema';
+import { photoVerificationStatuses } from '../../db/schema/photo-verification-schema';
 import {
   ticketCategories,
   ticketMessageSenderTypes,
@@ -96,6 +97,7 @@ export interface SeededLookups {
   progressStatusIds: Record<string, string>;
   completionStatusIds: Record<string, string>;
   flagStatusIds: Record<string, string>;
+  photoVerificationStatusIds: Record<string, string>;
   ticketCategoryIds: Record<string, string>;
   ticketStatusIds: Record<string, string>;
   ticketPriorityIds: Record<string, string>;
@@ -150,6 +152,18 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
     { key: 'closed', label: 'Closed' },
     { key: 'expired', label: 'Expired' },
     { key: 'completed', label: 'Completed' },
+    // Pre-publication states. Any suite that creates a report through the
+    // verification gate needs these seeded, because a held photo resolves the
+    // report's status to `pending_review` and a missing lookup row throws.
+    { key: 'pending_review', label: 'Pending review' },
+    { key: 'rejected', label: 'Rejected' },
+  ] as const;
+  const photoVerificationStatusRows = [
+    { key: 'verifying', label: 'Verifying', sortOrder: 10 },
+    { key: 'passed', label: 'Passed', sortOrder: 20 },
+    { key: 'review_required', label: 'Review required', sortOrder: 30 },
+    { key: 'rejected', label: 'Rejected', sortOrder: 40 },
+    { key: 'failed', label: 'Verification failed', sortOrder: 50 },
   ] as const;
   const volunteerStatusRows = [
     { key: 'joined', label: 'Joined' },
@@ -209,6 +223,7 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
   const progressStatusIds = idsFor(progressStatusRows);
   const completionStatusIds = idsFor(completionStatusRows);
   const flagStatusIds = idsFor(flagStatusRows);
+  const photoVerificationStatusIds = idsFor(photoVerificationStatusRows);
   const ticketCategoryIds = idsFor(ticketCategoryRows);
   const ticketStatusIds = idsFor(ticketStatusRows);
   const ticketPriorityIds = idsFor(ticketPriorityRows);
@@ -243,6 +258,12 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
   await db
     .insert(flagStatuses)
     .values(flagStatusRows.map((s) => ({ id: flagStatusIds[s.key], ...s })));
+  await db.insert(photoVerificationStatuses).values(
+    photoVerificationStatusRows.map((s) => ({
+      id: photoVerificationStatusIds[s.key],
+      ...s,
+    })),
+  );
   await db
     .insert(ticketCategories)
     .values(
@@ -307,6 +328,7 @@ export async function seedLookups(db: typeof Db): Promise<SeededLookups> {
     progressStatusIds,
     completionStatusIds,
     flagStatusIds,
+    photoVerificationStatusIds,
     ticketCategoryIds,
     ticketStatusIds,
     ticketPriorityIds,

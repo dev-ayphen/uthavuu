@@ -28,6 +28,7 @@ export default async function Page() {
     <DashboardView
       canSeeUrgentRequests={access.urgentRequests}
       canSeeFlaggedComments={access.flaggedComments}
+      canSeePhotoVerification={access.photoVerification}
     />
   );
 }

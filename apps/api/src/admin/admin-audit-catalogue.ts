@@ -30,6 +30,11 @@ export const ADMIN_AUDIT_TARGET_TYPES = [
   // public directly: a broadcast writes into every selected citizen's alert
   // list and pushes to their handset, and `broadcast.send` cannot be undone.
   { key: 'broadcast', label: 'Broadcast', sortOrder: 110 },
+  // Photo verification. Distinct from `report` because the target is one image
+  // inside a report, not the report: approving a held photo publishes it while
+  // leaving every other moderation fact about the report unchanged, and an
+  // audit row that named the report would not say WHICH photo was decided on.
+  { key: 'report_photo', label: 'Report photo', sortOrder: 120 },
 ] as const;
 
 export type AdminAuditTargetType =
@@ -367,6 +372,28 @@ export const ADMIN_AUDIT_ACTIONS = [
     label: 'Deleted a draft broadcast',
     targetTypeKey: 'broadcast',
     sortOrder: 430,
+  },
+  // Reports -> Photo review. These three are the human half of photo
+  // verification: the machine verdict decided the photo needed a person, and
+  // these record what the person did about it. `approve` is the only one that
+  // makes an image public, which is why it is audited as carefully as a hide.
+  {
+    key: 'report_photo.approve',
+    label: 'Approved a held report photo',
+    targetTypeKey: 'report_photo',
+    sortOrder: 440,
+  },
+  {
+    key: 'report_photo.reject',
+    label: 'Rejected a report photo',
+    targetTypeKey: 'report_photo',
+    sortOrder: 450,
+  },
+  {
+    key: 'report_photo.request_new',
+    label: 'Asked the reporter for a replacement photo',
+    targetTypeKey: 'report_photo',
+    sortOrder: 460,
   },
 ] as const;
 

@@ -17,6 +17,7 @@ import Avatar from '@uthavu/libs-mobile/components/Avatar';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import { Divider } from '@uthavu/libs-mobile/components';
 import RosterSection from './RosterSection';
+import HeldForReviewCard from './HeldForReviewCard';
 import ImpactStorySection from './ImpactStorySection';
 import MissionChat from './MissionChat';
 import CommunityComments from './CommunityComments';
@@ -52,6 +53,25 @@ export default function RequestDetailsScreen({ route }: Props) {
     queryKey: ['report', reportId],
     queryFn: () => getReport(reportId),
   });
+  /**
+   * A held report has no mission, and the API is emphatic about it.
+   *
+   * `pending_review` is a PRE-PUBLICATION status (report-visibility.ts), so
+   * `GET /reports/:id/volunteers`, `/comments` and `/messages` all answer
+   * `404 REPORT_REMOVED` — including for the reporter who filed it, even though
+   * `GET /reports/:id` itself returns 200 for that same person. Verified against
+   * a live held report on 2026-09-05.
+   *
+   * This screen used to treat the roster as a PRECONDITION for rendering
+   * anything, so that 404 took the owner's own screen down to a generic "You
+   * appear to be offline" with a Retry button that could only fail again — for a
+   * report the API had just served them. Not requesting it is both the fix and
+   * the honest product behaviour: no volunteer can see a held report, so there is
+   * nobody to list, nobody to chat to and no public comment thread. The roster
+   * is a section, not a gate.
+   */
+  const heldForReview = report?.status === 'pending_review';
+
   const {
     data: roster,
     isLoading: rosterLoading,
@@ -61,6 +81,10 @@ export default function RequestDetailsScreen({ route }: Props) {
   } = useQuery({
     queryKey: ['roster', reportId],
     queryFn: () => getRoster(reportId),
+    // Deliberately not fired at all rather than fired and forgiven: a request
+    // whose only possible answer is 404 is not a request worth making, and a
+    // tolerated 404 is one somebody later "fixes" by removing the tolerance.
+    enabled: report !== undefined && !heldForReview,
   });
 
   useFocusEffect(
@@ -98,7 +122,7 @@ export default function RequestDetailsScreen({ route }: Props) {
     return <ErrorState icon={FileX} message={reportError.message} />;
   }
 
-  if ((reportIsError || rosterIsError) && (!report || !roster)) {
+  if ((reportIsError || rosterIsError) && (!report || (!roster && !heldForReview))) {
     return (
       <ErrorState
         onRetry={() => {
@@ -109,11 +133,11 @@ export default function RequestDetailsScreen({ route }: Props) {
       />
     );
   }
-  if (!report || !roster) {
+  if (!report || (!roster && !heldForReview)) {
     return <RequestDetailsSkeleton />;
   }
 
-  const hasAccess = report.isOwner || roster.myStatus === 'joined' || roster.myStatus === 'active';
+  const hasAccess = report.isOwner || roster?.myStatus === 'joined' || roster?.myStatus === 'active';
 
   const onEditPress = () => {
     setMenuOpen(false);
@@ -283,24 +307,41 @@ export default function RequestDetailsScreen({ route }: Props) {
           )}
         </View>
 
-        {report.status === 'completed' ? (
-          <ImpactStorySection reportId={reportId} report={report} roster={roster} />
-        ) : (
-          <RosterSection reportId={reportId} report={report} roster={roster} />
+        {/* A held report, seen by the person waiting on it.
+            Placed ABOVE the roster on purpose: the roster of a `pending_review`
+            report is necessarily empty — volunteers cannot see it at all — so
+            without this the reporter's own screen reads as "nobody has come to
+            help yet" when the truth is that nobody has been asked. Owner-only:
+            this is the reporter's business, and nobody else can reach a held
+            report anyway (report-visibility.ts filters it out of discovery). */}
+        {report.isOwner && report.status === 'pending_review' && (
+          <HeldForReviewCard report={report} />
         )}
 
-        {hasAccess ? (
-          <MissionChat reportId={reportId} locked={report.status === 'completed'} />
-        ) : (
-          <View style={styles.chatLocked}>
-            <Text style={styles.chatLockedText}>{t('chatLockedMessage')}</Text>
-          </View>
-        )}
+        {roster &&
+          (report.status === 'completed' ? (
+            <ImpactStorySection reportId={reportId} report={report} roster={roster} />
+          ) : (
+            <RosterSection reportId={reportId} report={report} roster={roster} />
+          ))}
+
+        {/* Both branches are wrong for a held report: there is no volunteer to
+            talk to, so "Mission Chat" would be an empty room, and the locked
+            variant ("accept this request to chat") is addressed to somebody who
+            cannot even see it. */}
+        {!heldForReview &&
+          (hasAccess ? (
+            <MissionChat reportId={reportId} locked={report.status === 'completed'} />
+          ) : (
+            <View style={styles.chatLocked}>
+              <Text style={styles.chatLockedText}>{t('chatLockedMessage')}</Text>
+            </View>
+          ))}
 
         {/* Community Comments are a platform-level switch (GET /config).
             Off means the section isn't rendered at all — Mission Chat above is
             a separate, privately-gated channel and is unaffected. */}
-        {config.commentsEnabled && <CommunityComments reportId={reportId} />}
+        {config.commentsEnabled && !heldForReview && <CommunityComments reportId={reportId} />}
       </View>
 
       {/* Owner Options Modal Sheet */}

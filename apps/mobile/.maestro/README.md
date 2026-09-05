@@ -29,23 +29,84 @@ End-to-end coverage for the four critical mobile journeys named in
 
 ## Running
 
-Every flow needs `EXPO_DEV_URL`, the `exp://` URL Expo Go should open. There is no default: the
-port changes per machine and per `expo start` invocation, and silently testing a *different*
-project's bundle is worse than failing loudly.
-
 ```bash
-# One flow
-maestro test apps/mobile/.maestro/flows/01-otp-login.yaml -e EXPO_DEV_URL=exp://127.0.0.1:8081
-
-# The whole suite, in config.yaml's order
-maestro test apps/mobile/.maestro -e EXPO_DEV_URL=exp://127.0.0.1:8081
-```
-
-Or via the package scripts, which pass `EXPO_DEV_URL` through from your environment:
-
-```bash
+# Whole suite
 EXPO_DEV_URL=exp://127.0.0.1:8081 pnpm --filter mobile test:e2e
+
+# One flow (everything after `--` goes to Maestro)
+EXPO_DEV_URL=exp://127.0.0.1:8081 pnpm --filter mobile test:e2e:flow -- flows/01-otp-login.yaml
 ```
+
+Both go through `scripts/run-e2e.mjs`, which **seeds two published reports first** and passes
+their ids and titles to the flows:
+
+| Variable | Used by |
+|---|---|
+| `SEED_REPORT_ID` / `SEED_REPORT_TITLE` | `flows/03-accept-and-volunteer.yaml` |
+| `SEED_REPORT_2_ID` / `SEED_REPORT_2_TITLE` | `flows/04-complete-mission.yaml` |
+
+Each flow maps the pair it owns onto `SEED_REPORT_ID` / `SEED_REPORT_TITLE` in its own
+`runScript:` env block, so `utils/seed-report.js` reads one fixed pair of names whichever flow
+called it, and writes `output.reportId` / `output.reportTitle` exactly as before.
+
+### Multi-word seeded titles
+
+Seeded titles contain spaces — `Maestro accept test 1788551171800`, and a real one would read
+like `Injured cow near Velachery`. **That is safe, and the labels must not be hyphenated to
+"protect" them.** `run-e2e.mjs` spawns Maestro without a shell, so each `-e NAME=value` arrives
+as a single argv entry with nothing in between to word-split it, and Maestro's `${...}`
+substitution passes the value on verbatim from there.
+
+Measured on **Maestro 2.9.0**, not assumed, by running a probe flow that echoed back what it
+received — through the same `-e` → `${SEED_REPORT_TITLE}` → `runScript: env:` →
+`utils/seed-report.js` path the real flows use:
+
+| In the value | Result |
+|---|---|
+| spaces, tabs | intact (`Injured cow near Velachery` → 26 chars, unchanged) |
+| leading / trailing whitespace | preserved, **not** trimmed |
+| `=` | only the first `=` splits name from value; the rest is value |
+| `'`, `"`, `,` | intact |
+| non-ASCII (`உதவு`) | intact |
+| `${...}` | **re-interpolated** — an unresolvable name becomes the literal string `undefined` |
+
+Only the last row mangles anything, and no label uses it; `run-e2e.mjs` rejects a title
+containing `${` up front so a future label fails there, naming the cause, rather than inside a
+selector. The seeded titles were confirmed complete in the database as well, not merely in the
+flow — `select title, length(title) from reports …` returns the whole 40-character string, not a
+truncated first word.
+
+**Two reports, not one**, because a report defaults to `neededVolunteers: 1`: the first
+volunteer to accept fills it and `MissionsService.accept()` refuses everyone after that with
+"Volunteer limit reached". 03 accepts through the UI and 04 accepts over HTTP, so they cannot
+share one.
+
+That step is not optional, and it is why report creation left the Maestro side entirely —
+`scripts/seed-fixture.mjs` has the full reasoning, but in short, a **live** report now needs
+three things a Maestro script cannot do:
+
+1. **A real multipart photo upload.** `POST /reports` takes `photoUploadIds` — ids of
+   `photo_uploads` rows the API wrote after inspecting the image — so no id can be hardcoded.
+   Maestro's JS HTTP client sends a string body, and a string round-trips through UTF-8: byte
+   `0x89`, the first byte of every PNG, arrives as `0xC2 0x89` and the file is corrupt.
+2. **An image of at least 80×80 px**, the inspector's floor (Rekognition's published minimum).
+   The 1×1 fixture that used to be uploaded is now refused outright as `too-small`.
+3. **An admin approval.** With no AWS credentials the moderation provider is unavailable, every
+   photo comes back `review`, and the report is created `pending_review` — invisible to
+   discovery. `seed-fixture.mjs` signs in as the seeded super_admin and approves the held photo
+   so the report reaches `open`. With real credentials and a passing photo the report publishes
+   on creation and that call answers `409`, which the script treats as success.
+
+Calling `maestro test` directly skips the seeding step. The flows detect that and fail
+immediately with the reason, rather than several steps later on a selector that was never the
+problem:
+
+```
+Error: SEED_REPORT_ID / SEED_REPORT_TITLE are not set. Run the suite via `pnpm --filter mobile test:e2e` …
+```
+
+`EXPO_DEV_URL` is required and has no default: the port changes per machine and per
+`expo start`, and silently testing a *different* project's bundle is worse than failing loudly.
 
 ## How the flows are structured
 
@@ -57,8 +118,15 @@ creation inside every flow would triple the runtime to re-cover what 01 and 02 a
 and each redundant UI step is one more place for an unrelated selector change to fail a flow that
 isn't about that screen. This is Maestro's own documented "seed test data via HTTP" pattern.
 
-Each flow provisions its **own** users with a timestamp-derived phone number, so flows share no
-state and the suite is safe to re-run without resetting the database.
+Their **report** is seeded one step earlier still — by `scripts/run-e2e.mjs`, before Maestro
+starts (see above). `utils/seed-report.js` no longer creates anything; it validates the injected
+ids and publishes them into `output`, which is the contract the flows actually depend on. The
+report's reporter is created by the seeding script too, so 03 and 04 provision only the
+**volunteer** they drive.
+
+Each flow provisions its **own** volunteer with a timestamp-derived phone number, and each
+seeded report gets its own reporter, so flows share no state and the suite is safe to re-run
+without resetting the database.
 
 ### The phone-number contract
 
@@ -81,12 +149,122 @@ The generated digits deliberately start with `8` (reporter) or `9` (volunteer): 
 
 ## Current verification status
 
+> ⚠️ **The flows below have NOT been re-run since the photo-verification migration
+> (2026-09-05).** The seeding path was rewritten from top to bottom and verified on its own —
+> `node .maestro/scripts/seed-fixture.mjs` produces a report whose stored status is `open`,
+> confirmed directly in Postgres — but no simulator was available, so the four flows themselves
+> are **unrun** against the new contract. Treat the statuses below as last-known-good on the
+> previous seeding path, not as current.
+
+Last run 2026-09-03 against a real iPhone 16 Pro simulator (iOS 18.5), Expo Go 57.0.9,
+Metro on 8090, API in Docker. **All four flows pass**, confirmed over two consecutive
+full-suite runs.
+
 | Flow | Status |
 |---|---|
-| `01-otp-login.yaml` | **Passing, live-verified end to end.** |
-| `02-report-a-request.yaml` | Passes login → onboarding → category select → camera launch. Blocked at the actual shutter capture by a real iOS Simulator limitation — see below. Not fully green. |
-| `03-accept-and-volunteer.yaml` | **Passing, live-verified end to end** — HTTP seeding (reporter, report, volunteer), UI login, category tap, report-row tap, "I'll Help", "Start Helping", and the active-helping assertion all confirmed on a real simulator run. |
-| `04-complete-mission.yaml` | **Live-verified up to the same wall as 02.** HTTP seeding (reporter, report, an already-accepted-and-confirmed volunteer), UI login, category tap, scroll-to-find + tap the report row, "Complete Mission", and the photo-capture launch all confirmed on a real simulator run. Blocked at the actual shutter capture by the same iOS Simulator limitation as 02 — see below. Not fully green, for the same structural reason, not a bug in this flow. |
+| `01-otp-login.yaml` | **Passing** (45s) — live-verified end to end. |
+| `02-report-a-request.yaml` | **Passing** (1m11s) — rewritten 2026-09-03. Drives the real two-step flow, asserts the photo-required rule, and stops at the camera boundary. See the header comment in the file for why it stops there. |
+| `03-accept-and-volunteer.yaml` | **Passing** (29s) — live-verified end to end through "You're helping with this mission". |
+| `04-complete-mission.yaml` | **Passing** (47s) — rewritten 2026-09-03, same treatment as 02. Verifies that an ACTIVE volunteer is offered "Complete Mission", that the sheet renders photo/note/submit, and that submitting a note WITHOUT a proof photo does not complete the mission. Stops at the camera boundary. |
+
+### What changed on 2026-09-05 — the photo-verification migration
+
+`POST /reports` stopped taking photo URLs and started taking `photoUploadIds`, and report photos
+moved to their own inspected, moderated upload route. Three separate things broke in this suite;
+none of them were app bugs:
+
+1. **`utils/seed-report.js` posted `photoUrls`** — a field that no longer exists, so every seeded
+   flow would have 400'd on report creation.
+2. **`scripts/seed-fixture.mjs` uploaded a 1×1 PNG to `POST /uploads`.** Report photos now go to
+   `POST /uploads/report-photo` (multipart `file` plus a required `categoryKey`, answering
+   `{ uploadId, verdict, reason }`), and the inspector enforces a minimum dimension of 80×80 px —
+   so the 1×1 fixture was refused outright as `too-small`. That file's own header had predicted
+   exactly this ("breaks the moment anyone validates magic bytes").
+3. **The seeded report would not have been public.** With no AWS credentials the moderation
+   provider is unavailable, every photo comes back `review`, and the report is created
+   `pending_review` — invisible to discovery, so 03 and 04 would have found nothing.
+
+All three are fixed by moving the whole job into Node, where it can do all of it:
+`scripts/seed-fixture.mjs` now generates a real 96×96 PNG, uploads it to
+`POST /uploads/report-photo`, creates the report, then signs in as the seeded super_admin and
+approves the held photo so the report reaches `open`. `utils/seed-report.js` keeps its
+`output.reportId` / `output.reportTitle` contract but reads them from the injected env instead of
+creating anything. The fixture PNG is generated rather than checked in, so its bytes differ every
+run — an identical image would trip the duplicate signal once a provider is actually configured.
+
+### What changed on 2026-09-03
+
+Three defects **in this suite**, none in the app:
+
+1. **`utils/seed-report.js` attached a photo that did not exist — FIXED.** It posted
+   `uploads/placeholder.jpg`, a file nothing ever created. The API correctly rejects any photo
+   URL that is not a real upload (`assertPhotosAreOurUploads`), so every seeded flow got
+   `400 INVALID_UPLOAD_URL`, `output.reportTitle` came back `undefined`, and the flow failed
+   several steps later with `No visible element found: ".*undefined.*"`.
+
+   `scripts/seed-fixture.mjs` was added to upload a real 1×1 PNG through `POST /uploads`
+   before the suite runs and pass the resulting URL in as `SEED_PHOTO_URL`. Nothing was placed
+   by hand, so it survived a fresh volume and a different machine. Verified by deleting the
+   hand-placed file and re-running the suite green. *(Superseded — see below.)*
+
+2. **Report rows could not be found among accumulated test data.** Nothing cleans up seeded
+   reports; there were 29 open `medicalHelp` reports at the seeded coordinates. They all sit
+   at 0 km and the feed's nearest-first sort has no tiebreaker, so a new report's position is
+   effectively arbitrary and `scrollUntilVisible` could not reach it. 03 and 04 now filter
+   with the search box first, which is deterministic regardless of how much data has piled up.
+
+3. **A selector matched the search field instead of the row.** After typing the title into
+   search, `.*<title>.*` matched both the input and the card. Maestro tapped the input; the
+   flow then failed several steps later on an unrelated assertion. Both flows now anchor on
+   `".*<title>, .*km away.*"`, which only the row's combined label can match.
+
+### The simulator needs a location, and it does not keep one
+
+Seeds use Chennai (13.08, 80.27). Two separate things go wrong without it:
+
+- A simulator sitting in its **default San Francisco** sees every seeded report as ~13,000 km
+  away and correctly filters it out of the feed — 03 and 04 then cannot find their report.
+- A simulator with **no location fix at all** fails onboarding outright: `PermissionsScreen`
+  alerts "Could not get your location — Please try again." and never reaches Profile Setup, so
+  01 and 02 fail at `Full name`, several steps from the real cause.
+
+Set it before every suite run:
+
+```bash
+# <device> is the UDID from `xcrun simctl list devices booted`
+xcrun simctl location <device> set 13.0827,80.2707
+```
+
+**This is not a Maestro problem, and it will bite you running the app by hand.**
+A freshly-booted simulator has no simulated position at all — not a wrong one, *none* — so
+`Location.getCurrentPositionAsync()` rejects rather than returning San Francisco. Two places in
+the app call it, and both are dead ends without a fix:
+
+| Where | What you see | Code |
+|---|---|---|
+| `PermissionsScreen` "Continue" | native alert **"Could not get your location — Please try again."**, onboarding never reaches Profile Setup | `PermissionsScreen.tsx`'s `onContinue()` catch |
+| Report flow, step 2 | "Could not detect your location…" and **Publish stays disabled forever** (`canPublish` requires `draft.lat !== null`) | `ReportFlowScreen.tsx`'s `fetchLocation()` catch |
+
+**The symptom shows up two screens after the cause.** Location is fetched on *Permissions*, but
+the permission row itself ticks green and "Continue" looks like it worked — the failure only
+becomes visible when you are stuck, and in the E2E suite it surfaces as flows 01/02 failing on
+`Full name`, a screen the location code never touches. Anyone debugging from the failure upward
+looks at Profile Setup, which is the wrong file. Set the location first and the whole class of
+symptom disappears.
+
+**`simctl location set` does not reliably persist.** It was observed silently lapsing between
+two full-suite runs minutes apart on the same booted device, turning a green suite red with a
+failure that pointed at the wrong screen. Re-set it each run rather than assuming it held; if
+01/02 fail at `Full name`, this is the first thing to check.
+
+### Expo Go must match the SDK
+
+`app.json` is SDK 57, so Expo Go 57.x is required — an older Expo Go refuses the project with
+"Project is incompatible with this version of Expo Go" and every flow fails at launch. The
+version manifest at `https://api.expo.dev/v2/versions/latest` maps each SDK to its
+`iosClientUrl`; the tarball's root **is** the `.app` bundle, so extract it into a directory
+named `Expo-Go-<version>.app` before `xcrun simctl install`, or the install fails with
+"Failed to extract IPA".
 
 ## Known fragile steps
 

@@ -17,7 +17,7 @@ import { PanelBodySkeleton } from "./panel";
  */
 export function DashboardSkeleton({
   /**
-   * How many of the two side panels this admin will actually get. The panels
+   * How many of the three side panels this admin will actually get. The panels
    * are permission-gated (features/dashboard/permission.ts), and reserving
    * space for a panel that never arrives leaves a hole in the layout.
    *
@@ -25,9 +25,9 @@ export function DashboardSkeleton({
    * resolved — so it takes the default. The page's own pending branch, which
    * has been told, passes the real number.
    */
-  sidePanels = 2,
+  sidePanels = 3,
 }: {
-  sidePanels?: 0 | 1 | 2;
+  sidePanels?: 0 | 1 | 2 | 3;
 }) {
   return (
     <div className="space-y-4">

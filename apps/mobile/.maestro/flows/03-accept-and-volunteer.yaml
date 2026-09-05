@@ -1,22 +1,22 @@
 appId: host.exp.Exponent
 ---
 # Critical journey 3/4: a volunteer discovers and accepts a request, then
-# confirms within the 15-minute window. Seeds a reporter + report via HTTP
-# (already covered by 02-report-a-request.yaml — no need to re-test report
+# confirms within the 15-minute window. The report it accepts is seeded over
+# HTTP (already covered by 02-report-a-request.yaml — no need to re-test report
 # creation here) so this flow stays focused on accept/confirm. See
 # ../README.md.
-- evalScript: ${output.reportTitle = 'Maestro accept test ' + Date.now()}
-
-- runScript:
-    file: utils/seed-user.js
-    env:
-      ROLE: reporter
-
+#
+# The reporter and the report are BOTH created by scripts/run-e2e.mjs before
+# Maestro starts — a live report now needs a real photo upload and an admin
+# approval, neither of which a Maestro script can do (see utils/seed-report.js).
+# So this flow seeds only the volunteer it drives.
 - runScript:
     file: utils/seed-report.js
     env:
-      REPORTER_TOKEN: ${output.reporterToken}
-      REPORT_TITLE: ${output.reportTitle}
+      # The first of the two reports run-e2e.mjs seeds; 04 takes the second.
+      # They cannot share one: accepting fills a report's single volunteer slot.
+      SEED_REPORT_ID: ${SEED_REPORT_ID}
+      SEED_REPORT_TITLE: ${SEED_REPORT_TITLE}
 
 - runScript:
     file: utils/seed-user.js
@@ -41,14 +41,35 @@ appId: host.exp.Exponent
 # via a real screen-hierarchy dump. A bare-title selector doesn't match a
 # label it's only a prefix of; wildcard both sides to match regardless of
 # the distance/time suffix's exact (time-dependent) wording.
-# Nothing cleans up reports seeded by earlier flow runs, so this list
-# grows over repeated runs and the newest report isn't always in the
-# initial viewport — scroll to find it rather than assuming it's visible.
+# Nothing cleans up reports seeded by earlier flow runs, so this category
+# list grows without bound — 29 open medicalHelp reports at these
+# coordinates on the run that motivated this change. Scrolling to find the
+# newest one is not just slow, it is unreliable: every seeded report sits
+# at the same 0 km, and the feed's nearest-first sort has no tiebreaker, so
+# the new row's position in the list is effectively arbitrary and can fall
+# outside what scrollUntilVisible reaches before its timeout.
+#
+# Filtering by the search box makes this deterministic — one row, found in
+# one step, regardless of how much test data has accumulated. The scroll is
+# kept as a fallback for the case where the field itself fails to filter,
+# so a regression in search surfaces as a slow pass rather than vanishing.
+- tapOn:
+    text: ".*Search .* requests.*"
+    optional: true
+- inputText: ${output.reportTitle}
+- hideKeyboard
+# Match the ROW, not the search field. The card collapses into a single
+# accessibility node whose label is "<title>, <distance> km away, <time>
+# remaining" (confirmed from a hierarchy dump). Since the title was just typed
+# into the search box, a bare ".*<title>.*" now matches that field too — and
+# Maestro picks the field, taps a text input, and the flow fails several steps
+# later on an assertion that had nothing to do with the real cause. Anchoring
+# on the ", … km away" suffix matches only the row.
 - scrollUntilVisible:
     element:
-      text: ".*${output.reportTitle}.*"
+      text: ".*${output.reportTitle}, .*km away.*"
     direction: DOWN
-- tapOn: ".*${output.reportTitle}.*"
+- tapOn: ".*${output.reportTitle}, .*km away.*"
 
 - assertVisible: "I'll Help"
 - tapOn: "I'll Help"

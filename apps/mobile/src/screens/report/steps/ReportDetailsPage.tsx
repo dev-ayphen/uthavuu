@@ -8,14 +8,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Camera, ChevronDown, X } from 'lucide-react-native';
+import { AlertTriangle, Camera, ChevronDown, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@uthavu/libs-mobile/theme/ThemeProvider';
 import Spinner from '@uthavu/libs-mobile/components/Spinner';
-import { RADIUS, SPACING, TYPE } from '@uthavu/libs-mobile/theme/tokens';
+import { RADIUS, SPACING, TONES, TYPE } from '@uthavu/libs-mobile/theme/tokens';
 import { useCategories } from '../../../hooks/useCategories';
 import type { ColorScheme } from '@uthavu/libs-mobile/theme/colors';
 import { DESCRIPTION_MIN_LENGTH, type ReportDraft } from '../reportDraft';
+import PhotoVerdictRow from '../PhotoVerdictRow';
 
 type Props = {
   draft: ReportDraft;
@@ -32,6 +33,10 @@ type Props = {
   maxVolunteers: number;
   onTakePhoto: () => void;
   onRemovePhoto: (index: number) => void;
+  // Replaces the photo in that slot rather than appending a new one, so a
+  // retake can't reorder the remaining photos under their "Photo 1 / Photo 2"
+  // labels — and can't leave the refused capture sitting in the grid.
+  onRetakePhoto: (index: number) => void;
 };
 
 const CAT_ACCENT: Record<string, { iconBg: string }> = {
@@ -56,6 +61,7 @@ export default function ReportDetailsPage({
   maxVolunteers,
   onTakePhoto,
   onRemovePhoto,
+  onRetakePhoto,
 }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation('report');
@@ -121,17 +127,30 @@ export default function ReportDetailsPage({
           const photo = draft.photos[i];
           const slotLabel = t('details.photoSlot', { n: i + 1 });
           return photo ? (
-            <View key={i} style={styles.photoSlotFilled}>
+            <View key={photo.key} style={styles.photoSlotFilled}>
+              {/* The on-device capture, not a server copy. A photo that hasn't
+                  passed has no public URL by design, and one that has isn't
+                  worth a round trip when the original is right here. */}
               <Image source={{ uri: photo.localUri }} style={styles.thumbImg} />
-              {photo.uploading && (
+              {photo.state === 'verifying' && (
                 <View style={styles.thumbOverlay}>
                   <Spinner variant="onTint" size="small" />
                 </View>
               )}
+              {(photo.state === 'reject' || photo.state === 'failed') && (
+                // Dimmed, not hidden. The reporter needs to recognise which of
+                // their photos the message below is about, and a removed tile
+                // would also silently drop the slot they were working in.
+                <View style={styles.thumbOverlayRefused} />
+              )}
               <View style={styles.slotBadge}>
                 <Text style={styles.slotBadgeText}>{slotLabel}</Text>
               </View>
-              <TouchableOpacity style={styles.thumbRemove} onPress={() => onRemovePhoto(i)}>
+              <TouchableOpacity
+                style={styles.thumbRemove}
+                onPress={() => onRemovePhoto(i)}
+                accessibilityLabel={t('photo.removePhoto')}
+              >
                 <X size={10} color="#FFFFFF" strokeWidth={3} />
               </TouchableOpacity>
             </View>
@@ -151,9 +170,37 @@ export default function ReportDetailsPage({
           );
         })}
       </View>
-      {draft.photos[0]?.error ? (
-        <Text style={styles.photoError}>{draft.photos[0].error}</Text>
-      ) : null}
+      {/* One row per photo, not just the first. The line this replaced read
+          `draft.photos[0].error` — so a failure on photo 2 or 3 rendered
+          nothing at all, and the Next button sat disabled with no explanation
+          anywhere on screen. */}
+      {draft.photos.length > 0 && (
+        <View style={styles.verdictList}>
+          {draft.photos.map((photo, i) => (
+            <PhotoVerdictRow
+              key={photo.key}
+              photo={photo}
+              slotLabel={t('details.photoSlot', { n: i + 1 })}
+              onRetake={() => onRetakePhoto(i)}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Said once, before publish, rather than sprung on the reporter in the
+          success modal: a held report is not live and volunteers cannot see it
+          yet. */}
+      {draft.photos.some((p) => p.state === 'review') && (
+        <View style={styles.holdNotice}>
+          <AlertTriangle size={14} color={TONES.soon.fg} />
+          <Text style={styles.holdNoticeText}>{t('photoVerification.heldNotice')}</Text>
+        </View>
+      )}
+
+      {/* What the check actually is. Deliberately claims only that photos are
+          checked before publication — it is a check of the IMAGE, and nothing
+          in this app may imply it establishes that the emergency is real. */}
+      <Text style={styles.photosHint}>{t('photoVerification.whatWeCheck')}</Text>
 
       {/* ── Description ── */}
       <Text style={styles.sectionLabel}>
@@ -385,6 +432,12 @@ const createStyles = (colors: ColorScheme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // Lighter than the verifying scrim: this one has to leave the picture
+    // recognisable, because its whole job is to say "this one".
+    thumbOverlayRefused: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: 'rgba(185,28,28,0.28)',
+    },
     thumbRemove: {
       position: 'absolute',
       top: 4,
@@ -410,6 +463,25 @@ const createStyles = (colors: ColorScheme) =>
     },
     addPhotoText: { ...TYPE.caption, color: colors.primaryGreen, fontWeight: '700' },
     photoError: { ...TYPE.caption, color: colors.danger, marginTop: 4 },
+
+    // ── Per-photo verification state ──
+    // The row's OWN styles moved with it into ../PhotoVerdictRow.tsx; only the
+    // list that stacks them is this page's business.
+    verdictList: { marginTop: SPACING.xs, gap: SPACING.xs },
+
+    holdNotice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: SPACING.xs,
+      marginTop: SPACING.xs,
+      padding: SPACING.sm,
+      borderRadius: RADIUS.lg,
+      backgroundColor: TONES.soon.fill,
+      borderWidth: 1,
+      borderColor: TONES.soon.border,
+    },
+    holdNoticeText: { ...TYPE.caption, color: TONES.soon.fg, flex: 1, lineHeight: 16 },
+    photosHint: { ...TYPE.microLabel, color: colors.textSecondary, marginTop: SPACING.xs },
 
     // Inputs
     textArea: {

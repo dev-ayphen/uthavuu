@@ -40,8 +40,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test:e2e": "maestro test .maestro",
-    "test:e2e:flow": "maestro test"
+    "test:e2e": "node .maestro/scripts/run-e2e.mjs",
+    "test:e2e:flow": "node .maestro/scripts/run-e2e.mjs --"
   },
   "private": true
 }

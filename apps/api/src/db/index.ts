@@ -15,6 +15,7 @@ import * as updatesSchema from './schema/updates-schema';
 import * as settingsSchema from './schema/settings-schema';
 import * as sponsorsSchema from './schema/sponsors-schema';
 import * as broadcastsSchema from './schema/broadcasts-schema';
+import * as photoVerificationSchema from './schema/photo-verification-schema';
 
 const schema = {
   ...authSchema,
@@ -32,6 +33,7 @@ const schema = {
   ...settingsSchema,
   ...sponsorsSchema,
   ...broadcastsSchema,
+  ...photoVerificationSchema,
 };
 
 const client = postgres(process.env.DATABASE_URL!);

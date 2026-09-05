@@ -11,7 +11,28 @@
  * `mission_messages`.
  */
 
-export type ReportStatus = "open" | "expired" | "closed" | "completed" | "deleted";
+/**
+ * Every status an admin surface can receive, mirroring `EFFECTIVE_STATUSES` in
+ * `apps/api/src/reports/report-effective-status.ts`.
+ *
+ * `pending_review` and `rejected` arrived with photo verification and are
+ * FIRST-CLASS members, not special cases: they are stored keys like `closed`
+ * and `completed`, the API's derived-status expression already returns them,
+ * and its status filter derives its enum from the same constant. Leaving them
+ * out of this union would give the console a status it can receive and cannot
+ * name — which is how a moderation queue ends up rendering a raw database key
+ * at an operator.
+ *
+ * `expired` is still the one value nothing ever writes; see ReportStatusBadge.
+ */
+export type ReportStatus =
+  | "open"
+  | "pending_review"
+  | "expired"
+  | "closed"
+  | "completed"
+  | "rejected"
+  | "deleted";
 
 export type ReportReporter = {
   id: string | null;

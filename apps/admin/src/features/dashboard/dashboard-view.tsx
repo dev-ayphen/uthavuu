@@ -23,6 +23,7 @@ import { ActivityFeed } from "./activity-feed";
 import { CounterTile, StatTile } from "./counter-tile";
 import { DashboardSkeleton } from "./dashboard-skeleton";
 import { FlaggedCommentsPanel } from "./flagged-comments-panel";
+import { PhotoVerificationPanel } from "./photo-verification-panel";
 import { UrgentRequests } from "./urgent-requests";
 import { useDashboardSummary } from "./use-dashboard-summary";
 
@@ -46,23 +47,23 @@ import { useDashboardSummary } from "./use-dashboard-summary";
 export function DashboardView({
   canSeeUrgentRequests,
   canSeeFlaggedComments,
+  canSeePhotoVerification,
 }: {
   /** Mirrors `reports:manage`, which `GET /admin/reports` enforces. */
   canSeeUrgentRequests: boolean;
   /** Mirrors `comments:manage`, which `GET /admin/flagged-comments` enforces. */
   canSeeFlaggedComments: boolean;
+  /** Mirrors `reports:manage`, which `GET /admin/report-photos/*` enforces. */
+  canSeePhotoVerification: boolean;
 }) {
   const { data, isLoading, isError, error, refetch } = useDashboardSummary();
 
   // A panel this admin cannot use is not rendered at all — rendering it would
   // guarantee a 403 and fill the card with "you don't have permission", which
   // reads as a broken console rather than as a boundary working correctly.
-  const sidePanels: 0 | 1 | 2 =
-    canSeeUrgentRequests && canSeeFlaggedComments
-      ? 2
-      : canSeeUrgentRequests || canSeeFlaggedComments
-        ? 1
-        : 0;
+  const sidePanels = [canSeeUrgentRequests, canSeeFlaggedComments, canSeePhotoVerification].filter(
+    Boolean,
+  ).length as 0 | 1 | 2 | 3;
 
   return (
     <PageLayout
@@ -205,6 +206,7 @@ export function DashboardView({
               <div className="grid content-start gap-4">
                 {canSeeUrgentRequests ? <UrgentRequests /> : null}
                 {canSeeFlaggedComments ? <FlaggedCommentsPanel /> : null}
+                {canSeePhotoVerification ? <PhotoVerificationPanel /> : null}
               </div>
             ) : null}
           </section>

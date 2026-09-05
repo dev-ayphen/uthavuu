@@ -31,9 +31,9 @@ import {
   seedLookups,
 } from '../admin/testing/admin-spec-db';
 import {
-  removeUploadFixture,
-  writeUploadFixture,
-} from '../uploads/testing/upload-fixture';
+  createPhotoUploadFixture,
+  removePhotoUploadFixture,
+} from '../uploads/testing/photo-upload-fixture';
 
 const DATABASE = 'uthavu_settings_enforcement_test';
 
@@ -62,14 +62,16 @@ describe('Platform settings enforcement', () => {
   const reporterId = uuidv7();
   const commenterId = uuidv7();
 
-  // Real files on disk. ReportsService refuses a photo URL that no upload ever
-  // produced (docs/_audit/issues.md issue 27), so these fixtures have to be
-  // genuine uploads or every create here fails for a reason this suite is not
-  // about. Three, because the over-the-limit case needs three.
-  const PHOTO_FIXTURES = [1, 2, 3].map(
-    (n) => `platform-settings-enforcement-spec-${n}.jpg`,
-  );
-  let photoUrls: string[];
+  // Verified upload records. A photo reaches a report as the id of a
+  // `photo_uploads` row this API wrote, and an id already attached to a report
+  // is refused — so the pool is minted per test, not once per suite. Three,
+  // because the over-the-limit case needs three.
+  const POOL_SIZE = 3;
+  let uploadIds: string[];
+  const mintedFiles: string[] = [];
+
+  // Falls back to BETTER_AUTH_URL rather than depending on a faked Host header.
+  const req = { get: () => undefined } as unknown as import('express').Request;
 
   const setSettings = (values: Partial<typeof platformSettings.$inferInsert>) =>
     db
@@ -88,12 +90,11 @@ describe('Platform settings enforcement', () => {
     anonymous: false,
     phoneVisible: false,
     neededVolunteers: 1,
-    photoUrls: [photoUrls[0]],
+    photoUploadIds: [uploadIds[0]],
     ...overrides,
   });
 
   beforeAll(async () => {
-    photoUrls = PHOTO_FIXTURES.map(writeUploadFixture);
     await createSpecDatabase(DATABASE);
     await seedLookups(db);
     await db.insert(user).values([
@@ -106,8 +107,23 @@ describe('Platform settings enforcement', () => {
     ]);
   });
 
+  beforeEach(async () => {
+    uploadIds = [];
+    for (let i = 0; i < POOL_SIZE; i += 1) {
+      const filename = `platform-settings-enforcement-${uuidv7()}.jpg`;
+      mintedFiles.push(filename);
+      uploadIds.push(
+        await createPhotoUploadFixture({
+          uploaderId: reporterId,
+          filename,
+          decision: 'pass',
+        }),
+      );
+    }
+  });
+
   afterAll(async () => {
-    PHOTO_FIXTURES.forEach(removeUploadFixture);
+    mintedFiles.forEach(removePhotoUploadFixture);
     await db.$client.end();
   });
 
@@ -126,8 +142,9 @@ describe('Platform settings enforcement', () => {
         reportsService.create(
           reporterId,
           reportInput({
-            photoUrls,
+            photoUploadIds: uploadIds,
           }),
+          req,
         ),
       ).rejects.toMatchObject({ response: { code: 'REPORT_PHOTO_LIMIT' } });
     });
@@ -138,8 +155,9 @@ describe('Platform settings enforcement', () => {
       const created = await reportsService.create(
         reporterId,
         reportInput({
-          photoUrls: [photoUrls[0], photoUrls[1]],
+          photoUploadIds: [uploadIds[0], uploadIds[1]],
         }),
+        req,
       );
 
       expect(created.photos).toHaveLength(2);
@@ -150,10 +168,14 @@ describe('Platform settings enforcement', () => {
       // applies to create is not a maximum.
       await setSettings({ maxPhotosPerReport: 1 });
 
-      const created = await reportsService.create(reporterId, reportInput());
+      const created = await reportsService.create(
+        reporterId,
+        reportInput(),
+        req,
+      );
 
       await expect(
-        reportsService.addPhoto(created.id, reporterId, photoUrls[1]),
+        reportsService.addPhoto(created.id, reporterId, uploadIds[1], req),
       ).rejects.toMatchObject({ response: { code: 'REPORT_PHOTO_LIMIT' } });
     });
   });
@@ -163,7 +185,11 @@ describe('Platform settings enforcement', () => {
       await setSettings({ maxVolunteersPerReport: 3 });
 
       await expect(
-        reportsService.create(reporterId, reportInput({ neededVolunteers: 4 })),
+        reportsService.create(
+          reporterId,
+          reportInput({ neededVolunteers: 4 }),
+          req,
+        ),
       ).rejects.toMatchObject({ response: { code: 'REPORT_VOLUNTEER_LIMIT' } });
     });
 
@@ -173,6 +199,7 @@ describe('Platform settings enforcement', () => {
       const created = await reportsService.create(
         reporterId,
         reportInput({ neededVolunteers: 3 }),
+        req,
       );
 
       expect(created.neededVolunteers).toBe(3);
@@ -184,7 +211,11 @@ describe('Platform settings enforcement', () => {
       await setSettings({ allowAnonymousReports: false });
 
       await expect(
-        reportsService.create(reporterId, reportInput({ anonymous: true })),
+        reportsService.create(
+          reporterId,
+          reportInput({ anonymous: true }),
+          req,
+        ),
       ).rejects.toMatchObject({
         response: { code: 'ANONYMOUS_REPORTS_DISABLED' },
       });
@@ -196,6 +227,7 @@ describe('Platform settings enforcement', () => {
       const created = await reportsService.create(
         reporterId,
         reportInput({ anonymous: false }),
+        req,
       );
 
       expect(created.id).toBeDefined();
@@ -205,6 +237,7 @@ describe('Platform settings enforcement', () => {
       const created = await reportsService.create(
         reporterId,
         reportInput({ anonymous: true }),
+        req,
       );
 
       expect(created.id).toBeDefined();
@@ -213,7 +246,11 @@ describe('Platform settings enforcement', () => {
 
   describe('comments_enabled', () => {
     it('blocks a new comment when comments are switched off', async () => {
-      const report = await reportsService.create(reporterId, reportInput());
+      const report = await reportsService.create(
+        reporterId,
+        reportInput(),
+        req,
+      );
       await setSettings({ commentsEnabled: false });
 
       await expect(
@@ -224,7 +261,11 @@ describe('Platform settings enforcement', () => {
     it('leaves the existing thread readable', async () => {
       // Switching comments off stops new ones; it does not retract what people
       // already said. Deleting a thread is a separate, audited admin act.
-      const report = await reportsService.create(reporterId, reportInput());
+      const report = await reportsService.create(
+        reporterId,
+        reportInput(),
+        req,
+      );
       await commentsService.create(report.id, commenterId, 'Posted earlier');
 
       await setSettings({ commentsEnabled: false });
@@ -237,7 +278,11 @@ describe('Platform settings enforcement', () => {
 
   describe('comment_flagging_enabled', () => {
     it('blocks a flag when flagging is switched off', async () => {
-      const report = await reportsService.create(reporterId, reportInput());
+      const report = await reportsService.create(
+        reporterId,
+        reportInput(),
+        req,
+      );
       const [comment] = await commentsService.create(
         report.id,
         reporterId,
@@ -256,7 +301,11 @@ describe('Platform settings enforcement', () => {
     it('is independent of comments_enabled', async () => {
       // Two switches because they are two decisions: an operator who stops new
       // comments still wants the existing thread flaggable.
-      const report = await reportsService.create(reporterId, reportInput());
+      const report = await reportsService.create(
+        reporterId,
+        reportInput(),
+        req,
+      );
       const [comment] = await commentsService.create(
         report.id,
         reporterId,

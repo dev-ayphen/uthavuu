@@ -96,6 +96,7 @@ export type NavBadgeKey =
   | "reportsOpen"
   | "reportsFlagged"
   | "commentsFlagged"
+  | "reportPhotosPending"
   | "impactStoriesPending"
   | "broadcastsActive"
   | "supportNew"
@@ -192,6 +193,27 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       // AdminReportsController — `reports:manage`.
       { label: "All Reports", href: "/reports", permission: "reports:manage" },
+      // Photos held by verification, awaiting a human. Gated on
+      // `reports:manage` and NOT on `comments:manage`: approving a photo is
+      // what makes a held report public and rejecting one ends a request for
+      // help, so it is report moderation, not comment moderation. Mirrored
+      // server-side in `features/report-photos/permission.ts`; this entry is
+      // the sidebar's half of the same mirror.
+      //
+      // A CHILD OF REPORTS, DELIBERATELY NOT A TOP-LEVEL SECTION. The queue
+      // moderates reports — a held report is a report — and a ninth icon in the
+      // rail for one queue would make the console look bigger than it is.
+      //
+      // Its badge counts unresolved items from
+      // `GET /admin/report-photos/summary`, resolved in nav-badges.ts. Unlike
+      // `broadcastsActive` this one has a real source, so it renders a real
+      // number or no badge at all — never a placeholder.
+      {
+        label: "Photo Verification",
+        href: "/reports/photo-verification",
+        permission: "reports:manage",
+        badgeKey: "reportPhotosPending",
+      },
       // "Flagged Comments", not Reports: `report_comment_flags` is the only flag
       // table in the API and the endpoint is /admin/flagged-comments. Reports
       // cannot be flagged at all, so the old label promised a feature that

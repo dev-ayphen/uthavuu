@@ -24,22 +24,54 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-type TabType = 'active' | 'completed' | 'cancelled' | 'expired';
+// `pendingReview` and `rejected` are tabs of their own rather than being folded
+// into an existing one. There was nowhere honest to hide them: a held report is
+// not "active" (volunteers cannot see it), and a moderator-refused one is not
+// "cancelled" (the reporter didn't cancel it). The pill row already scrolls
+// horizontally, so six fit the way four did.
+type TabType = 'active' | 'pendingReview' | 'completed' | 'cancelled' | 'expired' | 'rejected';
+
+const TAB_ORDER: TabType[] = [
+  'active',
+  // Second, next to Active: this is the tab with something the reporter is
+  // waiting on, so it belongs where they will actually see it.
+  'pendingReview',
+  'completed',
+  'cancelled',
+  'expired',
+  'rejected',
+];
+
+// Which report status each tab collects. One map, read by both the filter and
+// the counts — they used to be two parallel switch/filter pairs that had to be
+// kept in step by hand, and a new status meant remembering both.
+const TAB_STATUS: Record<TabType, Report['status']> = {
+  active: 'open',
+  pendingReview: 'pending_review',
+  completed: 'completed',
+  cancelled: 'closed',
+  expired: 'expired',
+  rejected: 'rejected',
+};
 
 // Module-level key maps — a tab's label can't come from capitalising its enum
 // value, because that only ever produces English.
 const TAB_LABEL_KEYS: Record<TabType, string> = {
   active: 'myReports.tabActive',
+  pendingReview: 'myReports.tabPendingReview',
   completed: 'myReports.tabCompleted',
   cancelled: 'myReports.tabCancelled',
   expired: 'myReports.tabExpired',
+  rejected: 'myReports.tabRejected',
 };
 
 const EMPTY_TITLE_KEYS: Record<TabType, string> = {
   active: 'myReports.emptyActiveTitle',
+  pendingReview: 'myReports.emptyPendingReviewTitle',
   completed: 'myReports.emptyCompletedTitle',
   cancelled: 'myReports.emptyCancelledTitle',
   expired: 'myReports.emptyExpiredTitle',
+  rejected: 'myReports.emptyRejectedTitle',
 };
 
 export default function MyReportsScreen() {
@@ -55,30 +87,24 @@ export default function MyReportsScreen() {
     queryFn: getMyReports,
   });
 
-  const filteredReports = useMemo(() => {
-    if (!reports) return [];
-    switch (activeTab) {
-      case 'active':
-        return reports.filter((r) => r.status === 'open');
-      case 'completed':
-        return reports.filter((r) => r.status === 'completed');
-      case 'cancelled':
-        return reports.filter((r) => r.status === 'closed');
-      case 'expired':
-        return reports.filter((r) => r.status === 'expired');
-      default:
-        return reports;
-    }
-  }, [reports, activeTab]);
+  const filteredReports = useMemo(
+    // No `default:` fall-through returning every report any more. That branch
+    // was unreachable for the four statuses that existed when it was written,
+    // and would have quietly become the home for every new one.
+    () => reports?.filter((r) => r.status === TAB_STATUS[activeTab]) ?? [],
+    [reports, activeTab]
+  );
 
   const counts = useMemo(() => {
-    if (!reports) return { active: 0, completed: 0, cancelled: 0, expired: 0 };
-    return {
-      active: reports.filter((r) => r.status === 'open').length,
-      completed: reports.filter((r) => r.status === 'completed').length,
-      cancelled: reports.filter((r) => r.status === 'closed').length,
-      expired: reports.filter((r) => r.status === 'expired').length,
-    };
+    const empty = Object.fromEntries(TAB_ORDER.map((tab) => [tab, 0])) as Record<TabType, number>;
+    if (!reports) return empty;
+    // One pass, and every tab's count comes from the same map the filter uses,
+    // so a tab can never show a count for something it won't then list.
+    return reports.reduce((acc, report) => {
+      const tab = TAB_ORDER.find((t) => TAB_STATUS[t] === report.status);
+      if (tab) acc[tab] += 1;
+      return acc;
+    }, empty);
   }, [reports]);
 
   if (isLoading) {
@@ -125,7 +151,7 @@ export default function MyReportsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsRow}
         >
-          {(['active', 'completed', 'cancelled', 'expired'] as TabType[]).map((tab) => {
+          {TAB_ORDER.map((tab) => {
             const isSelected = activeTab === tab;
             const label = t(TAB_LABEL_KEYS[tab]);
             const count = counts[tab];
@@ -161,10 +187,15 @@ export default function MyReportsScreen() {
           <View style={styles.empty}>
             <FileText size={40} color={colors.textSecondary} strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>{t(EMPTY_TITLE_KEYS[activeTab])}</Text>
+            {/* Pending review gets its own line rather than the history one:
+                "Nothing here yet in your history" is wrong for a tab that is
+                about something in progress. */}
             <Text style={styles.emptySubtitle}>
               {activeTab === 'active'
                 ? t('myReports.emptyActiveSubtitle')
-                : t('myReports.emptyHistorySubtitle')}
+                : activeTab === 'pendingReview'
+                  ? t('myReports.emptyPendingReviewSubtitle')
+                  : t('myReports.emptyHistorySubtitle')}
             </Text>
           </View>
         }
@@ -201,10 +232,24 @@ function ReportItemCard({
         return { label: t('myReports.badgeCancelled'), tone: TONES.normal };
       case 'expired':
         return { label: t('myReports.badgeExpired'), tone: TONES.normal };
-      default:
+      // Amber, the app's "waiting on something" tone — not red. Nothing is
+      // wrong with a held report; it is a report in a queue.
+      case 'pending_review':
+        return { label: t('myReports.badgePendingReview'), tone: TONES.soon };
+      case 'rejected':
+        return { label: t('myReports.badgeRejected'), tone: TONES.critical };
+      case 'open':
         return report.assignedVolunteersCount && report.assignedVolunteersCount > 0
           ? { label: t('myReports.badgeActiveMission'), tone: TONES.soon }
           : { label: t('myReports.badgeOpen'), tone: TONES.info };
+      default:
+        // `case 'open'` is explicit and this is the genuine unknown. It used to
+        // BE the open case, which is how 'pending_review' and 'rejected' would
+        // both have rendered as "Status: Open" — a held report advertised as
+        // live to the one person who most needs to know it isn't. There is no
+        // honest label for a status this build has never heard of, so it says
+        // exactly that rather than guessing a friendlier one.
+        return { label: t('myReports.badgeUnknown'), tone: TONES.normal };
     }
     // `t` is a dependency now that the labels come from the catalogue —
     // without it the badge keeps the previous language after a switch.
@@ -228,8 +273,10 @@ function ReportItemCard({
 
       <View style={styles.metaRow}>
         <Users size={14} color={colors.textSecondary} />
+        {/* Was a hardcoded English template literal — invisible to a JSX-text
+            i18n sweep because the words sat either side of two expressions. */}
         <Text style={styles.metaText}>
-          {joinedCount} / {neededCount} volunteers joined
+          {t('myReports.volunteersJoined', { joined: joinedCount, needed: neededCount })}
         </Text>
         {report.landmark && (
           <>

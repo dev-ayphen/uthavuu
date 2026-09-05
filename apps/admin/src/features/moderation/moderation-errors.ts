@@ -40,6 +40,14 @@ const MESSAGES: Record<string, string> = {
   FLAG_NOT_FOUND: "That flag no longer exists.",
   FLAG_ALREADY_IN_STATUS: "This flag is already in that state — the queue is now up to date.",
 
+  // Photo verification. A held photo is the ONE moderation record two people
+  // are genuinely likely to reach for at once — the queue is short, the badge
+  // calls everyone to it, and the decision is irreversible in both directions.
+  PHOTO_ALREADY_REVIEWED:
+    "Another admin already decided about this photo, so nothing was changed. The queue has been refreshed with their decision.",
+  PHOTO_NOT_FOUND:
+    "That photo record no longer exists. The decision row normally outlives the file, so this means the record itself was removed.",
+
   // Session and permission. Deliberately neutral: an ops admin hitting a
   // super-only action is the system working, not a fault to report.
   ADMIN_MISSING_PERMISSION: "Your role doesn't cover this action. Ask a super admin.",
@@ -68,6 +76,12 @@ const STALE_CONFLICT_CODES = new Set([
   "COMMENT_NOT_FOUND",
   "FLAG_ALREADY_IN_STATUS",
   "FLAG_NOT_FOUND",
+  // The 409 the photo endpoints answer when another admin got there first. It
+  // is the textbook stale conflict: nothing broke, the record moved, and the
+  // only useful response is to refetch so the row stops disagreeing with the
+  // database. Classified as a crash it would read as a fault in the console.
+  "PHOTO_ALREADY_REVIEWED",
+  "PHOTO_NOT_FOUND",
 ]);
 
 export function moderationErrorMessage(error: unknown): string {

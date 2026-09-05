@@ -25,11 +25,16 @@ this way?"
 | [0011](./0011-user-suspension-blocks-login-not-content.md) | User suspension blocks access, never content | Accepted |
 | [0012](./0012-admin-audit-log-before-the-first-mutating-endpoint.md) | The admin audit log ships before the first mutating admin endpoint | Accepted |
 | [0013](./0013-community-updates-vs-announcements.md) | "Community Updates" is the per-report public feed; "Announcements" is a separate feature | Accepted |
+| [0014](./0014-photo-verification-publication-gate.md) | Photo verification gates report publication, asymmetrically | Accepted — partially supersedes BR-5 of [`features/report-a-request.md`](../features/report-a-request.md). Re-verified 2026-09-05: real AWS validation **BLOCKED**, admin browser runtime **NOT PROVEN**, mobile runtime **PARTIALLY PROVEN** |
 
 ## Conventions
 
 - ADRs are **immutable** once accepted. To change a decision, write a new ADR that
   supersedes the old one (set the old one's `Status: Superseded by ADR-NNNN`).
+- An ADR may also supersede a **business rule in a feature doc** rather than another ADR
+  (0014 does this to BR-5). When it does, quote the rule verbatim, say precisely what changed
+  and what survived, and leave an amendment pointer in the feature doc itself — a rule silently
+  contradicted by an ADR is worse than either document alone.
 - File naming: `NNNN-<kebab-case-title>.md` where `NNNN` is the next zero-padded
   sequence number.
 - Every ADR includes: Status, Context, Decision, Consequences, Alternatives
@@ -43,4 +48,4 @@ See [`0000-template.md`](./0000-template.md).
 
 ---
 
-_Last verified 2026-08-28 against commit `d035cfd`._
+_Index last verified 2026-09-04 against commit `15136b5`._

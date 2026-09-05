@@ -31,21 +31,28 @@ import { Badge, type BadgeProps } from "@/components/ui";
 const TONE: Record<string, BadgeProps["tone"]> = {
   // Live and findable in the mobile Discover feed.
   open: "success",
+  // Verification held a photo; awaiting a moderator. Not public.
+  pending_review: "warning",
   // Past its window. Nobody can accept it any more; nothing wrote this.
   expired: "warning",
   // The reporter cancelled it, or an admin closed it.
   closed: "neutral",
   // Help arrived and was confirmed.
   completed: "info",
+  // Moderation refused a photo. The report exists for its reporter and never
+  // becomes public.
+  rejected: "danger",
   // Soft-deleted — hidden by an admin, or removed by its reporter.
   deleted: "danger",
 };
 
 const LABEL: Record<string, string> = {
   open: "Open",
+  pending_review: "Pending review",
   expired: "Expired",
   closed: "Closed",
   completed: "Completed",
+  rejected: "Rejected",
   deleted: "Hidden",
 };
 

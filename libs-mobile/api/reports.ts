@@ -18,7 +18,23 @@ export type Report = {
   // report-level 'active'/'in_progress' status either — a report stays
   // 'open' for the whole time a mission is in progress; only
   // mission_volunteers tracks joined/active/released.
-  status: 'open' | 'closed' | 'expired' | 'completed';
+  //
+  // NOT A CLOSED FOUR ANY MORE. Photo verification added two, and this comment
+  // previously asserted the older list as if it were final — it wasn't, and a
+  // client that treats an unknown status as its `default:` branch renders the
+  // new ones as "Open", which is the specific lie this note now exists to stop:
+  //
+  //   pending_review — created, but one of its photos is being checked. NOT
+  //                    visible to volunteers, so it is not "open"; the reporter
+  //                    can see it and is waiting on us.
+  //   rejected       — a moderator refused it. Terminal, and not the same thing
+  //                    as 'closed' (which the reporter chose) or 'expired'.
+  //
+  // The server sends the DERIVED status (report-effective-status.ts), so
+  // 'expired' arrives here without ever being stored. 'deleted' exists in that
+  // same derivation but is admin-only — citizen endpoints filter soft-deleted
+  // rows out entirely, so it is deliberately absent from this union.
+  status: 'open' | 'pending_review' | 'closed' | 'expired' | 'completed' | 'rejected';
   title: string;
   description: string;
   lat: number;
@@ -74,8 +90,60 @@ export type CreateReportInput = {
    * would freeze a value an admin can change in the console.
    */
   expiryMinutes?: number;
-  photoUrls: string[];
+  /**
+   * Verified-upload ids from `POST /uploads/report-photo`, 1–4 of them.
+   *
+   * IDS, NOT URLS. This used to be `photoUrls`, and the server used to accept
+   * them — which meant the only thing standing between a report and any image
+   * on earth was a check that the URL looked like one this API had served.
+   * Nothing had ever looked at the picture. An id, by contrast, names a
+   * verification record the API wrote itself: the client cannot manufacture one
+   * and cannot alter the verdict attached to it, because the verdict is re-read
+   * from the database on every attach.
+   *
+   * A `review` id is legal here and holds the whole report (status comes back
+   * `pending_review`). A `reject` never produces an id at all.
+   */
+  photoUploadIds: string[];
 };
+
+/**
+ * The API's 400-level codes for a photo that cannot be attached.
+ *
+ * Exported so screens map them to their own localised sentence instead of
+ * rendering the server's English `message` — this app ships in two languages
+ * and the API only speaks one.
+ */
+/**
+ * `PUT /reports/:id/photos` only — the report is not `pending_review`.
+ *
+ * Deliberately NOT in REPORT_PHOTO_ERROR_CODES below: nothing is wrong with the
+ * photo, so a screen that maps this onto "take another one" would send the
+ * reporter back to the camera for a report that has already moved on (a
+ * moderator rejected it, they cancelled it, it expired). Kept separate so the
+ * two get different sentences.
+ */
+export const REPORT_NOT_AWAITING_PHOTO = 'REPORT_NOT_AWAITING_PHOTO';
+
+export const REPORT_PHOTO_ERROR_CODES = [
+  // The id isn't yours, doesn't exist, or was already spent on another report.
+  'PHOTO_NOT_VERIFIED',
+  // The verdict was reject. Should be unreachable from the capture flow, which
+  // never holds an id for a rejected photo — reachable if one is spoofed.
+  'PHOTO_REJECTED',
+  // Post-publish paths only (edit, add-photo): a live report can't be pulled
+  // back into review, so anything short of `pass` is refused there.
+  'PHOTO_NEEDS_REVIEW',
+  'PHOTO_REQUIRED',
+  // The row says the photo exists and the disk disagrees.
+  'PHOTO_UNAVAILABLE',
+] as const;
+
+export type ReportPhotoErrorCode = (typeof REPORT_PHOTO_ERROR_CODES)[number];
+
+export function isReportPhotoErrorCode(code: string | undefined): code is ReportPhotoErrorCode {
+  return REPORT_PHOTO_ERROR_CODES.includes(code as ReportPhotoErrorCode);
+}
 
 export function listReportCategories(): Promise<ReportCategory[]> {
   return apiRequest('/reports/categories', { method: 'GET', auth: true });
@@ -148,11 +216,57 @@ export type UpdateReportInput = Partial<{
   neededVolunteers: number;
   anonymous: boolean;
   phoneVisible: boolean;
-  photoUrls: string[];
+  /**
+   * A full replacement of the report's photos, same currency as create.
+   *
+   * Stricter than create, though: this runs on an already-published report, so
+   * the server refuses anything that is not already `pass` (PHOTO_NEEDS_REVIEW).
+   * Volunteers may already be travelling to this report — it cannot be pulled
+   * back into review by an edit, and holding just the new photo would mean an
+   * invisible image nobody is told about. The reporter is asked to take another.
+   */
+  photoUploadIds: string[];
 }>;
 
 export function updateReport(id: string, body: UpdateReportInput): Promise<Report> {
   return apiRequest(`/reports/${id}`, { method: 'PATCH', auth: true, body });
+}
+
+/**
+ * Replaces every photo on a HELD report — the reporter's reply to a moderator's
+ * "please send a different photo".
+ *
+ * WHY THIS IS NOT `updateReport({ photoUploadIds })`. That path runs
+ * `requireOwnedOpenReport()` server-side and refuses anything that is not
+ * `open`, so a reporter sitting on a `pending_review` report literally could not
+ * use it. The alert they receive ("New Photo Needed") was correct copy for
+ * behaviour with no client at all: the refused upload stays `rejected`, which
+ * `standingFor()` counts as refused, which blocks `publishIfReady()` forever —
+ * the report was stuck for the reporter AND the moderator with no error raised
+ * anywhere.
+ *
+ * FULL REPLACE, not a delta. The server detaches whatever was attached and
+ * links this set, so sending the same ids twice cannot accumulate photos.
+ *
+ * THE IDS MUST COME FROM A FRESH `POST /uploads/report-photo`. There is no
+ * gentler second path in for a photo a moderator already saw: `resolveUploads`
+ * refuses any upload with a `reviewed_at`, so re-sending the refused one comes
+ * back PHOTO_NOT_VERIFIED rather than being quietly held again.
+ *
+ * Both outcomes are successes and the caller must read `status` to tell them
+ * apart: every replacement passing publishes the report (`open`), any of them
+ * needing review leaves it `pending_review` for another moderator pass.
+ *
+ * Failure codes: REPORT_NOT_AWAITING_PHOTO (the report moved on),
+ * PHOTO_NOT_VERIFIED (not yours / spent / already adjudicated), PHOTO_REJECTED,
+ * PHOTO_UNAVAILABLE, REPORT_PHOTO_LIMIT.
+ */
+export function replaceHeldPhotos(reportId: string, photoUploadIds: string[]): Promise<Report> {
+  return apiRequest(`/reports/${reportId}/photos`, {
+    method: 'PUT',
+    auth: true,
+    body: { photoUploadIds },
+  });
 }
 
 // Cancel Report reuses the existing close endpoint — see

@@ -54,8 +54,8 @@ above so the next doc pass knows to expect it.
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | — **RELEASED 2026-09-02.** The 0025 claim (sponsor campaigns/creatives/impressions/clicks) is **withdrawn, not deferred**: the contract was frozen the same day as `GET /sponsors` with no tracking, and mobile + admin were both realigned to it. Building those four tables would have contradicted a live decision. | Head **0024** (`broadcasts`), 25 applied. |
-| pnpm-lock.yaml | — | — |
+| migration series | **CLAIMED 2026-09-03 — photo verification (`0025`).** Adding `photo_verification_statuses` (lookup), `photo_uploads` (quarantine + verdict), `report_photos.upload_id`, `report_categories.expected_labels`, and two new `report_statuses` seed keys. Release on push. *Previously:* **RELEASED 2026-09-02.** The 0025 claim (sponsor campaigns/creatives/impressions/clicks) is **withdrawn, not deferred**: the contract was frozen the same day as `GET /sponsors` with no tracking, and mobile + admin were both realigned to it. Building those four tables would have contradicted a live decision. | Head **0024** (`broadcasts`), 25 applied. |
+| pnpm-lock.yaml | **CLAIMED 2026-09-03** — adding `jimp` (pure-JS image decode) to `apps/api`; `@aws-sdk/client-rekognition` to follow. | Release on push. |
 | App Profile / shared lib | — | — |
 
 ### Migration ledger

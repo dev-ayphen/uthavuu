@@ -43,6 +43,11 @@ export const ACCESS_DENIED = {
     description:
       "Your role covers moderation — reports, comments and accounts. A category edit changes what every citizen can ask for help with, and how long their next request stays live, so it is restricted. Ask a super admin if you need this.",
   },
+  photoVerification: {
+    title: "Only admins with report moderation can review photos",
+    description:
+      "Approving a photo is what makes a held report public, and rejecting one ends somebody's request for help — so the queue sits behind the same report-moderation permission as the rest of the Reports section. Ask a super admin if you need it.",
+  },
   settings: {
     title: "Only super admins can change app settings",
     description:

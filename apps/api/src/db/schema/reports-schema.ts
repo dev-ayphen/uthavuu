@@ -9,6 +9,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -27,6 +28,20 @@ export const reportCategories = pgTable('report_categories', {
   // BR-3: Disaster Relief exists as a category but isn't citizen-selectable —
   // the create-report DTO filters on this rather than hardcoding an exclusion.
   citizenSelectable: boolean('citizen_selectable').default(true).notNull(),
+  /**
+   * Scene labels a photo in this category is expected to contain, used for the
+   * category-relevance check during photo verification.
+   *
+   * NULL means "do not check", and that is a real answer rather than a missing
+   * one: Community Help has no characteristic imagery, so enforcing a match
+   * would hold legitimate reports for no reason. Lives on the category rather
+   * than in code because categories are operator-editable data — a code map
+   * would drift the moment someone adds a category through the console.
+   *
+   * Values are provider label names (Rekognition's `Labels[].Name` and its
+   * `Parents`/`Categories`), matched case-insensitively.
+   */
+  expectedLabels: jsonb('expected_labels').$type<string[]>(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -127,12 +142,31 @@ export const reportPhotos = pgTable(
     // BR-1: only in-app camera capture is accepted client-side today. This
     // stays true unconditionally for v0.1 — see report-a-request.md's "Known
     // enforcement gap": nothing server-side verifies it yet (no EXIF check).
+    //
+    // NOTE this is still NOT a provenance signal even now that photo
+    // verification exists. Verification answers "is this image safe and roughly
+    // relevant"; it says nothing about whether the camera or the gallery
+    // produced it. `upload_id` below is the column that carries real,
+    // server-established facts about a photo.
     capturedLive: boolean('captured_live').default(true).notNull(),
+    /**
+     * The verification record this photo was published from.
+     *
+     * NULLABLE, and the null case is meaningful rather than merely permitted:
+     * rows that predate verification have no upload record, and backfilling one
+     * would assert a check that never happened. A null here reads as "never
+     * verified", which is the truth about every photo created before this
+     * feature shipped.
+     */
+    uploadId: uuid('upload_id'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (table) => [index('report_photos_report_id_idx').on(table.reportId)],
+  (table) => [
+    index('report_photos_report_id_idx').on(table.reportId),
+    index('report_photos_upload_id_idx').on(table.uploadId),
+  ],
 );
 
 export const reportRelations = relations(reports, ({ one, many }) => ({

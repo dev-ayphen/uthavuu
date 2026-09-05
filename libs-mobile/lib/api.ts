@@ -13,16 +13,33 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 export class ApiError extends Error {
   status: number;
   code?: string;
+  /**
+   * Seconds until a rate-limited call may be retried, when the API says so.
+   *
+   * The only structured field any endpoint returns beside `code`/`message`
+   * (`UPLOAD_RATE_LIMITED` on POST /uploads/report-photo). It's kept because
+   * dropping it forces the screen to invent a wait — "try again later" when the
+   * server already knows it's 42 seconds. Optional everywhere else, so no
+   * caller has to care.
+   */
+  retryAfterSeconds?: number;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(status: number, message: string, code?: string, retryAfterSeconds?: number) {
     super(message);
     this.status = status;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  // PUT is here for exactly one endpoint — `PUT /reports/:id/photos`, the
+  // reporter's reply to "send us a different photo" (libs-mobile/api/reports.ts).
+  // It is a full replace of a held report's photo set, which is the one write in
+  // this app that is genuinely idempotent rather than additive, so PATCH would
+  // have been the wrong verb and reusing POST would have made it look like
+  // `POST /reports/:id/photos`, which ADDS one photo to a live report.
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
 };
@@ -158,7 +175,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (res.status === 403 && (data?.code === MAINTENANCE_MODE || data?.code === READ_ONLY_MODE)) {
       platformBlockedHandler?.(data.code as PlatformBlockCode);
     }
-    throw new ApiError(res.status, data?.message ?? `Request failed (${res.status})`, data?.code);
+    throw new ApiError(
+      res.status,
+      data?.message ?? `Request failed (${res.status})`,
+      data?.code,
+      // Guarded rather than passed through: a non-numeric value here would
+      // reach a screen as "try again in [object Object] seconds".
+      typeof data?.retryAfterSeconds === 'number' ? data.retryAfterSeconds : undefined
+    );
   }
 
   return data as T;

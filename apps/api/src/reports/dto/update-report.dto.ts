@@ -8,7 +8,7 @@ import { z } from 'zod';
 // Every field below is otherwise the same validation as CreateReportSchema
 // (apps/api/src/reports/dto/create-report.dto.ts) — kept in sync
 // deliberately, not by shared import, since Zod's partial() would also
-// loosen photoUrls' min(1) in a way that's easy to miss.
+// loosen photoUploadIds' min(1) in a way that's easy to miss.
 export const UpdateReportSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(120).optional(),
   description: z
@@ -24,12 +24,16 @@ export const UpdateReportSchema = z.object({
   neededVolunteers: z.number().int().min(1).max(20).optional(),
   anonymous: z.boolean().optional(),
   phoneVisible: z.boolean().optional(),
-  // Full replace when present — matches CreateReportSchema's own bounds, and
-  // like it, `.url()` here is syntax only. The edit path is the second way a
-  // hostile URL reaches report_photos.url, so ReportsService.update() runs the
-  // same assertPhotosAreOurUploads() check create() does.
-  photoUrls: z
-    .array(z.string().trim().url())
+  // Full replace when present. Ids, not URLs — same reasoning as
+  // CreateReportSchema: the edit path is the second way an unexamined photo
+  // reaches report_photos, so it goes through the same verification gate.
+  //
+  // Unlike create, an edit may only attach photos that already PASSED. A live
+  // report cannot be un-published by editing a questionable photo onto it —
+  // volunteers may already be travelling to it — so a held photo is refused
+  // here with PHOTO_NEEDS_REVIEW and the reporter takes another.
+  photoUploadIds: z
+    .array(z.string().trim().uuid())
     .min(1, 'At least one photo is required')
     .max(4, 'Up to 4 photos allowed')
     .optional(),

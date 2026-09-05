@@ -38,7 +38,8 @@ Same for pages: a feature doc lists which screens are involved; the
 | Feature | Doc | Milestone | Status |
 |---|---|---|---|
 | Auth | [auth.md](./auth.md) | v0.1 | agreed |
-| Report a Request | [report-a-request.md](./report-a-request.md) | v0.1 | agreed |
+| Report a Request | [report-a-request.md](./report-a-request.md) | v0.1 | agreed (BR-5 amended by [ADR 0014](../decisions/0014-photo-verification-publication-gate.md)) |
+| Photo Verification | [photo-verification.md](./photo-verification.md) | v0.1 | building — server side complete and tested (API 921/57, admin 94/3, live HTTP 31/31); **real AWS validation BLOCKED**, admin browser runtime **NOT PROVEN**, mobile runtime **PARTIALLY PROVEN** (capture step blocked by simulator), production readiness **NOT YET** |
 | Discover Nearby Requests | [discover-nearby-requests.md](./discover-nearby-requests.md) | v0.1 | agreed |
 | Accept / Volunteer | — | v0.1 | not started |
 | Mission Coordination | — | v0.1 | not started |

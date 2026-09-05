@@ -47,9 +47,20 @@ export const URGENT_REQUESTS_PERMISSION = "reports:manage";
 /** The permission `GET /admin/flagged-comments` requires. */
 export const FLAGGED_COMMENTS_PERMISSION = "comments:manage";
 
+/**
+ * The permission `GET /admin/report-photos/summary` requires.
+ *
+ * Resolved separately from `urgentRequests` even though both read
+ * `reports:manage` today. They are two different endpoints, and writing one
+ * answer twice is what keeps this file honest the day the API splits them —
+ * reusing one boolean would silently show a panel behind a gate nobody checked.
+ */
+export const PHOTO_VERIFICATION_PERMISSION = "reports:manage";
+
 export type DashboardPanelAccess = {
   urgentRequests: boolean;
   flaggedComments: boolean;
+  photoVerification: boolean;
 };
 
 /**
@@ -65,5 +76,6 @@ export async function dashboardPanelAccess(): Promise<DashboardPanelAccess> {
   return {
     urgentRequests: granted.includes(URGENT_REQUESTS_PERMISSION),
     flaggedComments: granted.includes(FLAGGED_COMMENTS_PERMISSION),
+    photoVerification: granted.includes(PHOTO_VERIFICATION_PERMISSION),
   };
 }

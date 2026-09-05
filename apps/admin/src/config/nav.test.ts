@@ -61,6 +61,27 @@ describe("visibleNavSections", () => {
     expect(reports!.href).toBe("/reports/flagged");
   });
 
+  // Photo Verification is report moderation, not comment moderation: approving
+  // a photo publishes a held report and rejecting one ends a request for help.
+  // It must therefore follow `reports:manage` and NOT ride in on the gate that
+  // opens the two comment queues.
+  it("gates Photo Verification with reports:manage, not comments:manage", () => {
+    const withReports = visibleNavSections(["reports:manage"]).find((s) => s.key === "reports");
+    expect(withReports!.children?.map((c) => c.href)).toContain("/reports/photo-verification");
+
+    const withComments = visibleNavSections(["comments:manage"]).find((s) => s.key === "reports");
+    expect(withComments!.children?.map((c) => c.href)).not.toContain(
+      "/reports/photo-verification",
+    );
+  });
+
+  // A child, deliberately — the queue moderates reports, and a ninth top-level
+  // icon for one queue would make the console look bigger than it is.
+  it("keeps Photo Verification under Reports rather than adding a section", () => {
+    expect(NAV_SECTIONS.map((s) => s.key)).not.toContain("photo-verification");
+    expect(visibleNavSections(ALL)).toHaveLength(NAV_SECTIONS.length);
+  });
+
   it("never hides the Dashboard, which is the one deliberate null gate", () => {
     for (const grants of [[], ["users:manage"], ALL]) {
       expect(visibleNavSections(grants).map((s) => s.key)).toContain("dashboard");
@@ -76,6 +97,22 @@ describe("visibleBadgeKeys", () => {
     expect(keys.has("users")).toBe(true);
     expect(keys.has("supportNew")).toBe(false);
     expect(keys.has("commentsFlagged")).toBe(false);
+  });
+
+  // The photo queue's badge follows its own entry's gate. `nav-badges.ts` uses
+  // this set to decide whether to even REQUEST the count, so a leak here would
+  // spend a refused round trip on every sidebar render as well as calling an
+  // operator to a door they cannot open.
+  it("only offers the photo-queue badge to an admin who can open that queue", () => {
+    expect(visibleBadgeKeys(visibleNavSections(["reports:manage"])).has("reportPhotosPending")).toBe(
+      true,
+    );
+    for (const grants of [[], ["users:manage"], ["comments:manage"]]) {
+      expect(
+        visibleBadgeKeys(visibleNavSections(grants)).has("reportPhotosPending"),
+        grants.join(","),
+      ).toBe(false);
+    }
   });
 });
 

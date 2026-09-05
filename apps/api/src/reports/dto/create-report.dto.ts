@@ -26,12 +26,20 @@ export const CreateReportSchema = z.object({
   expiryMinutes: z.number().int().positive().optional(),
   // accept-and-mission-chat.md BR-1: 1–20, default 1 (solo mission), fixed after publish in v1.
   neededVolunteers: z.number().int().min(1).max(20).optional().default(1),
-  // BR-1: at least one, max 4. `.url()` is a SYNTAX check only — it accepts
-  // `http://evil.com/x.png`. That each URL is really one POST /uploads served
-  // is enforced in ReportsService.assertPhotosAreOurUploads(), which needs the
-  // filesystem and the declared origins; do not read this line as that check.
-  photoUrls: z
-    .array(z.string().trim().url())
+  // BR-1: at least one, max 4.
+  //
+  // IDS, NOT URLS. This used to be `photoUrls: z.array(z.string().url())`, and
+  // the comment here used to explain that `.url()` was only a syntax check and
+  // that ReportsService verified the origin separately. Both were true and both
+  // were insufficient: a URL proved only that this API had once served those
+  // bytes, never that anything had looked at the picture.
+  //
+  // An id refers to a `photo_uploads` row THIS API wrote after inspecting,
+  // fingerprinting and moderating the image. The verdict on that row is re-read
+  // from the database when the report is created — a client can neither forge an
+  // id nor influence the decision attached to one. See report-photo-attachment.ts.
+  photoUploadIds: z
+    .array(z.string().trim().uuid())
     .min(1, 'At least one photo is required')
     .max(4, 'Up to 4 photos allowed'),
 });

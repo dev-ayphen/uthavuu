@@ -1,5 +1,30 @@
 # 14 — Request Details (stack)
 
+> ## ⚠️ This file describes a prototype that never existed — and now contradicts a real feature
+>
+> `CLAUDE.md` already warns that every `file:line` citation in `docs/webadmin/*` and
+> `docs/mobile/*` was fabricated by an earlier autonomous run. That warning now has teeth
+> here specifically, because **photo verification is real code as of 2026-09-04** and this
+> file describes something different from what was built.
+>
+> Concretely, do not build against the following — they are inventions, not requirements:
+>
+> - **An "AI verification score."** No score exists and none is stored. `verification-decision.ts`
+>   persists *banded* signals (`none` / `low` / `medium` / `high`) and a verdict, deliberately:
+>   a numeric score invites a moderator to treat a threshold as a truth, and it would leak how
+>   close a photograph sat to passing.
+> - **"AWS Rekognition Auto-Scan Passed ✓" as a badge.** The prototype backed that with a
+>   `setTimeout`. The real pipeline holds the photo privately until a verdict exists, and the
+>   copy deliberately never claims AI verified that the *incident* is genuine — only that the
+>   *image* was checked.
+> - **Rekognition detecting manipulated or AI-generated images.** It has no such capability.
+>   That remains **Not Implemented**.
+>
+> The real specification is [`docs/decisions/0014-photo-verification-publication-gate.md`](../decisions/0014-photo-verification-publication-gate.md)
+> and [`docs/features/photo-verification.md`](../features/photo-verification.md). Trust those and the code.
+
+
+
 > **The largest screen in the app — 1,789 lines.** Full view of a help request: mission
 > roster and join flow, community updates feed with a simulated AI moderation scan,
 > accept-gated contact actions, and the **"Report Post to Admin"** flow.
