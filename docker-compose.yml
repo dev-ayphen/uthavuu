@@ -57,8 +57,21 @@ services:
       - '3001:3001'
     volumes:
       - uthavu_api_uploads:/repo/apps/api/uploads
+      # Quarantine needs a volume as much as the public directory does, and for a
+      # sharper reason. Without this it lives on the container's writable layer,
+      # so every `docker compose build` + recreate DESTROYS every photo awaiting
+      # moderation while their `photo_uploads` rows survive — a queue full of
+      # items a moderator cannot view and cannot approve (`publishIfReady` throws
+      # "has no file to publish"). Observed live: 30 held rows, 3 files on disk.
+      #
+      # It is a SEPARATE volume, not a subdirectory of the public one, because
+      # `quarantine-storage.ts` refuses to boot if QUARANTINE_DIR resolves inside
+      # UPLOADS_DIR — anything under UPLOADS_DIR is served by the static
+      # middleware, which would publish the very photos this directory hides.
+      - uthavu_api_quarantine:/repo/apps/api/uploads-pending
 
 volumes:
   uthavu_postgres_data:
   uthavu_redis_data:
   uthavu_api_uploads:
+  uthavu_api_quarantine:
