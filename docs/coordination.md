@@ -54,8 +54,8 @@ above so the next doc pass knows to expect it.
 
 | Resource | Held by | Until |
 |---|---|---|
-| migration series | **CLAIMED 2026-09-03 — photo verification (`0025`).** Adding `photo_verification_statuses` (lookup), `photo_uploads` (quarantine + verdict), `report_photos.upload_id`, `report_categories.expected_labels`, and two new `report_statuses` seed keys. Release on push. *Previously:* **RELEASED 2026-09-02.** The 0025 claim (sponsor campaigns/creatives/impressions/clicks) is **withdrawn, not deferred**: the contract was frozen the same day as `GET /sponsors` with no tracking, and mobile + admin were both realigned to it. Building those four tables would have contradicted a live decision. | Head **0024** (`broadcasts`), 25 applied. |
-| pnpm-lock.yaml | **CLAIMED 2026-09-03** — adding `jimp` (pure-JS image decode) to `apps/api`; `@aws-sdk/client-rekognition` to follow. | Release on push. |
+| migration series | **RELEASED 2026-09-06.** `0025_faithful_wind_dancer` (photo verification: `photo_verification_statuses`, `photo_uploads`, `report_photos.upload_id`, `report_categories.expected_labels`, plus `pending_review`/`rejected` seed keys) is generated, applied, seeded and **pushed** on `feat/photo-verification-gate` (`ae14221`). Both added columns are nullable, so there was no backfill against the ~251 populated `report_photos` rows. | Head **0025** (`faithful_wind_dancer`), 26 applied. |
+| pnpm-lock.yaml | **RELEASED 2026-09-06** — `jimp`, `@jimp/js-jpeg`, `@jimp/js-png` and `@aws-sdk/client-rekognition` added to `apps/api`; pushed on `feat/photo-verification-gate`. | — |
 | App Profile / shared lib | — | — |
 
 ### Migration ledger
