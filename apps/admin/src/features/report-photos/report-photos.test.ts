@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { describeSignals } from "./verification-panel";
+
 import { ApiError } from "@/lib/api-error";
 import { isStaleConflict, moderationErrorMessage } from "@/features/moderation/moderation-errors";
 import {
@@ -621,5 +623,75 @@ describe("photoStateCopy", () => {
 
   it("renders nothing for a photo with no status yet, which is a real state", () => {
     expect(photoStateCopy(null)).toBeNull();
+  });
+});
+
+/**
+ * Regression for a crash a browser found and no test did.
+ *
+ * The engine writes `overallRisk: null` for a photo nothing analysed — a band is
+ * a measurement and there was none. `describeSignals` guarded on
+ * `=== undefined`, `null` is not `undefined`, and `humanise(null)` threw
+ * `Cannot read properties of null (reading 'charAt')`, taking the whole photo
+ * detail page down to its error boundary.
+ *
+ * The type said `overallRisk?: PhotoRiskLevel`, so TypeScript was satisfied:
+ * optional and nullable are different types, and the wire was sending the one
+ * that was not declared.
+ */
+describe("describeSignals survives the nulls the engine actually emits", () => {
+  it("does not throw on the exact signal set an unanalysed photo carries", () => {
+    // Copied verbatim from photo_uploads.signals for the upload that crashed.
+    const stored = {
+      drugs: "none",
+      nudity: "none",
+      weapons: "none",
+      decision: "review",
+      violence: "none",
+      duplicate: true,
+      overallRisk: null,
+      imageQuality: "unknown",
+      sexualContent: "none",
+      notPhotographic: false,
+      categoryRelevance: "unchecked",
+    } as const;
+
+    expect(() => describeSignals(stored)).not.toThrow();
+  });
+
+  it('renders a null band as "Not recorded", never as an empty or invented value', () => {
+    const bands = describeSignals({ overallRisk: null });
+    const risk = bands.find((band) => band.label === "Overall risk");
+
+    expect(risk?.value).toBe("Not recorded");
+    // "quiet", not "flag": absence is not a finding, and colouring it as one
+    // would put a warning on screen about a measurement nobody took.
+    expect(risk?.tone).toBe("quiet");
+  });
+
+  it("treats every signal field as nullable, not just the one that crashed", () => {
+    // The engine can emit null for any of these; the fix must not be a
+    // one-field patch that leaves the next null to be found in a browser again.
+    const allNull = {
+      imageQuality: null,
+      nudity: null,
+      sexualContent: null,
+      violence: null,
+      drugs: null,
+      weapons: null,
+      categoryRelevance: null,
+      notPhotographic: null,
+      duplicate: null,
+      overallRisk: null,
+    };
+
+    expect(() => describeSignals(allNull)).not.toThrow();
+    expect(describeSignals(allNull).every((band) => band.value === "Not recorded")).toBe(true);
+  });
+
+  it("still formats a real value", () => {
+    const bands = describeSignals({ overallRisk: "high", violence: "medium" });
+    expect(bands.find((b) => b.label === "Overall risk")?.value).toBe("High");
+    expect(bands.find((b) => b.label === "Violence")?.tone).toBe("flag");
   });
 });

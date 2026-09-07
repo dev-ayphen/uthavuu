@@ -274,7 +274,7 @@ function ProviderLine({ photo }: { photo: ReportPhotoDetail }) {
 }
 
 /** One band of the stored signal summary: a label, a value, and what it means. */
-type Band = { label: string; value: string; tone: "flag" | "quiet"; note?: string };
+export type Band = { label: string; value: string; tone: "flag" | "quiet"; note?: string };
 
 /**
  * The stored signals as named bands.
@@ -354,13 +354,23 @@ function SignalDetails({ signals }: { signals: PhotoSignals | null }) {
  * it is a READING of what was stored, never a re-application of a threshold.
  * The thresholds live in the API and are the only place a verdict is decided.
  */
-function describeSignals(signals: PhotoSignals): Band[] {
+export function describeSignals(signals: PhotoSignals): Band[] {
   const bands: Band[] = [];
-  const add = (label: string, value: string | undefined, quiet: string[], note?: string) => {
+  // `== null` catches BOTH null and undefined, deliberately. `overallRisk`
+  // arrives as an explicit null for a photo nothing analysed; a `=== undefined`
+  // guard let it through to humanise(), which threw on `null.charAt(0)` and took
+  // the whole detail page down to its error boundary.
+  const add = (
+    label: string,
+    value: string | null | undefined,
+    quiet: string[],
+    note?: string,
+  ) => {
+    const missing = value == null;
     bands.push({
       label,
-      value: value === undefined ? "Not recorded" : humanise(value),
-      tone: value !== undefined && !quiet.includes(value) ? "flag" : "quiet",
+      value: missing ? "Not recorded" : humanise(value),
+      tone: !missing && !quiet.includes(value) ? "flag" : "quiet",
       note,
     });
   };
@@ -376,7 +386,7 @@ function describeSignals(signals: PhotoSignals): Band[] {
   bands.push({
     label: "Photographic",
     value:
-      signals.notPhotographic === undefined
+      signals.notPhotographic == null
         ? "Not recorded"
         : signals.notPhotographic
           ? "Animated or illustrated"
@@ -388,7 +398,7 @@ function describeSignals(signals: PhotoSignals): Band[] {
   bands.push({
     label: "Duplicate",
     value:
-      signals.duplicate === undefined
+      signals.duplicate == null
         ? "Not recorded"
         : signals.duplicate
           ? "Matches an earlier upload"
@@ -401,6 +411,12 @@ function describeSignals(signals: PhotoSignals): Band[] {
   return bands;
 }
 
+/**
+ * Deliberately NOT nullish-tolerant. Accepting null here would have hidden the
+ * bug rather than fixed it: a missing band would render as an empty string and
+ * read as "measured, and it was nothing". Callers decide what absence means and
+ * say "Not recorded"; this only formats a value that exists.
+ */
 function humanise(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }

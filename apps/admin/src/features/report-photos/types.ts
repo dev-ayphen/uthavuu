@@ -90,19 +90,33 @@ export type PhotoUnavailableReason =
  * required: a row verified by an older build, or one whose `signals` column is
  * still null, must render as "not recorded" rather than as `undefined`.
  */
+/**
+ * ⚠️ THESE ARE `| null`, NOT MERELY OPTIONAL — the difference crashed the detail page.
+ *
+ * `overallRisk` was typed `?: PhotoRiskLevel`. The API sends an explicit `null`
+ * for a photo nothing analysed (a band is a measurement, and there was none),
+ * `null` is not `undefined`, so a `=== undefined` guard fell through to
+ * `humanise(null)` and threw `Cannot read properties of null (reading
+ * 'charAt')`. TypeScript could not have caught it: optional and nullable are
+ * different types and the wire was sending the one that was not declared.
+ *
+ * This object is JSON written by the decision engine. Anything it can emit as
+ * null is declared null here rather than approximated as optional.
+ */
 export type PhotoSignals = {
-  imageQuality?: "pass" | "poor" | "unknown";
-  nudity?: "none" | "partial" | "explicit";
-  sexualContent?: "none" | "detected";
-  violence?: "none" | "low" | "medium" | "high";
-  drugs?: "none" | "possible";
-  weapons?: "none" | "possible";
-  categoryRelevance?: "high" | "low" | "unchecked";
+  imageQuality?: "pass" | "poor" | "unknown" | null;
+  nudity?: "none" | "partial" | "explicit" | null;
+  sexualContent?: "none" | "detected" | null;
+  violence?: "none" | "low" | "medium" | "high" | null;
+  drugs?: "none" | "possible" | null;
+  weapons?: "none" | "possible" | null;
+  categoryRelevance?: "high" | "low" | "unchecked" | null;
   /** "Is this a photograph at all". NOT manipulation or AI-generation detection. */
-  notPhotographic?: boolean;
-  duplicate?: boolean;
-  overallRisk?: PhotoRiskLevel;
-  decision?: PhotoDecision;
+  notPhotographic?: boolean | null;
+  duplicate?: boolean | null;
+  /** NULL when nothing examined the photo. Never defaulted to a band. */
+  overallRisk?: PhotoRiskLevel | null;
+  decision?: PhotoDecision | null;
 };
 
 /** A lookup-table reference, once `wire.ts` has normalised it. */
