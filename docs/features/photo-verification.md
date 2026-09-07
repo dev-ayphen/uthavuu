@@ -384,10 +384,24 @@ photo" is something I can actually do**.
   the record. *"The model was uncertain and a person approved it"* has to stay readable years later.
   `decision` will look stale on a decided row. It is not stale — it is the answer to a question that
   was asked once. Test `admin-report-photos.service.spec.ts:341`.
+- **PV-25:** **Quarantine must outlive the container.** `docker-compose.yml` mounted only
+  `UPLOADS_DIR`; `QUARANTINE_DIR` lived on the container's writable layer, so every
+  `docker compose build` + recreate **destroyed every photo awaiting moderation** while its row
+  survived — a queue whose entries cannot be viewed or approved (`publishIfReady` raises "has no
+  file to publish", surfacing as a 500). Found by the release audit against the running stack: **30
+  held rows, 3 files on disk.** Every application-layer test passed throughout; it is an
+  infrastructure defect that made a code guarantee unkeepable. Fixed with a separate named volume
+  `uthavu_api_quarantine` — separate rather than nested, because the boot assertion refuses a
+  `QUARANTINE_DIR` inside `UPLOADS_DIR`. Verified live: a quarantined photo kept its exact byte
+  count across `--force-recreate`, stayed 404 publicly, and remained promotable.
+  **Any other deployment target must give `QUARANTINE_DIR` durable storage of its own.**
+
 - **PV-20:** **Promotion may cross a filesystem boundary, and the fallback is one-directional.**
-  `rename(2)` cannot cross devices, and in Docker it always has to: `UPLOADS_DIR` is the named volume
-  `uthavu_api_uploads` while `QUARANTINE_DIR` sits on the container's writable layer, so **every
-  approval raised `EXDEV` and returned a 500** until a live run found it. Unit tests could not have
+  `rename(2)` cannot cross devices, and in Docker it always has to: `UPLOADS_DIR` and
+  `QUARANTINE_DIR` are two *separate* named volumes (`uthavu_api_uploads`, `uthavu_api_quarantine`),
+  and a rename between two volumes is a rename between two devices, so **every approval raised
+  `EXDEV` and returned a 500** until a live run found it. (When first written `QUARANTINE_DIR` was
+  not mounted at all — see PV-25; giving it a volume did not remove the boundary.) Unit tests could not have
   caught it — on a developer's machine both paths are one disk. The `EXDEV` fallback is
   copy-then-delete (`quarantine-storage.ts:141-164`), which is **not atomic**; that is acceptable
   **only in this direction**, because the database has already committed that this photo may be

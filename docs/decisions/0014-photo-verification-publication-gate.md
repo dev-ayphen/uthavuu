@@ -459,12 +459,48 @@ which is a real answer rather than a missing one (`seed.ts:160-165`; test
 | What is persisted per upload | **Implemented** | A **summarised** signal set, not the provider's raw response: raw Rekognition output runs to hundreds of labels and carries incidental detail about people in the photograph, which would be a privacy liability with no operational use (`photo-verification-schema.ts:103-111`) |
 | Reasons stored as codes, never prose | **Implemented** | Two surfaces render their own wording, and mobile renders it in two languages; a stored sentence would be a third copy that drifts from both (`verification-decision.ts:39-59`) |
 
+### Quarantine must outlive the container
+
+**Status: Implemented (fixed 2026-09-06).** `docker-compose.yml` mounted only `UPLOADS_DIR`.
+`QUARANTINE_DIR` lived on the container's writable layer, so **every `docker compose build` +
+recreate destroyed every photo awaiting moderation** while its `photo_uploads` row survived.
+
+The result is a moderation queue whose items cannot be viewed and cannot be approved:
+`publishIfReady()` raises *"has no file to publish"*, surfacing as a 500. The queue looks populated
+and every entry in it is dead.
+
+Found by the release-readiness audit against the running stack, not by a test — the database held
+**30 photos awaiting a human and the disk held 3 files**. Every application-layer test passed
+throughout. It is an infrastructure defect that made a *code* guarantee unkeepable: "the photo is
+held privately until a moderator decides" is false if a deploy destroys it first.
+
+The fix is one mount plus one named volume (`uthavu_api_quarantine`). It is deliberately a
+**separate** volume rather than a subdirectory of the public one, because `quarantine-storage.ts`
+refuses to boot when `QUARANTINE_DIR` resolves inside `UPLOADS_DIR` — anything under `UPLOADS_DIR`
+is served by the static middleware, which would publish the very photos the directory exists to
+hide.
+
+Verified against the running stack: a freshly quarantined photo kept its exact byte count across
+`docker compose up -d --force-recreate` with its row intact, stayed 404 on the public route, and was
+still promotable by an admin afterwards.
+
+**Operational requirement:** any deployment target other than this compose file must give
+`QUARANTINE_DIR` durable storage of its own. A container-local path is a data-loss bug, not a
+configuration preference.
+
 ### Promotion crosses a filesystem boundary in Docker, and `rename` cannot
 
 **Status: Implemented (fixed 2026-09-05).** `rename(2)` cannot cross a device boundary. In the
-deployed shape it always has to: `docker-compose.yml` mounts `UPLOADS_DIR` as the named volume
-`uthavu_api_uploads` while `QUARANTINE_DIR` sits on the container's own writable layer. So **every
-approval in Docker** raised `EXDEV` and returned a **500** — not an edge case, the normal case.
+deployed shape it always has to: `docker-compose.yml` mounts `UPLOADS_DIR` and `QUARANTINE_DIR` as
+two *separate* named volumes (`uthavu_api_uploads`, `uthavu_api_quarantine`), and a rename between
+two volumes is a rename between two devices. So **every approval in Docker** raised `EXDEV` and
+returned a **500** — not an edge case, the normal case.
+
+> **Amended 2026-09-06.** When this was first written `QUARANTINE_DIR` was not mounted at all — it
+> sat on the container's own writable layer, which is what made the boundary a boundary. That turned
+> out to be a second, worse bug in its own right (see *Quarantine must outlive the container* below),
+> and fixing it did **not** remove the device boundary: two named volumes are still two devices, so
+> the `EXDEV` fallback remains load-bearing rather than historical.
 
 Unit tests never caught it, and could not have: on a developer's machine both paths are on one disk
 and `rename` simply works. It took an end-to-end run against the real container to surface it.
