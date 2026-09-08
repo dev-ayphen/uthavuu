@@ -1,11 +1,19 @@
 // Master data for lookup tables (CLAUDE.md § Database) — categories and
-// statuses live here, not as hardcoded enums. Re-runnable: upserts by `key`,
-// never duplicates or fails on a second run.
+// statuses live here, not as hardcoded enums. Re-runnable: never duplicates or
+// fails on a second run.
+//
+// TWO POLICIES, AND THE DIFFERENCE MATTERS. The lookup tables below UPSERT by
+// `key`: nothing outside this file writes them, so re-asserting a label can
+// only repair drift. `report_categories` is the exception and lives in
+// ./seed-report-categories.ts, which INSERTS ONLY — it is the one table an
+// admin edits from the console, and re-asserting those values would delete a
+// human's decision. That file argues it at length; `platform_settings` at the
+// bottom of this one is insert-only for the same reason.
 import 'dotenv/config';
 import { uuidv7 } from 'uuidv7';
 import { sql } from 'drizzle-orm';
 import { db } from './index';
-import { reportCategories, reportStatuses } from './schema/reports-schema';
+import { reportStatuses } from './schema/reports-schema';
 import { photoVerificationStatuses } from './schema/photo-verification-schema';
 import {
   missionCompletionStatuses,
@@ -33,166 +41,12 @@ import {
   PLATFORM_SETTINGS_DEFAULTS,
   platformSettings,
 } from './schema/settings-schema';
+import {
+  REPORT_CATEGORY_COUNT,
+  seedReportCategories,
+} from './seed-report-categories';
 import { seedAdmins } from './seed-admins';
 import { seedAuditCatalogue } from './seed-audit';
-
-// Matches apps/mobile/src/data/categories.ts exactly (id -> key) — see
-// docs/features/report-a-request.md BR-1 (the 8 citizen categories) and BR-2
-// (per-category default expiry, in minutes here).
-const CATEGORIES = [
-  {
-    key: 'animalRescue',
-    label: 'Animal Rescue',
-    emoji: '🐶',
-    defaultExpiryMinutes: 12 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Animal',
-      'Dog',
-      'Cat',
-      'Bird',
-      'Cattle',
-      'Livestock',
-      'Wildlife',
-      'Pet',
-      'Animals and Pets',
-    ],
-  },
-  {
-    key: 'medicalHelp',
-    label: 'Medical Help',
-    emoji: '❤️',
-    defaultExpiryMinutes: 6 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Person',
-      'Human',
-      'Hospital',
-      'Clinic',
-      'First Aid',
-      'Ambulance',
-      'Injury',
-      'Wound',
-      'Medication',
-      'Health',
-    ],
-  },
-  {
-    key: 'foodDonation',
-    label: 'Food Donation',
-    emoji: '🍱',
-    defaultExpiryMinutes: 12 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Food',
-      'Meal',
-      'Groceries',
-      'Bread',
-      'Rice',
-      'Vegetable',
-      'Fruit',
-      'Box',
-      'Package',
-      'Bag',
-      'Food and Beverage',
-    ],
-  },
-  {
-    key: 'roadsideHelp',
-    label: 'Roadside Help',
-    emoji: '🚗',
-    defaultExpiryMinutes: 6 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Car',
-      'Vehicle',
-      'Truck',
-      'Bus',
-      'Motorcycle',
-      'Tire',
-      'Wheel',
-      'Road',
-      'Highway',
-      'Transportation',
-      'Machine',
-    ],
-  },
-  {
-    key: 'elderlySupport',
-    label: 'Elderly Support',
-    emoji: '👴',
-    defaultExpiryMinutes: 24 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Person',
-      'Human',
-      'Adult',
-      'Senior Citizen',
-      'Wheelchair',
-      'Walking Cane',
-      'Face',
-      'People',
-    ],
-  },
-  {
-    key: 'bloodDonation',
-    label: 'Blood Donation',
-    emoji: '🩸',
-    defaultExpiryMinutes: 4 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Person',
-      'Human',
-      'Hospital',
-      'Clinic',
-      'Blood',
-      'Syringe',
-      'First Aid',
-      'Health',
-    ],
-  },
-  {
-    key: 'communityHelp',
-    label: 'Community Help',
-    emoji: '🤝',
-    defaultExpiryMinutes: 72 * 60,
-    citizenSelectable: true,
-    // Deliberately NO expectedLabels. "Community help" has no characteristic
-    // imagery — a broken streetlight, a flooded lane and a stack of donated
-    // books are all legitimate — so a relevance rule here would hold real
-    // reports and teach moderators to rubber-stamp the queue. Null means the
-    // check is skipped, and that is the right answer rather than a missing one.
-  },
-  {
-    key: 'lostAndFound',
-    label: 'Lost & Found',
-    emoji: '🔍',
-    defaultExpiryMinutes: 72 * 60,
-    citizenSelectable: true,
-    expectedLabels: [
-      'Person',
-      'Human',
-      'Bag',
-      'Wallet',
-      'Phone',
-      'Key',
-      'Jewelry',
-      'Backpack',
-      'Animal',
-      'Dog',
-      'Cat',
-      'Accessories',
-    ],
-  },
-  // BR-3: exists for the schema/admin milestone, not citizen-selectable yet.
-  {
-    key: 'disasterRelief',
-    label: 'Disaster Relief',
-    emoji: '🚨',
-    defaultExpiryMinutes: 24 * 60,
-    citizenSelectable: false,
-  },
-] as const;
 
 const STATUSES = [
   { key: 'open', label: 'Open' },
@@ -382,33 +236,26 @@ const BROADCAST_AUDIENCES = [
 ] as const;
 
 async function seed() {
-  for (const category of CATEGORIES) {
-    await db
-      .insert(reportCategories)
-      .values({
-        id: uuidv7(),
-        ...category,
-        expectedLabels:
-          'expectedLabels' in category ? [...category.expectedLabels] : null,
-      })
-      .onConflictDoUpdate({
-        target: reportCategories.key,
-        set: {
-          label: category.label,
-          emoji: category.emoji,
-          defaultExpiryMinutes: category.defaultExpiryMinutes,
-          citizenSelectable: category.citizenSelectable,
-          // Spread-in rather than always-set: categories with no expectations
-          // must keep NULL, and writing `undefined` here would leave whatever
-          // an operator had configured intact rather than clobbering it.
-          ...('expectedLabels' in category
-            ? { expectedLabels: [...category.expectedLabels] }
-            : {}),
-          updatedAt: sql`now()`,
-        },
-      });
-  }
+  const categories = await seedReportCategories();
 
+  // EVERYTHING FROM HERE DOWN STAYS AN UPSERT, and that is a decision rather
+  // than the status quo left untouched.
+  //
+  // These are CODE CONTRACTS, not configuration. Their `key`s are branched on by
+  // name all over the API — `report-visibility.ts` tests for 'pending_review'
+  // and 'rejected', `support/ticket-status.ts` for the ticket lifecycle,
+  // `sponsors/sponsor-status.ts` derives 'scheduled'/'expired' — so the rows must
+  // exist with exactly these keys for the product to work at all. Their `label`s
+  // are display text that only this file writes; no console screen edits them
+  // (verified: no service outside admin-categories.service.ts writes to any of
+  // these tables). So re-asserting a label cannot overwrite an operator's
+  // decision, because an operator has no way to make one — and it usefully
+  // repairs a row that drifted, and adds rows a new release introduced.
+  //
+  // Making these insert-only would take the risk of insert-only (a stale row
+  // nothing can repair) while gaining none of its benefit (no edit to protect).
+  // If any of these ever gains an admin editing screen, it moves up to the
+  // category block's treatment on the same day.
   for (const status of STATUSES) {
     await db
       .insert(reportStatuses)
@@ -640,7 +487,7 @@ async function seed() {
   const audit = await seedAuditCatalogue();
 
   console.log(
-    `Seeded ${CATEGORIES.length} report categories, ${STATUSES.length} report statuses, ${PHOTO_VERIFICATION_STATUSES.length} photo verification statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`,
+    `Seeded ${categories.created}/${REPORT_CATEGORY_COUNT} report categories (insert-only — existing rows were left exactly as an operator configured them), ${STATUSES.length} report statuses, ${PHOTO_VERIFICATION_STATUSES.length} photo verification statuses, ${MISSION_VOLUNTEER_STATUSES.length} mission volunteer statuses, ${MISSION_COMPLETION_STATUSES.length} mission completion statuses, ${FLAG_STATUSES.length} flag statuses, ${TICKET_CATEGORIES.length} ticket categories, ${TICKET_STATUSES.length} ticket statuses, ${TICKET_PRIORITIES.length} ticket priorities, ${TICKET_MESSAGE_SENDER_TYPES.length} ticket message sender types, ${USER_STATUSES.length} user statuses, ${COMMUNITY_UPDATE_STATUSES.length} community update statuses, ${SPONSOR_STATUSES.length} sponsor statuses, ${SPONSOR_CREATIVE_TYPES.length} sponsor creative types, ${BROADCAST_STATUSES.length} broadcast statuses, ${BROADCAST_AUDIENCES.length} broadcast audiences, ${admin.roles} admin roles, ${admin.permissions} admin permissions, ${admin.admins} admin accounts, ${audit.targetTypes} audit target types, ${audit.actions} audit actions, and ${settings.length === 1 ? 'the platform settings row' : 'the platform settings row (already present)'}.`,
   );
   process.exit(0);
 }
