@@ -59,6 +59,25 @@ import {
  * NOTE ON USAGE: `jest.mock('../../db', ...)` is hoisted above the imports, so
  * its factory cannot close over anything — each spec must inline its own factory
  * with its database name as a literal. This helper covers everything after that.
+ *
+ * ============ WHY package.json SETS jest.testTimeout TO 30s ================
+ * Because of this function, and the note belongs here because package.json
+ * cannot hold a comment.
+ *
+ * `createSpecDatabase` drops a database, creates it, and replays the whole
+ * migration series — and `CREATE DATABASE` is SERIALIZED by Postgres, since it
+ * copies a template and takes a lock on it. Jest runs suites in parallel
+ * workers, so every suite that calls this queues behind every other one. The
+ * cost is therefore not per-suite, it is per-suite times the number of suites
+ * doing it at once, and it grows every time somebody adds one.
+ *
+ * Jest's 5s default was already marginal at that count and started failing
+ * `beforeAll` in whichever suite happened to queue last — a timeout in a spec
+ * that had nothing to do with the change that tipped it, which is the most
+ * misleading failure this setup can produce. The budget was raised rather than
+ * the parallelism reduced: the wait is real work, not a hang, and no assertion
+ * is weakened by allowing it to finish.
+ * ==========================================================================
  */
 export function specDatabaseUrl(databaseName: string): string {
   const url = new URL(process.env.DATABASE_URL!);
