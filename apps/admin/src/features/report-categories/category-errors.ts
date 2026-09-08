@@ -23,15 +23,26 @@ const MESSAGES: Record<string, string> = {
   NO_EFFECTIVE_CHANGE: "Nothing to save — every field already holds the value shown here.",
 
   // ─────────────────────────────────────────────────────────────────────────
-  // DELIBERATELY ABSENT: CATEGORY_IN_USE and CATEGORY_KEY_TAKEN.
+  // DELIBERATELY ABSENT: CATEGORY_IN_USE, CATEGORY_KEY_TAKEN and
+  // CATEGORY_LAST_REMAINING.
   //
-  // Both arrive with a message this console cannot improve on, because both
-  // messages carry a LIVE FACT no static string here could know. CATEGORY_IN_USE
-  // names the exact number of reports blocking the delete and then names the
-  // alternative ("set citizenSelectable to false"); CATEGORY_KEY_TAKEN quotes
-  // the key that collided. Replacing either with a fixed sentence would throw
-  // away the only part an operator can act on. They fall through to
-  // `getErrorMessage`, which returns the API's own prose.
+  // All three arrive with a message this console cannot improve on.
+  // CATEGORY_IN_USE names the exact number of reports blocking the delete and
+  // then names the alternative ("set citizenSelectable to false");
+  // CATEGORY_KEY_TAKEN quotes the key that collided. Both carry a LIVE FACT no
+  // static string here could know, so replacing them would throw away the only
+  // part an operator can act on.
+  //
+  // CATEGORY_LAST_REMAINING is here for a slightly different reason: its message
+  // is static, but it is also WORDED FOR THE ACTION — the API sends different
+  // prose for a delete ("deleting it would leave the mobile app with nothing to
+  // report") than for un-ticking citizen-selectable ("hiding it would..."). This
+  // console cannot tell which one it asked for by the time the error is
+  // rendered, and a single fixed sentence here would be wrong half the time.
+  //
+  // All three fall through to `getErrorMessage`, which returns the API's own
+  // prose. That is why the delete confirmation surfaces a readable explanation
+  // rather than a generic red toast, even though nothing is mapped here.
   // ─────────────────────────────────────────────────────────────────────────
 };
 

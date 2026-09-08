@@ -8,19 +8,20 @@ import {
   CountCell,
   DataTable,
   DateCell,
-  EmptyCell,
   type DataTableColumn,
 } from "@/components/data";
-import { Badge } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
 import { formatExpiry, useReportCategories, type ReportCategoryRow } from "./use-report-categories";
 
 /**
- * @param countsAreTrustworthy see `reportCountsAreTrustworthy` below.
+ * @param onEdit opens the create/edit dialog on this row.
+ * @param onDelete opens the delete confirmation for this row.
  */
 function buildColumns(
-  countsAreTrustworthy: boolean,
+  onEdit: ((row: ReportCategoryRow) => void) | null,
+  onDelete: ((row: ReportCategoryRow) => void) | null,
 ): ReadonlyArray<DataTableColumn<ReportCategoryRow>> {
-  return [
+  const columns: DataTableColumn<ReportCategoryRow>[] = [
     {
       id: "label",
       header: "Category",
@@ -74,12 +75,15 @@ function buildColumns(
       header: "Reports",
       width: "7rem",
       align: "end",
-      cell: (row) =>
-        countsAreTrustworthy ? (
-          <CountCell value={row.reportCount} />
-        ) : (
-          <EmptyCell />
-        ),
+      // Rendered as a plain number again. This column used to be suppressed
+      // behind a `reportCountsAreTrustworthy` heuristic, because the API's
+      // per-category subquery compared `reports.category_id` against
+      // `reports.id` and so returned 0 for every row. That is fixed — the
+      // subquery is now written with an explicit alias and qualifies the outer
+      // column (see the comment on `AdminCategoriesService.list()`), and the
+      // heuristic went with it rather than being left to quietly hide real
+      // counts on a database where every category genuinely has none.
+      cell: (row) => <CountCell value={row.reportCount} />,
     },
     {
       id: "updatedAt",
@@ -88,75 +92,56 @@ function buildColumns(
       cell: (row) => <DateCell value={row.updatedAt} relative />,
     },
   ];
+
+  if (onEdit && onDelete) {
+    columns.push({
+      id: "actions",
+      header: "Actions",
+      // Two actions, so they are inline rather than behind a `⋮` — the same call
+      // the moderation tables make. A menu earns its extra click when it hides
+      // several destructive options; here it would hide one.
+      interactive: true,
+      align: "end",
+      width: "10rem",
+      skeletonWidth: "5rem",
+      cell: (row) => (
+        <span className="flex items-center justify-end gap-1.5">
+          <Button variant="secondary" size="sm" onClick={() => onEdit(row)}>
+            Edit
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => onDelete(row)}>
+            Delete
+          </Button>
+        </span>
+      ),
+    });
+  }
+
+  return columns;
 }
 
-/**
- * Is `reportCount` worth rendering as a number?
- *
- * ===================== A MEASURED API DEFECT =============================
- * `GET /admin/report-categories` returns `reportCount: 0` for EVERY category,
- * always, regardless of the data. It is not a data fact — it is a bug in
- * `AdminCategoriesService.list()`, and the console must not launder it into a
- * confident zero.
- *
- * The cause, taken from the SQL Drizzle actually emits for that query:
- *
- *     select "id", "key", (
- *         select count(*) from "reports"
- *         where "category_id" = "id"          <-- both unqualified
- *           and "deleted_at" is null
- *       ) from "report_categories"
- *
- * Interpolating `${reports.categoryId}` / `${reportCategories.id}` into a raw
- * `sql` template renders the bare column NAME, with no table qualifier. Inside
- * the subquery both names then resolve against its own FROM, so the predicate
- * is `reports.category_id = reports.id` — self-referential, and true for zero
- * rows by construction. Verified in psql:
- *
- *     select count(*) from reports where category_id = id;   ->  0
- *     -- properly correlated, same instant:      medicalHelp ->  64
- *
- * The fix belongs in `apps/api` (qualify the columns, or use a leftJoin +
- * groupBy), which is outside this task's scope — so it is reported, not patched.
- *
- * WHY A HEURISTIC RATHER THAN A HARDCODED EM DASH
- * ───────────────────────────────────────────────────────────────────────────
- * A single non-zero count anywhere proves the query is correlating properly,
- * so trusting the column exactly when some row is non-zero makes this
- * self-healing: the day the API is fixed, real numbers appear with no change
- * here. The one case it gets "wrong" is a database where every category
- * genuinely has zero reports — and there it shows "not measured" instead of
- * "zero", which is the safe direction to be wrong in.
- *
- * The em dash is the established convention for exactly this (see `formatCount`
- * in features/dashboard): a `0` says "nothing has been posted in this
- * category", which is a claim about the community. "Not measured" is the truth.
- * ==========================================================================
- */
-function reportCountsAreTrustworthy(rows: ReportCategoryRow[]): boolean {
-  return rows.some((row) => row.reportCount > 0);
-}
-
-const SKELETON_COLUMNS = buildColumns(true);
+const SKELETON_COLUMNS = buildColumns(null, null);
 
 /**
- * The nine request categories, including the one citizens never see.
+ * The request categories, including the one citizens never see.
  *
- * READ-ONLY, AND SAYING SO
- * ───────────────────────────────────────────────────────────────────────────
- * The API does expose POST / PATCH / DELETE here, so this is not "there is
- * nothing to call". It is not wired because an edit flow needs a confirm dialog
- * (delete is destructive and 409s when the category is in use) and this console
- * has no shared dialog primitive yet — building one belongs in the shared UI
- * layer, not in a feature folder. Rather than ship a disabled "Edit" button,
- * which is a control that lies about being a control, the page states plainly
- * where these values are changed today.
+ * ORDERING IS THE API'S, NOT THIS TABLE'S. Rows arrive sorted alphabetically by
+ * `label` under an ICU collation, and `GET /reports/categories` sorts by the
+ * very same expression — see `apps/api/src/reports/report-category-order.ts`. So
+ * this table and the citizen's category grid list the same categories in the
+ * same order. Re-sorting here would silently re-open the gap that made the two
+ * surfaces disagree in the first place.
  */
-export function CategoriesTable() {
+export function CategoriesTable({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: (row: ReportCategoryRow) => void;
+  onDelete: (row: ReportCategoryRow) => void;
+}) {
   const { view, rows, page, isPlaceholder, refetch } = useReportCategories();
 
-  const countsAreTrustworthy = reportCountsAreTrustworthy(rows);
-  const columns = useMemo(() => buildColumns(countsAreTrustworthy), [countsAreTrustworthy]);
+  const columns = useMemo(() => buildColumns(onEdit, onDelete), [onEdit, onDelete]);
 
   const citizenSelectable = rows.filter((row) => row.citizenSelectable).length;
 
@@ -175,7 +160,7 @@ export function CategoriesTable() {
         columns={columns}
         rowKey={(row) => row.id}
         caption="Report categories"
-        minWidth="66rem"
+        minWidth="76rem"
         // Nine rows is the whole table, so the skeleton is the whole table.
         loadingRows={9}
         isPlaceholder={isPlaceholder}
@@ -184,27 +169,16 @@ export function CategoriesTable() {
           icon: <Shapes className="size-10" />,
           title: "No categories configured",
           description:
-            "Categories are master data, normally created by the API's seed step. With none, the mobile app has nothing for a citizen to post under.",
+            "With none, the mobile app has nothing for a citizen to post under. Create one to reopen reporting — the API refuses to delete the last citizen-selectable category, so reaching this state takes deliberate effort.",
         }}
       />
 
       {view.kind === "ready" ? (
-        <div className="space-y-1.5 text-[11px] text-fg-faint">
-          <p>
-            These values are read live by the API on every report — a change to a label, emoji or
-            expiry reaches the mobile app with no deploy. Editing is not wired into this console
-            yet; today they are set by <code className="font-mono">pnpm db:seed</code> in the API.
-          </p>
-          {!countsAreTrustworthy ? (
-            <p>
-              Report counts read <span className="text-fg-muted">—</span> because the API is
-              returning <code className="font-mono">0</code> for every category: its per-category
-              subquery compares <code className="font-mono">reports.category_id</code> against{" "}
-              <code className="font-mono">reports.id</code> instead of the category&rsquo;s, so it
-              can never match. Showing that zero as a fact would claim these categories are unused.
-            </p>
-          ) : null}
-        </div>
+        <p className="text-[11px] text-fg-faint">
+          These values are read live by the API on every report — a change to a label, emoji or
+          expiry reaches the mobile app with no deploy, and the citizen category list is ordered
+          exactly as it is here.
+        </p>
       ) : null}
     </div>
   );
@@ -218,7 +192,7 @@ export function CategoriesTableSkeleton() {
       columns={SKELETON_COLUMNS}
       rowKey={(row) => row.id}
       caption="Loading report categories"
-      minWidth="66rem"
+      minWidth="76rem"
       loadingRows={9}
       empty={{ title: "" }}
     />

@@ -8,40 +8,35 @@ import { ApiError } from "@/lib/api-error";
 import type { ReportCategory } from "./types";
 
 /**
- * Options for the Reports page's Category filter — when the operator is allowed
- * to have them.
+ * Options for the Reports page's Category filter.
  *
- * THE AWKWARD BIT, STATED PLAINLY
+ * BOTH ROLES GET THIS FILTER NOW
  * ───────────────────────────────────────────────────────────────────────────
- * `GET /admin/reports` needs `reports:manage`, which both roles hold. The only
- * endpoint that can enumerate categories is `GET /admin/report-categories`,
- * and `AdminCategoriesController` gates the whole controller on
- * `platform:manage` — super admin only. Verified live: an ops admin gets
- * 403 ADMIN_MISSING_PERMISSION. So the people who use the reports queue most
- * are exactly the people who cannot fetch its category list.
+ * This hook used to carry a long account of why ops admins silently lost the
+ * Category filter: `GET /admin/reports` needs `reports:manage`, which both roles
+ * hold, but `AdminCategoriesController` gated its whole controller — list
+ * included — on `platform:manage`, super admin only. So the moderators who live
+ * in the reports queue were exactly the people who could not fetch the list to
+ * filter it by, and this hook coped by dropping the control.
  *
- * Three ways out, and why this one:
+ * That was the wrong place to fix it, and it has been fixed at the source:
+ * `GET /admin/report-categories` now requires `reports:manage`, while every
+ * write on that controller still requires `platform:manage`. Reading the
+ * taxonomy discloses nothing — it is labels and emoji that every signed-in
+ * CITIZEN can already fetch from `GET /reports/categories`. The controller
+ * states the reasoning in full.
  *
- *   Hardcode the eight seeded keys. Rejected — categories are a lookup table an
- *   admin can add to from `/platform/categories`, so a hardcoded list is wrong
- *   the first time someone uses that page, and silently: the new category's
- *   reports would be unfilterable with no indication why.
+ * WHY THE NULL-ON-FAILURE BEHAVIOUR STAYS ANYWAY. It is no longer a permission
+ * workaround, but it is still the right response to a filter that cannot load:
+ * one absent control is a much smaller problem than a red error state over a
+ * table full of perfectly good rows, and the URL parameter keeps working if
+ * someone is handed a link with `?categoryKey=`. A 403 is no longer expected
+ * here — but an admin whose permissions were revoked mid-session would still
+ * produce one, and it should degrade rather than break the page.
  *
- *   Derive options from the rows on screen. Rejected — a select whose options
- *   change as you page through is not a filter, it is a guess, and it can only
- *   ever offer categories that already appear in the current 25 rows.
- *
- *   Ask, and drop the control if the answer is no. Chosen. An ops admin gets a
- *   Reports page with status, search, date and reporter filters — everything
- *   except the one control the API will not serve them — instead of a select
- *   that 403s on open or, worse, sits there empty looking broken. The URL
- *   parameter still works if they are handed a link with `?categoryKey=`, so a
- *   super admin can share a filtered view and it renders correctly for them.
- *
- * A 403 here is therefore a normal outcome, not an error: it resolves to `null`
- * and nothing is logged or shown. Any OTHER failure also resolves to `null` —
- * one absent filter is a much smaller problem than a red error state over a
- * table full of perfectly good rows.
+ * SHARED CACHE KEY, DELIBERATELY. `["admin", "report-categories"]` is the same
+ * key `features/report-categories` uses, so editing a category in Platform ->
+ * Categories invalidates this filter too and the two cannot drift.
  */
 export function useReportCategoryOptions(): readonly FilterOption[] | null {
   const { data } = useQuery({

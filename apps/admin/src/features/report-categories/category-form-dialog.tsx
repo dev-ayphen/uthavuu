@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { ShieldCheck } from "lucide-react";
+import { useId, useMemo, useState } from "react";
 import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 
 import {
@@ -357,10 +357,11 @@ function ReadOnlyKey({ value }: { value: string }) {
       label="Key"
       reason={
         <>
-          Fixed for the life of the category. The mobile app posts reports against this key, the
-          API&rsquo;s seed matches on it, and the citizen category list is ordered by it — renaming
-          it would orphan every client still sending the old one. A category whose key is wrong has
-          to be replaced, not renamed.
+          Fixed for the life of the category. The mobile app posts reports against this key and
+          the API&rsquo;s seed matches on it, so renaming it would orphan every client still
+          sending the old one. A category whose key is wrong has to be replaced, not renamed.
+          (Ordering is by <em>label</em>, not by this — so renaming the label is safe and moves
+          the category in both lists at once.)
         </>
       }
     >
@@ -447,30 +448,27 @@ function CitizenSelectableField({
 }
 
 /**
- * A hazard the API documents in its own service and cannot warn about at
- * request time, because nothing goes wrong until someone runs an unrelated
- * command later.
+ * What re-seeding does to this category — which, as of the insert-only change,
+ * is nothing.
  *
- * `pnpm db:seed` upserts categories ON CONFLICT (key) and its `set` clause
- * overwrites label, emoji, defaultExpiryMinutes and citizenSelectable — so an
- * edit to one of the nine SEEDED categories is silently reverted the next time
- * a developer seeds. Whether seeding should become insert-only once an admin UI
- * exists is unresolved product question #7; this console does not get to decide
- * it. What it can do is stop the reversion being discovered by watching a
- * change disappear.
+ * This used to be a warning. `pnpm db:seed` upserted categories ON CONFLICT
+ * (key) and its `set` clause overwrote label, emoji, defaultExpiryMinutes and
+ * citizenSelectable, so an edit made here to one of the nine SEEDED categories
+ * was silently reverted the next time a developer seeded. Open question #7 has
+ * since been decided in favour of insert-only seeding
+ * (`apps/api/src/db/seed-report-categories.ts`): the seed now creates a category
+ * that is missing and never touches one that exists.
  *
- * It deliberately does NOT name which categories are seeded. The console has no
- * endpoint that knows, so the only way to say it would be a hardcoded copy of
- * `db/seed.ts`'s nine keys — a duplicate that drifts silently, which is exactly
- * the failure mode already flagged on the support filters. Stating the rule
- * without claiming to know which rows it hits is the honest version.
+ * The note stays, inverted, rather than being deleted. An operator who was
+ * bitten by the old behaviour — or who was told about it — needs to be told it
+ * is over; silence would leave them believing an edit here is still temporary,
+ * which is the same wrong belief the warning existed to prevent.
  */
 function SeedOverwriteNote() {
   return (
-    <Alert tone="warning" icon={AlertTriangle} className="text-[11px]">
-      If this category also exists in the API&rsquo;s seed data, running{" "}
-      <code className="font-mono">pnpm db:seed</code> will overwrite these four values with the
-      seeded ones. Categories created here are never touched by it.
+    <Alert tone="neutral" icon={ShieldCheck} className="text-[11px]">
+      Saved changes are permanent. Running <code className="font-mono">pnpm db:seed</code> in the
+      API creates categories that are missing and leaves existing ones exactly as configured here.
     </Alert>
   );
 }
@@ -508,4 +506,3 @@ function TextField({
   );
 }
 
-export type { ReactNode };
