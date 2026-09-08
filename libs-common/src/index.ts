@@ -18,10 +18,18 @@ export {
   ADMIN_NOT_AN_ADMIN,
   ADMIN_NO_SESSION,
   MAINTENANCE_MODE,
+  OTP_RATE_LIMITED,
   PLATFORM_BLOCK_CODES,
+  RATE_LIMIT_CODES,
+  RATE_LIMITED,
   READ_ONLY_MODE,
+  UPLOAD_RATE_LIMITED,
 } from './error-codes';
-export type { AdminGateCode, PlatformBlockCode } from './error-codes';
+export type {
+  AdminGateCode,
+  PlatformBlockCode,
+  RateLimitCode,
+} from './error-codes';
 
 export {
   ADMIN_PERMISSION_KEYS,

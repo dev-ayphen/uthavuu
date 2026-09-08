@@ -1,3 +1,4 @@
+import { OTP_RATE_LIMITED } from '@uthavu/libs-common';
 import type { OtpRateLimitError } from './otp-rate-limiter';
 
 /**
@@ -51,8 +52,11 @@ export function otpRateLimitApiError(error: OtpRateLimitError): OtpApiError {
   apiError.statusCode = 429;
   apiError.body = {
     // Machine-readable so the client branches on a code, not on prose; sits
-    // alongside Better Auth's own PHONE_NUMBER_ERROR_CODES values.
-    code: 'OTP_RATE_LIMITED',
+    // alongside Better Auth's own PHONE_NUMBER_ERROR_CODES values. Imported
+    // from @uthavu/libs-common rather than spelled inline so this 429 and the
+    // two the Nest side raises are one documented contract instead of three
+    // string literals that agree by luck — see error-codes.ts.
+    code: OTP_RATE_LIMITED,
     message: error.message,
     retryAfterSeconds: error.retryAfterSeconds,
   };

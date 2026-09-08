@@ -11,6 +11,7 @@ import type { auth } from '../auth/auth';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { FlagCommentDto } from './dto/flag-comment.dto';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 /**
  * Every `:id` here is parsed with ParseUUIDPipe. `reports.id` and
@@ -29,7 +30,11 @@ export class CommentsController {
     return this.commentsService.list(reportId);
   }
 
+  // Public and visible to strangers, so the abuse case is flooding a thread
+  // rather than exhausting a resource — hence a policy of its own rather than
+  // the generic `write` default.
   @Post()
+  @RateLimit('comment')
   create(
     @Session() session: UserSession<typeof auth>,
     @Param('id', ParseUUIDPipe) reportId: string,

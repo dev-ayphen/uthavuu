@@ -3,6 +3,8 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { UPLOADS_DIR } from './uploads/multer.config';
+import { trustProxyHops } from './rate-limit/client-ip';
+import { createRateLimitMiddleware } from './rate-limit/rate-limit.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -11,6 +13,45 @@ async function bootstrap() {
     // bodyParser option in app.module.ts) — don't add express.json() separately.
     bodyParser: false,
   });
+
+  // ── Rate limiting, part 1 of 2: how the client IP is resolved ────────────
+  //
+  // This one line decides whether every IP-keyed limit in the API is real or
+  // decorative, so it is set explicitly rather than left at Express's default.
+  //
+  // A NUMBER, never `true`. Express reads `trust proxy: true` as "the client is
+  // the LEFT-MOST entry of X-Forwarded-For" — an entry the client itself wrote,
+  // which lets anyone mint an unlimited supply of fresh rate-limit buckets with
+  // a header. A number counts hops from the socket end instead, right to left,
+  // landing on the address the last trusted proxy actually observed.
+  //
+  // Defaults to 0 (ignore X-Forwarded-For entirely) so an unset variable
+  // over-counts rather than under-counts. Vercel — the deployment target — is
+  // exactly one hop and documents that it OVERWRITES X-Forwarded-For to prevent
+  // spoofing, so set TRUST_PROXY_HOPS=1 there. Full reasoning in
+  // rate-limit/client-ip.ts.
+  app.set('trust proxy', trustProxyHops());
+
+  // ── Rate limiting, part 2 of 2: the per-IP layer ─────────────────────────
+  //
+  // REGISTERED HERE, AND THE POSITION IS LOAD-BEARING. Express dispatches
+  // middleware in registration order, and this must run before:
+  //
+  //   - AuthModule's `httpAdapter.use()`, which is where Better Auth's own
+  //     routes live (they are raw Express, so no Nest guard can ever limit
+  //     login, OTP verify, or admin sign-in/email);
+  //   - `useStaticAssets()` below;
+  //   - every Nest guard, including the AuthGuard that 401s anonymous traffic —
+  //     a 401 still costs a session lookup, and unlimited 401s are still an
+  //     attack.
+  //
+  // AuthModule's middleware is registered during `app.init()`, which `listen()`
+  // triggers below, so installing it at this point in bootstrap puts it first.
+  //
+  // The per-USER half of the limiter is RateLimitGuard, registered by
+  // RateLimitModule in app.module.ts. This half cannot key on a user because it
+  // runs before anything has authenticated one; that is precisely its job.
+  app.use(createRateLimitMiddleware());
 
   // CORS for the admin console. Declared here rather than inherited from
   // AuthModule's `trustedOrigins`-derived CORS, which is why app.module.ts sets

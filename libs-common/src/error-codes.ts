@@ -71,3 +71,38 @@ export const ADMIN_GATE_CODES = [
 ] as const;
 
 export type AdminGateCode = (typeof ADMIN_GATE_CODES)[number];
+
+/**
+ * `429` — the caller is going too fast. Three codes, not one, because the three
+ * refusals mean genuinely different things to a client and only one of them is
+ * about generic traffic shaping.
+ *
+ *   RATE_LIMITED          The generic per-endpoint limiter refused this request
+ *                         (apps/api/src/rate-limit/). Retrying after the wait
+ *                         works. The client should back off, not sign out.
+ *   OTP_RATE_LIMITED      Too many OTP sends for this phone number. Mobile keys
+ *                         on this to drive the "Resend OTP" countdown, which is
+ *                         why it cannot just be RATE_LIMITED — the countdown is
+ *                         attached to a specific button, not to the screen.
+ *   UPLOAD_RATE_LIMITED   Too many report-photo uploads for this account. Its
+ *                         own code because the wait is long (a 15-minute
+ *                         window) and the client should say so rather than
+ *                         offering an immediate retry.
+ *
+ * ALL THREE carry `retryAfterSeconds` in the body AND a `Retry-After` response
+ * header. The header is what proxies and HTTP clients understand; the body
+ * field is what the app renders. Neither is redundant — a client that only read
+ * the header would have to parse it out of a transport-level API, and a proxy
+ * cannot see the body at all.
+ */
+export const RATE_LIMITED = 'RATE_LIMITED';
+export const OTP_RATE_LIMITED = 'OTP_RATE_LIMITED';
+export const UPLOAD_RATE_LIMITED = 'UPLOAD_RATE_LIMITED';
+
+export const RATE_LIMIT_CODES = [
+  RATE_LIMITED,
+  OTP_RATE_LIMITED,
+  UPLOAD_RATE_LIMITED,
+] as const;
+
+export type RateLimitCode = (typeof RATE_LIMIT_CODES)[number];

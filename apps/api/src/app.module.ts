@@ -22,6 +22,7 @@ import { AdminModule } from './admin/admin.module';
 import { AccountStatusModule } from './account-status/account-status.module';
 import { PlatformConfigModule } from './config/platform-config.module';
 import { MaintenanceModule } from './config/maintenance.module';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { DevModule } from './dev/dev.module';
 import { auth } from './auth/auth';
 
@@ -66,6 +67,17 @@ const devOtpFallbackActive =
     PlatformConfigModule,
     AdminModule,
     ...(devOtpFallbackActive ? [DevModule] : []),
+    // Registers the global RateLimitGuard (per-user limits) and the filter that
+    // puts `Retry-After` on its 429s. FIRST of the three application-level
+    // global guards, and imported rather than declared in this module's own
+    // `providers`, for the reasons rate-limit.module.ts sets out — it keys on
+    // the session user id, so it MUST come after AuthModule's APP_GUARD has
+    // resolved the session, and a provider declared here would run before it.
+    //
+    // This covers Nest routes only. The per-IP half of the limiter is Express
+    // middleware installed in main.ts, because Better Auth's own routes and
+    // pre-authentication traffic never reach a Nest guard at all.
+    RateLimitModule,
     // Registers the global MaintenanceGuard (maintenance_mode / read_only_mode).
     // Placed here for the same enhancer-order reason AccountStatusModule is
     // last — a global guard registered in an imported module runs after

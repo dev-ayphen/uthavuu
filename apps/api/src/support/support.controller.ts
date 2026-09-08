@@ -11,6 +11,7 @@ import type { auth } from '../auth/auth';
 import { SupportService } from './support.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { CreateTicketMessageDto } from './dto/create-ticket-message.dto';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 /**
  * The citizen half of Help & Support.
@@ -36,7 +37,10 @@ export class SupportController {
     return this.supportService.listCategories();
   }
 
+  // Every row here is work for a human being on the other end, which makes the
+  // moderation queue the scarce resource rather than the database.
   @Post('support/tickets')
+  @RateLimit('support-ticket')
   create(
     @Session() session: UserSession<typeof auth>,
     @Body() body: CreateTicketDto,
@@ -60,7 +64,11 @@ export class SupportController {
     return this.supportService.findOne(id, session.user.id);
   }
 
+  // Same budget as opening a ticket, and deliberately the same policy rather
+  // than a second one: a reply and a new ticket both land in the same queue, so
+  // splitting them would just give a determined spammer two allowances.
   @Post('support/tickets/:id/messages')
+  @RateLimit('support-ticket')
   addMessage(
     @Session() session: UserSession<typeof auth>,
     @Param('id', ParseUUIDPipe) id: string,

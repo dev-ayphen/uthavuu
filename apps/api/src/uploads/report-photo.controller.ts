@@ -27,6 +27,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { UPLOAD_RATE_LIMITED } from '@uthavu/libs-common';
 import type { Response } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
@@ -39,6 +40,7 @@ import {
   UploadRateLimitError,
   checkUploadRateLimit,
 } from './upload-rate-limiter';
+import { RateLimitedException } from '../rate-limit/rate-limited.exception';
 import { ReportPhotoUploadDto } from './dto/report-photo-upload.dto';
 
 @Controller('uploads/report-photo')
@@ -67,19 +69,30 @@ export class ReportPhotoController {
 
     // Before the file is written and before any paid call — a refused request
     // must cost nothing.
+    //
+    // This is the SPEND ceiling (20 per 15 minutes). It is not the only limit on
+    // this route: RateLimitGuard already applied the generic `write` policy
+    // before multer read the body at all. The two count different things — see
+    // upload-rate-limiter.ts.
+    //
+    // The 429 is now a RateLimitedException rather than a hand-rolled
+    // HttpException. The BODY IS UNCHANGED, so nothing a client reads has moved;
+    // what it gains is the `Retry-After` header, which this route was the only
+    // 429 in the API to be missing. RateLimitExceptionFilter sets it for every
+    // rate-limit refusal in one place, so no future throw site can forget it.
     try {
       await checkUploadRateLimit(session.user.id);
     } catch (error) {
       if (error instanceof UploadRateLimitError) {
-        throw new HttpException(
-          {
-            code: 'UPLOAD_RATE_LIMITED',
-            message: error.message,
-            retryAfterSeconds: error.retryAfterSeconds,
-          },
-          HttpStatus.TOO_MANY_REQUESTS,
+        throw new RateLimitedException(
+          UPLOAD_RATE_LIMITED,
+          error.message,
+          error.retryAfterSeconds,
         );
       }
+      // Anything else — a dead Redis most likely — keeps bubbling as a genuine
+      // 500. This limiter guards a Rekognition bill, so it fails CLOSED; the
+      // general-purpose guard makes the opposite trade and says why.
       throw error;
     }
 

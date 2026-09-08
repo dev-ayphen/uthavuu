@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { Request } from 'express';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 import type { auth } from '../auth/auth';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -35,7 +36,12 @@ import { CommunityStatsDto } from './dto/community-stats.dto';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  // The tightest limit in the product. Creating a report is not an ordinary
+  // write: it fans a push notification out to every volunteer inside the
+  // reporter's radius, so a spam report is a stranger's phone buzzing, not a
+  // wasted row. See rate-limit/rate-limit-config.ts for the sizing.
   @Post()
+  @RateLimit('report-create')
   create(
     @Session() session: UserSession<typeof auth>,
     @Body() body: CreateReportDto,

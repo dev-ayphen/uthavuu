@@ -1,21 +1,38 @@
 // Caps how many report photos one account may upload in a rolling window.
 //
-// WHY THIS EXISTS. Until now the only rate limit in this API was on OTP sends
-// (auth/otp/otp-rate-limiter.ts), and its rationale was explicit: that control
-// is "the one standing between a stranger and an unbounded msg91 bill". Report
-// photo uploads acquire exactly the same property the moment each one triggers
-// two paid Rekognition calls, with the added cost that every upload also writes
-// a file to disk that something must later clean up.
+// WHY THIS EXISTS. This control has the same property the OTP limiter does — it
+// is the one thing standing between a stranger and an unbounded third-party
+// bill. Every report photo triggers two paid Rekognition calls, with the added
+// cost that every upload also writes a file to disk that something must later
+// clean up. An authenticated citizen could otherwise POST as fast as their
+// connection allows, forever: fine when the only consequence is disk, a billing
+// incident when the consequence is a metered API.
 //
-// An authenticated citizen can currently POST to /uploads as fast as their
-// connection allows, forever. That is fine when the only consequence is disk;
-// it is a billing incident when the consequence is a third-party API.
+// RELATIONSHIP TO THE API-WIDE LIMITER (../rate-limit/). Both exist, they count
+// different things, and neither replaces the other:
 //
-// SHAPE IS LIFTED FROM otp-rate-limiter.ts on purpose — same INCR/EXPIRE/TTL
-// dance, same "quote the full window when the TTL is unknown" behaviour — so
-// there is one rate-limiting idiom in this codebase rather than two.
+//   - RateLimitGuard applies the generic `write` policy to this route (30/min).
+//     That is a BURST valve — it runs before multer, so a flood is refused
+//     before a 5MB body is even read off the socket.
+//   - This limiter is the SPEND ceiling (20 per 15 minutes). It is tighter over
+//     any window longer than about 40 seconds, which makes it the binding
+//     constraint in practice, and it is the one whose number was chosen from
+//     what a photo costs rather than from what a client should burst at.
+//
+// They are separate budgets in separate Redis namespaces, not one budget counted
+// twice.
+//
+// THE COUNTING NOW LIVES IN ../rate-limit/rate-limit.ts, extracted from the copy
+// that used to be inline here and the near-identical copy in
+// auth/otp/otp-rate-limiter.ts. Key, window, maximum, error type and
+// retry-after semantics are all unchanged.
+//
+// IT STILL FAILS CLOSED. The general-purpose guard and middleware fail OPEN on a
+// Redis outage, because refusing an emergency report is worse than not
+// throttling it. This one guards money, so an unavailable limiter must surface
+// as a 500 rather than become an unlimited Rekognition invoice.
 
-import { redis } from '../lib/redis';
+import { consumeRateLimit } from '../rate-limit/rate-limit';
 
 /**
  * A citizen reporting a genuine emergency needs at most four photos (the DTO's
@@ -51,14 +68,11 @@ export class UploadRateLimitError extends Error {
  */
 export async function checkUploadRateLimit(userId: string): Promise<void> {
   const key = `upload:report-photo:${userId}`;
-  const count = await redis.incr(key);
-  if (count === 1) {
-    await redis.expire(key, WINDOW_SECONDS);
-  }
-  if (count > MAX_UPLOADS) {
-    // -1 (key has no expiry) and -2 (key vanished between INCR and TTL) both
-    // mean "unknown"; quoting the whole window can only over-estimate the wait.
-    const ttl = await redis.ttl(key);
-    throw new UploadRateLimitError(ttl > 0 ? ttl : WINDOW_SECONDS);
-  }
+
+  const result = await consumeRateLimit(key, {
+    max: MAX_UPLOADS,
+    windowSeconds: WINDOW_SECONDS,
+  });
+
+  if (!result.allowed) throw new UploadRateLimitError(result.retryAfterSeconds);
 }

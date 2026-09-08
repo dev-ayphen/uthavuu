@@ -14,6 +14,7 @@ import { MissionsService } from './missions.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { CompleteMissionDto } from './dto/complete-mission.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 /**
  * Every `:id` here is parsed with ParseUUIDPipe. `reports.id` and
@@ -94,7 +95,12 @@ export class MissionsController {
     return this.missionsService.listMessages(id, session.user.id);
   }
 
+  // Mission Chat. More generous than other writes on purpose: this is a
+  // conversation happening during a live emergency, and a false refusal here is
+  // the worst possible moment to tell someone to slow down. Sized from what a
+  // person can actually type on a phone, not from a round number.
   @Post('messages')
+  @RateLimit('mission-chat')
   send(
     @Session() session: UserSession<typeof auth>,
     @Param('id', ParseUUIDPipe) id: string,
