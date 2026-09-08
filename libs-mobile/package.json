@@ -2,6 +2,9 @@
   "name": "@uthavu/libs-mobile",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "test": "node --import ./testing/register.mjs --disable-warning=ExperimentalWarning --test \"**/*.test.ts\""
+  },
   "dependencies": {
     "@react-navigation/native": "^7.3.16",
     "@uthavu/libs-common": "workspace:*",

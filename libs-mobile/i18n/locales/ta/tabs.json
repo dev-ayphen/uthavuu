@@ -42,7 +42,11 @@
     "useMyCurrentLocation": "எனது தற்போதைய இருப்பிடத்தைப் பயன்படுத்து",
     "yourGpsLocation": "உங்கள் GPS இருப்பிடம்",
     "popularLocations": "பிரபலமான இடங்கள்",
-    "viewArrow": "பார் →"
+    "viewArrow": "பார் →",
+    "categoriesBadge_one": "{{count}} வகை",
+    "categoriesBadge_other": "{{count}} வகைகள்",
+    "categoriesEmptyTitle": "வகைகள் எதுவும் இல்லை",
+    "categoriesEmptyBody": "இப்போது உதவிக் கோரிக்கையை இட முடியாது. புதுப்பிக்க கீழே இழுக்கவும், அல்லது சிறிது நேரம் கழித்து முயற்சிக்கவும்."
   },
   "myHelps": {
     "header": "எனது உதவிகள்",
@@ -201,6 +205,8 @@
     "sortMostUrgent": "மிக அவசரம்",
     "applyFilters": "வடிகட்டிகளைப் பயன்படுத்து",
     "selectCategory": "வகையைத் தேர்ந்தெடு",
+    "pickerEmptyTitle": "வகைகள் எதுவும் இல்லை",
+    "pickerEmptyBody": "இப்போது தேர்ந்தெடுக்க எதுவும் இல்லை. சிறிது நேரம் கழித்து முயற்சிக்கவும்.",
     "viewDetails": "விவரங்களைப் பார் ›"
   },
   "myReports": {

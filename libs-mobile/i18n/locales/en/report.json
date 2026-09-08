@@ -113,6 +113,8 @@
   "detailsStep": {
     "categoryLabel": "Category",
     "selectCategory": "Select Category",
+    "categoriesEmptyTitle": "No categories available",
+    "categoriesEmptyBody": "None can be selected right now, so this request cannot be filed yet. Try again shortly.",
     "photosLabel": "Photos",
     "descriptionLabel": "What's happening?",
     "descriptionPlaceholder": "Describe what help is needed…",

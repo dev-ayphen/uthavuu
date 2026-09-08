@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import {
   Image,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { AlertTriangle, Camera, ChevronDown, X } from 'lucide-react-native';
@@ -67,7 +69,8 @@ export default function ReportDetailsPage({
   const { t } = useTranslation('report');
   const [modalOpen, setModalOpen] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { categories } = useCategories();
+  const { categories, isEmpty: categoriesEmpty } = useCategories();
+  const { height: windowHeight } = useWindowDimensions();
   const cat = categories.find((c) => c.id === categoryKey);
   const acc = CAT_ACCENT[categoryKey] ?? { iconBg: colors.bgElevated };
 
@@ -98,21 +101,54 @@ export default function ReportDetailsPage({
                 <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            {categories.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={[styles.catOptionRow, c.id === categoryKey && styles.catOptionSelected]}
-                onPress={() => {
-                  onChangeCategory(c.id);
-                  setModalOpen(false);
-                }}
-              >
-                <Text style={styles.catOptionEmoji}>{c.emoji}</Text>
-                <Text style={[styles.catOptionTitle, c.id === categoryKey && styles.catOptionTitleSelected]}>
-                  {c.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {/*
+              SCROLLABLE, AND BOUNDED TO THE SCREEN. This mapped straight into
+              the sheet with no ScrollView and no maximum height, which is fine
+              for the eight seeded categories and silently broken beyond about
+              twelve: the sheet grows past the bottom of the display and the last
+              rows become unreachable, with nothing to scroll. Categories are
+              operator-created, so their number is not a build-time constant and
+              this cannot be left to fit by luck. 60% of the window keeps the
+              scrim tappable, which is how this sheet is dismissed.
+            */}
+            <ScrollView
+              style={{ maxHeight: windowHeight * 0.6 }}
+              contentContainerStyle={styles.catOptionList}
+              showsVerticalScrollIndicator={false}
+            >
+              {categoriesEmpty ? (
+                /*
+                  The server has no citizen-selectable categories. The old code
+                  showed the eight bundled fallback tiles here, so a citizen
+                  could pick one and the report would then fail to create
+                  against a key the server does not have — see
+                  libs-mobile/data/category-state.ts.
+                */
+                <View style={styles.catOptionEmpty}>
+                  <Text style={styles.catOptionEmptyTitle}>
+                    {t('detailsStep.categoriesEmptyTitle')}
+                  </Text>
+                  <Text style={styles.catOptionEmptyBody}>
+                    {t('detailsStep.categoriesEmptyBody')}
+                  </Text>
+                </View>
+              ) : null}
+              {categories.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.catOptionRow, c.id === categoryKey && styles.catOptionSelected]}
+                  onPress={() => {
+                    onChangeCategory(c.id);
+                    setModalOpen(false);
+                  }}
+                >
+                  <Text style={styles.catOptionEmoji}>{c.emoji}</Text>
+                  <Text style={[styles.catOptionTitle, c.id === categoryKey && styles.catOptionTitleSelected]}>
+                    {c.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -341,6 +377,26 @@ const createStyles = (colors: ColorScheme) =>
       marginBottom: SPACING.md,
     },
     sheetTitle: { ...TYPE.title, color: colors.textPrimary },
+    catOptionList: {
+      paddingBottom: SPACING.xs,
+    },
+    catOptionEmpty: {
+      paddingVertical: SPACING.xl,
+      paddingHorizontal: SPACING.md,
+      gap: SPACING.xs,
+      alignItems: 'center',
+    },
+    catOptionEmptyTitle: {
+      ...TYPE.subhead,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    catOptionEmptyBody: {
+      ...TYPE.footnote,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
     catOptionRow: {
       flexDirection: 'row',
       alignItems: 'center',

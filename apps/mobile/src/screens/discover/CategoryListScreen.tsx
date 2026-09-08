@@ -44,7 +44,10 @@ export default function CategoryListScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const config = useConfig();
   const { categoryKey, lat, lng, radiusKm, locationLabel } = route.params;
-  const { categories } = useCategories();
+  // `categoriesEmpty` distinguishes "the server has none" from "we could not
+  // ask" — the latter still shows the bundled fallback tiles. See
+  // libs-mobile/data/category-state.ts.
+  const { categories, isEmpty: categoriesEmpty } = useCategories();
   const categoryMeta = categories.find((c) => c.id === categoryKey);
 
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
@@ -288,6 +291,22 @@ export default function CategoryListScreen({ navigation, route }: Props) {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('categoryList.selectCategory')}</Text>
             <ScrollView contentContainerStyle={styles.categoryPickerList} showsVerticalScrollIndicator={false}>
+              {/*
+                An empty sheet with only a title reads as a broken control. The
+                server having no citizen-selectable categories is a real state
+                (see libs-mobile/data/category-state.ts), so it gets a sentence
+                rather than blank space.
+              */}
+              {categoriesEmpty ? (
+                <View style={styles.categoryPickerEmpty}>
+                  <Text style={styles.categoryPickerEmptyTitle}>
+                    {t('categoryList.pickerEmptyTitle')}
+                  </Text>
+                  <Text style={styles.categoryPickerEmptyBody}>
+                    {t('categoryList.pickerEmptyBody')}
+                  </Text>
+                </View>
+              ) : null}
               {categories.map((cat) => {
                 const isSelected = cat.id === categoryKey;
                 return (
@@ -636,6 +655,23 @@ const createStyles = (colors: ColorScheme) =>
 
     /* Category Picker Styles */
     categoryPickerList: { paddingBottom: SPACING.lg, gap: 2 },
+    categoryPickerEmpty: {
+      paddingVertical: SPACING.xl,
+      paddingHorizontal: SPACING.md,
+      gap: SPACING.xs,
+      alignItems: 'center',
+    },
+    categoryPickerEmptyTitle: {
+      ...TYPE.subhead,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    categoryPickerEmptyBody: {
+      ...TYPE.footnote,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
     categoryPickerRow: {
       flexDirection: 'row',
       alignItems: 'center',

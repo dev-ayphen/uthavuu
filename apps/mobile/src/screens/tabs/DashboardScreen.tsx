@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronDown, Globe, MapPin, Navigation, Search, X } from 'lucide-react-native';
+import { Bell, ChevronDown, Globe, MapPin, Navigation, Search, Shapes, X } from 'lucide-react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -54,7 +54,10 @@ function greetingKeyForHour(hour: number): string {
 // call), and category navigation.
 export default function DashboardScreen() {
   const { colors } = useTheme();
-  const { categories } = useCategories();
+  // `categoriesEmpty` is the server saying there are none, which is different
+  // from the request being in flight or having failed — those still render the
+  // bundled fallback tiles. See libs-mobile/data/category-state.ts.
+  const { categories, isEmpty: categoriesEmpty } = useCategories();
   const { t } = useTranslation(['tabs', 'common']);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -364,7 +367,7 @@ export default function DashboardScreen() {
                 rendered whatever the server sent — so an admin adding a ninth
                 produced a grid of 9 under a label reading 8. */}
             <Text style={styles.categoriesBadgeText}>
-              {categories.length} {categories.length === 1 ? 'Category' : 'Categories'}
+              {t('dashboard.categoriesBadge', { count: categories.length })}
             </Text>
           </View>
         </View>
@@ -408,6 +411,25 @@ export default function DashboardScreen() {
                 {t('dashboard.exploreAnotherLocationButton')}
               </Text>
             </TouchableOpacity>
+          </View>
+        ) : categoriesEmpty ? (
+          /*
+            The server answered and there are no citizen-selectable categories.
+            This used to render the eight bundled fallback tiles instead, which
+            sent a citizen into a report flow that could only fail — see
+            libs-mobile/data/category-state.ts. An empty grid with an
+            explanation is the honest version, and it reuses the card this
+            screen already uses for its no-location state so a degraded feed
+            looks like one thing rather than two.
+          */
+          <View style={styles.locationNeededCard}>
+            <Shapes size={28} color={colors.textSecondary} strokeWidth={1.5} />
+            <Text style={styles.locationNeededTitle}>
+              {t('dashboard.categoriesEmptyTitle')}
+            </Text>
+            <Text style={styles.locationNeededBody}>
+              {t('dashboard.categoriesEmptyBody')}
+            </Text>
           </View>
         ) : (
         <View style={styles.grid}>

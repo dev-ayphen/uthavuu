@@ -98,6 +98,26 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
     queryFn: listReportCategories,
   });
 
+  // `animalRescue` is hardcoded as the opening selection above, which quietly
+  // assumes the seeded taxonomy is still present. It need not be: an admin can
+  // rename or delete any category from the console, and the report then failed
+  // at publish against a key the server does not have — the same class of bug
+  // as the fallback tiles this flow used to render
+  // (libs-mobile/data/category-state.ts).
+  //
+  // Seeded ONCE, exactly the way the privacy defaults above are, and only when
+  // the current selection is genuinely not on offer. So a choice the person has
+  // made, and a valid `?categoryKey=` handed in from a Dashboard tile, are never
+  // overridden — only a key the server does not recognise is.
+  const categorySeeded = useRef(false);
+  useEffect(() => {
+    if (categorySeeded.current || !categories || categories.length === 0) return;
+    categorySeeded.current = true;
+    if (!categories.some((c) => c.key === selectedCategory)) {
+      setSelectedCategory(categories[0].key);
+    }
+  }, [categories, selectedCategory]);
+
   // Settings → Privacy's defaultAnonymous/defaultPhoneVisible pre-fill this
   // draft's toggles — seeded once when `me` first resolves (usually
   // instant, already cached by other screens), never overwriting a value

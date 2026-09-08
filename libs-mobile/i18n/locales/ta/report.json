@@ -113,6 +113,8 @@
   "detailsStep": {
     "categoryLabel": "வகை",
     "selectCategory": "வகையைத் தேர்ந்தெடு",
+    "categoriesEmptyTitle": "வகைகள் எதுவும் இல்லை",
+    "categoriesEmptyBody": "இப்போது எதையும் தேர்ந்தெடுக்க முடியாது, எனவே இந்தக் கோரிக்கையை இன்னும் இட முடியாது. சிறிது நேரம் கழித்து முயற்சிக்கவும்.",
     "photosLabel": "புகைப்படங்கள்",
     "descriptionLabel": "என்ன நடக்கிறது?",
     "descriptionPlaceholder": "என்ன உதவி தேவை என்பதை விவரிக்கவும்…",

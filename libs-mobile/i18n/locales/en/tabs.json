@@ -42,7 +42,11 @@
     "useMyCurrentLocation": "Use my current location",
     "yourGpsLocation": "Your GPS location",
     "popularLocations": "Popular Locations",
-    "viewArrow": "View →"
+    "viewArrow": "View →",
+    "categoriesBadge_one": "{{count}} Category",
+    "categoriesBadge_other": "{{count}} Categories",
+    "categoriesEmptyTitle": "No categories available",
+    "categoriesEmptyBody": "You can't post a help request just now. Pull down to refresh, or try again shortly."
   },
   "myHelps": {
     "header": "My Helps",
@@ -201,6 +205,8 @@
     "sortMostUrgent": "Most Urgent",
     "applyFilters": "Apply Filters",
     "selectCategory": "Select Category",
+    "pickerEmptyTitle": "No categories available",
+    "pickerEmptyBody": "There is nothing to choose from right now. Try again shortly.",
     "viewDetails": "View Details ›"
   },
   "myReports": {
