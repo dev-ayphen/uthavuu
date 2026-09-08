@@ -45,6 +45,7 @@ import {
   resolveUploads,
 } from './report-photo-attachment';
 import { effectiveStatusOf, isActionableSql } from './report-effective-status';
+import { categoryDisplayOrder } from './report-category-order';
 
 // Great-circle distance in km via the haversine formula, expressed directly
 // in SQL (no PostGIS extension on this Postgres — see docker-compose.yml).
@@ -75,11 +76,29 @@ export class ReportsService {
   // US-1 AC2 — the client needs each category's default expiry to pre-fill
   // it; served from the DB so it stays the single source (API-CONTRACT.md
   // flagged the old prototype for duplicating this client-side).
+  //
+  // `categoryDisplayOrder` is imported rather than written out, and that import
+  // is the point: this query had NO ORDER BY, so it returned heap order — which
+  // Postgres reshuffles after any UPDATE, because an updated row is rewritten at
+  // the end of the heap. Editing one category through the admin console
+  // therefore silently reordered the citizen grid, and the console (which did
+  // sort) and the app (which did not) drifted further apart with every edit.
+  // That is what "why are categories different?" turned out to mean. See
+  // report-category-order.ts for the full account and for why both call sites
+  // must share one expression rather than two matching clauses.
+  //
+  // An EMPTY RESULT IS A REAL ANSWER HERE, not an error: it means no category is
+  // citizen-selectable. The mobile client is required to render an honest empty
+  // state for it rather than substituting its bundled fallback tiles — see
+  // libs-mobile/data/category-state.ts. The API's job is to be accurate; the
+  // last-citizen-selectable guard in AdminCategoriesService is what keeps this
+  // from happening by accident.
   async listCategories() {
     const rows = await db
       .select()
       .from(reportCategories)
-      .where(eq(reportCategories.citizenSelectable, true));
+      .where(eq(reportCategories.citizenSelectable, true))
+      .orderBy(categoryDisplayOrder);
 
     return rows.map((c) => ({
       key: c.key,
