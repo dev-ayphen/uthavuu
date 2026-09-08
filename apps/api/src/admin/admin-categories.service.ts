@@ -4,10 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { asc, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../db';
 import { reportCategories, reports } from '../db/schema/reports-schema';
+import { categoryDisplayOrder } from '../reports/report-category-order';
 import { AdminAuditService } from './admin-audit.service';
 import type { AdminIdentity } from './admin-rbac';
 import type { AdminRequestMeta } from './admin-request-meta';
@@ -23,19 +24,31 @@ import type { UpdateReportCategoryDto } from './dto/update-report-category.dto';
  * per request by ReportsService, so an edit here changes what citizens see and
  * how long their next report lives, with no deploy.
  *
- * ============================ KNOWN HAZARD ================================
- * `pnpm db:seed` UPSERTS categories by `key` (db/seed.ts) and its `set` clause
- * overwrites label, emoji, defaultExpiryMinutes and citizenSelectable. So any
- * edit an admin makes through this service to one of the nine SEEDED categories
- * is silently reverted the next time anyone runs the seed — which the API
- * container does NOT do on boot (its CMD runs db:migrate only), but a developer
- * routinely does.
+ * ==================== EDITS HERE ARE NOW DURABLE ==========================
+ * This block used to describe a hazard: `pnpm db:seed` upserted categories by
+ * `key` and its `set` clause overwrote label, emoji, defaultExpiryMinutes and
+ * citizenSelectable, so every edit made through this service to one of the nine
+ * SEEDED categories was silently reverted the next time anyone seeded.
  *
- * This is unresolved product question #7 in docs/_audit/open-questions.md
- * ("accept that, or make seeding insert-only once an admin UI exists?"). It is
- * written here, in the code that will lose the edit, because the alternative is
- * someone discovering it by watching their change disappear. Categories created
- * through POST are not affected — the seed only knows its own nine keys.
+ * That is resolved. Open question #7 was decided in favour of insert-only
+ * seeding, and `db/seed.ts` now writes `report_categories` with
+ * `onConflictDoNothing`: the seed creates a category that is missing and never
+ * touches one that exists. A label an operator changes here survives every
+ * subsequent `db:seed`, on every environment.
+ *
+ * The reasoning, because it decides what belongs in the seed from now on: these
+ * nine rows are OPERATOR CONFIGURATION, not a code contract. Nothing in this
+ * repo branches on a category's label or expiry — they are values the product
+ * reads and renders. The seed's job is therefore to bootstrap a new database,
+ * not to assert a state, and re-asserting one destroys the only copy of a
+ * decision a human made through this console. Contrast `report_statuses`, whose
+ * keys ARE branched on in code and which stay upserted for exactly that reason;
+ * db/seed.ts states the per-table split in full.
+ *
+ * WHAT THIS DOES NOT PROTECT: `key`. The seed still matches on it, so a category
+ * whose key collides with a seeded one is left alone rather than merged — which
+ * is the correct outcome, and another reason UpdateReportCategoryDto refuses to
+ * let a key change.
  * ==========================================================================
  */
 @Injectable()
@@ -92,7 +105,13 @@ export class AdminCategoriesService {
         )`,
       })
       .from(reportCategories)
-      .orderBy(asc(reportCategories.key));
+      // Was `asc(reportCategories.key)`. The console and the mobile app read the
+      // same nine rows and disagreed about their order, so both now import ONE
+      // expression — see reports/report-category-order.ts for why sharing the
+      // expression matters more than the two clauses happening to match, and why
+      // the sort is on `label` (what a human reads, and editable) rather than
+      // `key` (hidden, and frozen for the life of the category).
+      .orderBy(categoryDisplayOrder);
 
     return rows.map((row) => ({
       ...row,
@@ -170,6 +189,20 @@ export class AdminCategoriesService {
     }
 
     return db.transaction(async (tx) => {
+      // The other way to empty the citizen category list, and the quiet one:
+      // un-ticking "Citizens can post to it" on the last remaining one. Same
+      // invariant as DELETE, same helper, same 409 code — see
+      // assertCitizenCategoryRemains for why guarding only DELETE would be a
+      // locked door beside an open window.
+      //
+      // Guarded only when the flag is actually being turned OFF. `changes`
+      // already excludes fields whose value is unchanged (see above), so a PATCH
+      // that merely re-sends `citizenSelectable: true`, or that edits the label
+      // and leaves the flag alone, never reaches the lock.
+      if (changes.citizenSelectable === false) {
+        await this.assertCitizenCategoryRemains(tx, id, 'hide');
+      }
+
       const [updated] = await tx
         .update(reportCategories)
         .set({ ...changes, updatedAt: sql`now()` })
@@ -202,26 +235,42 @@ export class AdminCategoriesService {
   async delete(id: string, admin: AdminIdentity, meta: AdminRequestMeta) {
     const existing = await this.requireCategory(id);
 
-    // Counts EVERY report in this category, soft-deleted included — unlike
-    // list()'s reportCount, which is a human-facing "in use" figure. The
-    // foreign key from reports.category_id does not care about deleted_at, so
-    // a category whose only reports are soft-deleted is still undeletable. This
-    // check exists to turn that into a 409 with an explanation instead of a
-    // foreign-key violation surfacing as a 500.
-    const [{ count }] = await db
-      .select({ count: sql<string>`count(*)` })
-      .from(reports)
-      .where(eq(reports.categoryId, id));
-
-    if (Number(count) > 0) {
-      throw new ConflictException({
-        code: 'CATEGORY_IN_USE',
-        message: `This category has ${count} report(s) and cannot be deleted. To retire it without losing that history, set citizenSelectable to false — citizens can no longer post to it and existing reports keep working.`,
-        reportCount: Number(count),
-      });
-    }
-
+    // BOTH refusals moved INSIDE the transaction, and that is not tidying.
+    // `assertCitizenCategoryRemains` takes row locks, and a lock is released at
+    // commit — so a check that ran in its own statement outside this block would
+    // hold nothing by the time the DELETE executed, and two concurrent admins
+    // could both pass it. The in-use count comes along for the ride because
+    // splitting the two across transaction boundaries is how the next reader
+    // ends up putting a new check in the wrong one.
     return db.transaction(async (tx) => {
+      // FIRST, deliberately. When a category is BOTH the last citizen-selectable
+      // one AND carries reports, CATEGORY_IN_USE's advice ("set citizenSelectable
+      // to false to retire it") is advice the PATCH guard would then refuse —
+      // sending the operator down a path that dead-ends. Leading with the
+      // last-remaining refusal names the blocker that is true regardless of the
+      // report count, and its instruction (create another category first) is one
+      // they can actually carry out.
+      await this.assertCitizenCategoryRemains(tx, id, 'delete');
+
+      // Counts EVERY report in this category, soft-deleted included — unlike
+      // list()'s reportCount, which is a human-facing "in use" figure. The
+      // foreign key from reports.category_id does not care about deleted_at, so
+      // a category whose only reports are soft-deleted is still undeletable. This
+      // check exists to turn that into a 409 with an explanation instead of a
+      // foreign-key violation surfacing as a 500.
+      const [{ count }] = await tx
+        .select({ count: sql<string>`count(*)` })
+        .from(reports)
+        .where(eq(reports.categoryId, id));
+
+      if (Number(count) > 0) {
+        throw new ConflictException({
+          code: 'CATEGORY_IN_USE',
+          message: `This category has ${count} report(s) and cannot be deleted. To retire it without losing that history, set citizenSelectable to false — citizens can no longer post to it and existing reports keep working.`,
+          reportCount: Number(count),
+        });
+      }
+
       await tx.delete(reportCategories).where(eq(reportCategories.id, id));
 
       await this.auditService.record({
@@ -237,6 +286,91 @@ export class AdminCategoriesService {
       });
 
       return { id, deleted: true as const };
+    });
+  }
+
+  /**
+   * Refuse anything that would leave citizens with NO category to post under.
+   *
+   * ================= WHY "LAST CITIZEN-SELECTABLE", NOT "LAST ROW" ==========
+   * The state to prevent is `GET /reports/categories` returning `[]`, because
+   * that is the one an actual citizen experiences: they open the report flow and
+   * there is nothing to choose. That endpoint filters on
+   * `citizen_selectable = true`, so the count that matters is of THOSE rows, not
+   * of the table.
+   *
+   * Guarding "the last row of any kind" would be both too weak and too strong:
+   *
+   *   TOO WEAK — with `disasterRelief` (citizenSelectable: false, BR-3) present,
+   *   an admin could delete all eight citizen categories and the table would
+   *   still hold a row. The guard would permit it, and the mobile app would be
+   *   just as broken as if the table were empty. This is not hypothetical; it is
+   *   the seeded shape of the database.
+   *
+   *   TOO STRONG — deleting `disasterRelief` while eight citizen categories
+   *   remain harms nobody, and a rule phrased over rows would block it for no
+   *   reason.
+   *
+   * So the invariant is: at least one row with `citizen_selectable = true`
+   * survives. It is enforced here, in the application layer, and NOT by a
+   * database CHECK — a constraint cannot express "count over the table > 0"
+   * without a trigger, and docs/architecture/data.md records this the same way
+   * it records every other invariant whose only guard is application code.
+   *
+   * ===================== WHY IT ALSO GUARDS PATCH ===========================
+   * DELETE is not the only way to reach the forbidden state. Clearing
+   * `citizenSelectable` on the last citizen-selectable category empties the
+   * citizen list just as completely, and that is a two-click edit in the console
+   * rather than a destructive action anyone hesitates over. A guard on DELETE
+   * alone would be a locked front door beside an open window, so `update()`
+   * calls this too.
+   *
+   * ============================ RACE SAFETY =================================
+   * `FOR UPDATE` is what makes two admins deleting the last two categories at
+   * the same time safe, and the reasoning is worth spelling out because a plain
+   * `count(*)` here would look correct and be wrong.
+   *
+   * Both transactions lock EVERY citizen-selectable row, not just their own
+   * target. So with categories {A, B} left:
+   *
+   *   T1 locks {A, B}, sees 2, deletes A, commits.
+   *   T2 blocks on A's lock. When T1 commits, Postgres re-evaluates T2's query
+   *     under READ COMMITTED (EvalPlanQual): A is gone, so T2's result is {B},
+   *     it sees 1, and it refuses. Exactly one of them succeeds.
+   *
+   * A `count(*)` cannot do this: aggregates are not lockable (`FOR UPDATE is not
+   * allowed with aggregate functions`), and an unlocked count is read at a
+   * snapshot both transactions take before either writes — so both would read 2
+   * and both would delete. Hence selecting the ids and counting them in
+   * TypeScript, which is not a workaround but the whole mechanism.
+   *
+   * It must therefore run INSIDE the caller's transaction — the lock is released
+   * at commit, so a check in its own transaction would protect nothing.
+   */
+  private async assertCitizenCategoryRemains(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    id: string,
+    /** What the refusal should tell the operator they were trying to do. */
+    intent: 'delete' | 'hide',
+  ): Promise<void> {
+    const locked = await tx
+      .select({ id: reportCategories.id })
+      .from(reportCategories)
+      .where(eq(reportCategories.citizenSelectable, true))
+      .for('update');
+
+    // Not citizen-selectable to begin with: this change cannot reduce the count,
+    // so there is nothing to protect. Deleting `disasterRelief` lands here.
+    if (!locked.some((row) => row.id === id)) return;
+
+    if (locked.length > 1) return;
+
+    throw new ConflictException({
+      code: 'CATEGORY_LAST_REMAINING',
+      message:
+        intent === 'delete'
+          ? 'This is the only category citizens can post under, so deleting it would leave the mobile app with nothing to report. Create another citizen-selectable category first, then delete this one.'
+          : 'This is the only category citizens can post under, so hiding it would leave the mobile app with nothing to report. Create or re-enable another citizen-selectable category first.',
     });
   }
 
