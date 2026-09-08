@@ -363,6 +363,60 @@ erDiagram
     > the check needs the filesystem and the environment; a DTO refinement would duplicate it, and a
     > CHECK constraint cannot express "this file exists". **A new path that writes one of these
     > three columns without calling the assert is unguarded — nothing below it will catch that.**
+11. **At least one `report_categories` row must have `citizen_selectable = true`.** Zero of them
+    means `GET /reports/categories` answers `[]` and a citizen opens the report flow with nothing
+    to choose — the mobile app is broken while the database looks fine.
+
+    > **Enforced in the service layer only, in exactly one helper:**
+    > `AdminCategoriesService.assertCitizenCategoryRemains()`
+    > (`apps/api/src/admin/admin-categories.service.ts`), which answers `409
+    > CATEGORY_LAST_REMAINING`. It is called from **both** `delete()` and `update()` — DELETE is not
+    > the only route to the forbidden state, because clearing `citizenSelectable` on the last
+    > remaining category empties the citizen list just as completely, and that is a two-click edit
+    > rather than a destructive action anyone hesitates over.
+    >
+    > **There is no DB constraint and there cannot easily be one:** the rule is a count over the
+    > table, which a CHECK cannot express without a trigger. The helper takes `FOR UPDATE` row locks
+    > inside the caller's transaction so two admins deleting the last two categories concurrently
+    > cannot both succeed; an unlocked `count(*)` would let them, because aggregates are not
+    > lockable and both would read the pre-write snapshot.
+    >
+    > Note the rule is phrased over **citizen-selectable rows, not rows**. `disasterRelief` is
+    > seeded `citizen_selectable = false` (BR-3), so a "table is non-empty" rule would happily allow
+    > all eight citizen categories to be deleted while one admin-only row kept the table populated.
+12. **Both category endpoints must return the same order.** `GET /reports/categories` (mobile) and
+    `GET /admin/report-categories` (console) read the same table, and a citizen's grid and an
+    admin's table listing the same categories differently is what "why are categories different?"
+    turned out to mean.
+
+    > **Enforced by construction, not by convention:** both call sites import one expression,
+    > `categoryDisplayOrder` from `apps/api/src/reports/report-category-order.ts` —
+    > `ORDER BY label COLLATE "und-x-icu", key`. Two matching-but-independent `orderBy` clauses
+    > would satisfy this today and drift the first time one was edited.
+    >
+    > The `key` tiebreaker is load-bearing: only `key` is UNIQUE, so two rows may share a `label`,
+    > and without it their relative order is undefined and the two endpoints could each pick a
+    > different one. The explicit ICU collation is load-bearing too — the dev container runs Postgres
+    > on musl, whose `strcoll` ignores the declared `en_US.utf8` and falls through to byte order, so
+    > a bare `ORDER BY label` sorts differently in dev than on a glibc production server.
+    >
+    > **The prior state was worse than "inconsistent": `listCategories()` had no `ORDER BY` at all**,
+    > so it returned heap order, which Postgres reshuffles after any UPDATE. Editing one category
+    > silently reordered the citizen grid.
+13. **`report_categories` is operator-owned data — the seed must never overwrite it.**
+    `apps/api/src/db/seed-report-categories.ts` uses `onConflictDoNothing`: it creates a category
+    that is missing and leaves one that exists exactly as configured.
+
+    > **Enforced by the seed itself; nothing else can enforce it.** This is the one lookup table
+    > with a production write path outside the seed (Platform → Categories), which is precisely the
+    > test for which policy a table gets. Every other lookup table in `seed.ts` stays an UPSERT
+    > **deliberately** — their keys are code contracts branched on by name
+    > (`report-visibility.ts`, `ticket-status.ts`, `sponsor-status.ts`), their labels are written by
+    > nothing but the seed, so re-asserting them can only repair drift.
+    >
+    > **The cost, stated:** the seed can no longer backfill a newly added column onto existing rows.
+    > `expected_labels` (migration 0025) is the live example. Backfills belong in migrations; a seed
+    > that also backfills is a migration nobody reviewed, running at unpredictable times.
 
 ---
 
