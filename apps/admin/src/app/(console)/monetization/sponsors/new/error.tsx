@@ -17,7 +17,7 @@ export default function SegmentError({
   }, [error]);
 
   return (
-    <div className="px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
+    <div className="px-(--page-padding-inline) py-(--page-padding-block)">
       <ErrorState
         title="Couldn't open the sponsor form"
         message={error.message || "The console hit an unexpected error before the form loaded."}

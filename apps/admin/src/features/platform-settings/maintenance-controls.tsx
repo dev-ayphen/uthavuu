@@ -306,7 +306,7 @@ export function MaintenanceCard({
   return (
     <Card
       className={cn(
-        "max-w-[var(--container-default)]",
+        "max-w-(--container-default)",
         // The card itself changes colour when something is on, so the state is
         // legible from across the room rather than from one small badge.
         (settings.maintenanceMode || settings.readOnlyMode) &&

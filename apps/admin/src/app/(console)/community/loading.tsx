@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui";
 
 export default function SegmentLoading() {
   return (
-    <div className="px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
+    <div className="px-(--page-padding-inline) py-(--page-padding-block)">
       <Skeleton className="h-6 w-56" />
       <Skeleton className="mt-2 h-4 w-80" />
       <div className="mt-6 space-y-3">

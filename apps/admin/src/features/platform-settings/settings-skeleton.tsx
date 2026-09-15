@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
  */
 export function SettingsSkeleton() {
   return (
-    <div className="max-w-[var(--container-default)] space-y-5" aria-busy>
+    <div className="max-w-(--container-default) space-y-5" aria-busy>
       <div className="flex items-center justify-between rounded-card border border-border bg-surface px-4 py-3">
         <Skeleton className="h-4 w-72 max-w-full" />
         <Skeleton className="h-8 w-24" />

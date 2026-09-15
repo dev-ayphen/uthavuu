@@ -7,7 +7,7 @@ import { ListPageSkeleton } from "@/features/moderation/table-skeleton";
  */
 export default function SegmentLoading() {
   return (
-    <div className="space-y-4 px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
+    <div className="space-y-4 px-(--page-padding-inline) py-(--page-padding-block)">
       <div className="grid gap-4 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
           <Skeleton key={index} className="h-32 rounded-card" />

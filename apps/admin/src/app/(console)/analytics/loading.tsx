@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui";
  */
 export default function Loading() {
   return (
-    <div className="px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
-      <div className="mx-auto w-full max-w-[var(--container-wide)] space-y-4">
+    <div className="px-(--page-padding-inline) py-(--page-padding-block)">
+      <div className="mx-auto w-full max-w-(--container-wide) space-y-4">
         <div className="flex flex-wrap gap-3">
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-8 w-36" />

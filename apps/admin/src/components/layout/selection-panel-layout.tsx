@@ -26,7 +26,7 @@ export function SelectionPanelLayout({
   panelWidthClassName?: string;
 }) {
   return (
-    <div className="flex h-[var(--app-content-height)] flex-col">
+    <div className="flex h-(--app-content-height) flex-col">
       <div className="flex min-h-0 flex-1">
         <aside
           className={cn(
@@ -41,7 +41,7 @@ export function SelectionPanelLayout({
         </aside>
 
         <div className="min-w-0 flex-1 overflow-y-auto scrollbar-slim">
-          <div className="px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
+          <div className="px-(--page-padding-inline) py-(--page-padding-block)">
             {children}
           </div>
         </div>

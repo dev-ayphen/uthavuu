@@ -82,11 +82,11 @@ export function AppSidebar({ permissions }: { permissions: readonly string[] }) 
         data-collapsed={collapsed}
         className={cn(
           // Fixed chrome: out of flow, so it never scrolls with the content.
-          "fixed bottom-0 left-0 top-[var(--layout-header-height)] z-40",
+          "fixed bottom-0 left-0 top-(--layout-header-height) z-40",
           "flex flex-col overflow-hidden border-r border-border bg-surface",
           collapsed
-            ? "w-[var(--layout-sidebar-width-collapsed)]"
-            : "w-[var(--layout-sidebar-width)]",
+            ? "w-(--layout-sidebar-width-collapsed)"
+            : "w-(--layout-sidebar-width)",
           hydrated && "transition-[width,transform] duration-200",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}

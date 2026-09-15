@@ -24,7 +24,7 @@ export default function SegmentError({
   }, [error]);
 
   return (
-    <div className="px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
+    <div className="px-(--page-padding-inline) py-(--page-padding-block)">
       <ErrorState
         title="Couldn't load sponsors"
         message={error.message || "The console couldn't reach the data it needed."}

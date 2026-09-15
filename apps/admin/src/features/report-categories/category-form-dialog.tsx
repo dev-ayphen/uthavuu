@@ -425,7 +425,7 @@ function CitizenSelectableField({
           disabled={disabled}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
-          className="mt-0.5 accent-[var(--primary)]"
+          className="mt-0.5 accent-(--primary)"
           {...registration}
         />
         <span className="min-w-0">

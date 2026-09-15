@@ -168,7 +168,7 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
       // A form may set its own measure — a readable line length is a property
       // of the form, not of the page. It must never set `mx-auto` or page
       // padding: the form owns WIDTH, the layout owns POSITION.
-      className="max-w-[var(--container-default)] space-y-5"
+      className="max-w-(--container-default) space-y-5"
     >
       {errors.root?.message ? <Alert size="md">{errors.root.message}</Alert> : null}
 

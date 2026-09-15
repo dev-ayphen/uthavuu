@@ -23,9 +23,9 @@ import { cn } from "@/lib/cn";
 export type ContentWidth = "narrow" | "default" | "wide";
 
 const CONTENT_WIDTH: Record<ContentWidth, string> = {
-  narrow: "max-w-[var(--container-narrow)]",
-  default: "max-w-[var(--container-default)]",
-  wide: "max-w-[var(--container-wide)]",
+  narrow: "max-w-(--container-narrow)",
+  default: "max-w-(--container-default)",
+  wide: "max-w-(--container-wide)",
 };
 
 export type Crumb = { label: string; href?: Route };
@@ -57,14 +57,14 @@ export function PageLayout({
     <>
       <header
         className={cn(
-          "sticky top-[var(--page-header-sticky-offset)] z-30",
+          "sticky top-(--page-header-sticky-offset) z-30",
           "border-b border-border bg-canvas/85 backdrop-blur-md",
         )}
       >
         <div
           className={cn(
             "mx-auto flex w-full flex-wrap items-end justify-between gap-x-6 gap-y-3",
-            "px-[var(--page-padding-inline)] py-3.5",
+            "px-(--page-padding-inline) py-3.5",
             width,
           )}
         >
@@ -80,7 +80,7 @@ export function PageLayout({
 
       <div
         className={cn(
-          "mx-auto w-full px-[var(--page-padding-inline)] py-[var(--page-padding-block)]",
+          "mx-auto w-full px-(--page-padding-inline) py-(--page-padding-block)",
           width,
         )}
       >

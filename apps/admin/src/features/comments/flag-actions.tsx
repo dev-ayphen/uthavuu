@@ -136,7 +136,7 @@ export function ResolveFlagAction({ flag }: { flag: AdminFlaggedCommentRow }) {
                   checked={target === destination.value}
                   disabled={current}
                   onChange={() => setTarget(destination.value)}
-                  className="mt-0.5 accent-[var(--primary)]"
+                  className="mt-0.5 accent-(--primary)"
                 />
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold text-fg">

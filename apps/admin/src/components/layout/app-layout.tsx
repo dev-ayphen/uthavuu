@@ -57,10 +57,10 @@ function ContentArea({ children }: { children: ReactNode }) {
   return (
     <main
       className={cn(
-        "min-h-svh pt-[var(--layout-header-height)]",
+        "min-h-svh pt-(--layout-header-height)",
         collapsed
-          ? "lg:pl-[var(--layout-sidebar-width-collapsed)]"
-          : "lg:pl-[var(--layout-sidebar-width)]",
+          ? "lg:pl-(--layout-sidebar-width-collapsed)"
+          : "lg:pl-(--layout-sidebar-width)",
         hydrated && "transition-[padding] duration-200",
       )}
     >

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *
  * Mode B (inner scroll) needs a BOUNDED height, or `overflow-y-auto` has
  * nothing to overflow and the scroll escapes to the document — taking the
- * sub-menu with it. The usual fix is `h-[var(--app-content-height)]`, which is
+ * sub-menu with it. The usual fix is `h-(--app-content-height)`, which is
  * `calc(100svh - header)`. That is correct directly under AppLayout and wrong
  * anywhere below a `PageLayout`, whose sticky page header is IN FLOW and so
  * occupies real height the token knows nothing about. Getting it wrong by that

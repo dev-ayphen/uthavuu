@@ -42,7 +42,7 @@ export function SubMenuPageLayout({
   const pathname = usePathname();
 
   return (
-    <div className="flex h-[var(--app-content-height)] flex-col">
+    <div className="flex h-(--app-content-height) flex-col">
       <div className="flex min-h-0 flex-1">
         {/* Sub-nav: never scrolls with the content. */}
         <aside className="hidden w-56 shrink-0 flex-col overflow-hidden border-r border-border bg-surface md:flex">
@@ -79,11 +79,11 @@ export function SubMenuPageLayout({
         {/* The ONLY content scroller. */}
         <div className="min-w-0 flex-1 overflow-y-auto scrollbar-slim">
           {actions ? (
-            <div className="sticky top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-canvas/85 px-[var(--page-padding-inline)] py-3 backdrop-blur-md">
+            <div className="sticky top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-canvas/85 px-(--page-padding-inline) py-3 backdrop-blur-md">
               {actions}
             </div>
           ) : null}
-          <div className="px-[var(--page-padding-inline)] py-[var(--page-padding-block)]">
+          <div className="px-(--page-padding-inline) py-(--page-padding-block)">
             {children}
           </div>
         </div>

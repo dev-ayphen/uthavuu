@@ -24,7 +24,7 @@ export function AppHeader({ session }: { session: HeaderSession }) {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 h-[var(--layout-header-height)]",
+        "fixed inset-x-0 top-0 z-50 h-(--layout-header-height)",
         "flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 backdrop-blur-md",
       )}
     >
