@@ -22,6 +22,41 @@ const ScheduleAt = z.coerce
   .nullable();
 
 /**
+ * Tamil script, as a Unicode block test.
+ *
+ * WHY A SCRIPT CHECK IS A SERVER RULE AND NOT A UI HINT
+ * ───────────────────────────────────────────────────────────────────────────
+ * The two-column editor labels one side English and the other Tamil, but a
+ * label persuades nobody: an admin can type Tamil into the English box, and any
+ * API client can POST whatever it likes straight past the console. If Tamil
+ * reaches `title_en`, the fallback silently inverts — an English-locale citizen
+ * is served Tamil, and `titleTa ?? titleEn` has no second language left to fall
+ * back to. English is the floor every citizen lands on, so it has to actually
+ * be English.
+ *
+ * THE TWO RULES ARE DELIBERATELY NOT SYMMETRIC.
+ *
+ *   English fields: must contain NO Tamil codepoints. Strict, because there is
+ *   no legitimate reason for Tamil script to appear in the field whose whole
+ *   job is to be the non-Tamil fallback.
+ *
+ *   Tamil fields: must contain AT LEAST ONE Tamil codepoint — not "no Latin".
+ *   Refusing Latin outright would reject real announcements: "108", "COVID-19",
+ *   a road name, a WhatsApp number. Requiring some Tamil catches the mistake
+ *   this rule exists for (English pasted into the Tamil box) without policing
+ *   the loanwords every real Tamil announcement contains.
+ */
+const TAMIL_SCRIPT = /[\u0B80-\u0BFF]/;
+
+const containsTamil = (value: string): boolean => TAMIL_SCRIPT.test(value);
+
+export const ENGLISH_FIELD_NOT_ENGLISH =
+  'Please enter the announcement in English — Tamil belongs in the Tamil fields.';
+
+export const TAMIL_FIELD_NOT_TAMIL =
+  'This is the Tamil translation — write it in Tamil, or leave it blank to fall back to the English.';
+
+/**
  * The editable shape of a community update, shared by create and update.
  *
  * ENGLISH IS REQUIRED, TAMIL IS NOT — and that asymmetry is the product rule,
@@ -33,14 +68,38 @@ const ScheduleAt = z.coerce
  * legitimate half-translated state rather than an error to reject.
  */
 export const CommunityUpdateFieldsSchema = z.object({
-  titleEn: z.string().trim().min(1, 'An English title is required').max(200),
-  bodyEn: z.string().trim().min(1, 'An English body is required').max(5000),
+  titleEn: z
+    .string()
+    .trim()
+    .min(1, 'An English title is required')
+    .max(200)
+    .refine((v) => !containsTamil(v), ENGLISH_FIELD_NOT_ENGLISH),
+  bodyEn: z
+    .string()
+    .trim()
+    .min(1, 'An English body is required')
+    .max(5000)
+    .refine((v) => !containsTamil(v), ENGLISH_FIELD_NOT_ENGLISH),
   // `.nullable()` so an editor can clear a translation they no longer want to
   // ship. Empty string is rejected by `.min(1)` rather than accepted and stored:
   // '' would render as a blank card in Tamil, silently, where NULL routes
   // through the English fallback. "No translation" has exactly one spelling.
-  titleTa: z.string().trim().min(1).max(200).nullable().optional(),
-  bodyTa: z.string().trim().min(1).max(5000).nullable().optional(),
+  titleTa: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .refine(containsTamil, TAMIL_FIELD_NOT_TAMIL)
+    .nullable()
+    .optional(),
+  bodyTa: z
+    .string()
+    .trim()
+    .min(1)
+    .max(5000)
+    .refine(containsTamil, TAMIL_FIELD_NOT_TAMIL)
+    .nullable()
+    .optional(),
   publishAt: ScheduleAt.optional(),
   expiresAt: ScheduleAt.optional(),
 });

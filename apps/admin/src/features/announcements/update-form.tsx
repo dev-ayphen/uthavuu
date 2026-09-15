@@ -231,7 +231,7 @@ export function UpdateForm({
               error={errors.titleEn?.message}
               hint="What a citizen sees in the feed. Keep it short enough to read at a glance."
               registration={register("titleEn")}
-              placeholder="Heavy rain warning for Chennai district"
+              placeholder="e.g. Heavy rain warning for Chennai district"
             />
             <TextAreaField
               label="Body"
@@ -239,7 +239,7 @@ export function UpdateForm({
               error={errors.bodyEn?.message}
               hint="The full announcement. Plain text — the mobile app renders it as written."
               registration={register("bodyEn")}
-              placeholder="What has happened, what people should do, and where to go for help."
+              placeholder="e.g. Heavy rainfall is expected across Chennai district tonight. Avoid low-lying roads, and call 1077 if you need help."
             />
           </CardBody>
         </Card>
@@ -268,7 +268,7 @@ export function UpdateForm({
               lang="ta"
               error={errors.titleTa?.message}
               registration={register("titleTa")}
-              placeholder="சென்னை மாவட்டத்தில் கனமழை எச்சரிக்கை"
+              placeholder="e.g. சென்னை மாவட்டத்தில் கனமழை எச்சரிக்கை"
               fallback={tamilTitleMissing ? <Fallback label="title" value={titleEn} /> : null}
             />
             <TextAreaField
@@ -277,7 +277,7 @@ export function UpdateForm({
               rows={10}
               error={errors.bodyTa?.message}
               registration={register("bodyTa")}
-              placeholder="என்ன நடந்தது, மக்கள் என்ன செய்ய வேண்டும், உதவிக்கு எங்கு செல்ல வேண்டும்."
+              placeholder="e.g. சென்னை மாவட்டத்தில் இன்றிரவு கனமழை பெய்யக்கூடும். தாழ்வான சாலைகளைத் தவிர்க்கவும், உதவிக்கு 1077 என்ற எண்ணை அழைக்கவும்."
               fallback={tamilBodyMissing ? <Fallback label="body" value={bodyEn} /> : null}
             />
 
@@ -366,14 +366,26 @@ export function UpdateForm({
   );
 }
 
-/** What a Tamil reader gets in place of a field left blank — quoted, not implied. */
+/**
+ * What a Tamil reader gets in place of a field left blank — quoted, not implied.
+ *
+ * IT DOES NOT MENTION THE ENGLISH FIELD BEING EMPTY, deliberately. It used to:
+ * "which is also empty. Write the English title first." That is a real problem
+ * but it is not this field's problem, and raising it here meant the Tamil
+ * column scolded an operator about a box in the other column — while the
+ * English field, the one that actually blocks the save, said nothing until
+ * submit. English being required is enforced by `updateFormSchema` and reported
+ * on the English field itself, which is where someone can act on it.
+ *
+ * So this stays what it is: a statement of what the fallback will do.
+ */
 function Fallback({ label, value }: { label: string; value: string }) {
   const trimmed = value.trim();
 
   return (
     <Alert tone="neutral" dashed icon={null}>
-      <span className="font-semibold text-fg-muted">Blank.</span> Tamil readers will see the
-      English {label}
+      <span className="font-semibold text-fg-muted">Optional.</span> Left blank, Tamil readers see
+      the English {label}
       {trimmed ? (
         <>
           :{" "}
@@ -382,7 +394,7 @@ function Fallback({ label, value }: { label: string; value: string }) {
           </span>
         </>
       ) : (
-        <> — which is also empty. Write the English {label} first.</>
+        <>.</>
       )}
     </Alert>
   );

@@ -21,6 +21,13 @@ import type { AdminUpdate, CommunityUpdatePayload } from "./types";
  *     a blank card in Tamil where NULL routes through the English fallback.
  *     "No translation" has exactly one spelling, and `formValuesToPayload`
  *     below is what guarantees this form only ever sends that one.
+ *   - Each side must be in its own script. English fields must contain no Tamil
+ *     codepoints; Tamil fields, when filled, must contain at least one. The
+ *     asymmetry is argued in the DTO — the short version is that "no Latin in
+ *     Tamil" would reject "108" and "COVID-19", which real announcements
+ *     contain. This is mirrored here so the operator is told at the field
+ *     instead of by a 400 after they hit Create; the server check is the one
+ *     that actually enforces it, because an API client never runs this file.
  *   - `expiresAt` must be strictly after `publishAt`. The refinement most
  *     likely to be tripped, because a date picker makes an inverted window a
  *     single mis-click and the failure is invisible afterwards: an update whose
@@ -45,10 +52,20 @@ import type { AdminUpdate, CommunityUpdatePayload } from "./types";
  * exactly once, in `formValuesToPayload`, on the way out.
  */
 
-// Both from the DTO. Changing either without changing the DTO turns a form
+// All four from the DTO. Changing any without changing the DTO turns a form
 // that looks fine into a 400 at submit time.
 const TITLE_MAX = 200;
 const BODY_MAX = 5000;
+
+/** Transcribed from `TAMIL_SCRIPT` in create-community-update.dto.ts. */
+const TAMIL_SCRIPT = /[\u0B80-\u0BFF]/;
+const containsTamil = (value: string): boolean => TAMIL_SCRIPT.test(value);
+
+const ENGLISH_ONLY_MESSAGE =
+  "Please enter the announcement in English — Tamil belongs in the Tamil fields.";
+
+const TAMIL_ONLY_MESSAGE =
+  "This is the Tamil translation — write it in Tamil, or leave it blank to fall back to the English.";
 
 export const updateFormSchema = z
   .object({
@@ -56,17 +73,30 @@ export const updateFormSchema = z
       .string()
       .trim()
       .min(1, "An English title is required — it is what every citizen falls back to.")
-      .max(TITLE_MAX, `Keep the title under ${TITLE_MAX} characters.`),
+      .max(TITLE_MAX, `Keep the title under ${TITLE_MAX} characters.`)
+      .refine((v) => !containsTamil(v), ENGLISH_ONLY_MESSAGE),
     bodyEn: z
       .string()
       .trim()
       .min(1, "An English body is required — it is what every citizen falls back to.")
-      .max(BODY_MAX, `Keep the body under ${BODY_MAX} characters.`),
+      .max(BODY_MAX, `Keep the body under ${BODY_MAX} characters.`)
+      .refine((v) => !containsTamil(v), ENGLISH_ONLY_MESSAGE),
     // No `.min()`: blank is the legitimate "no translation" state here, and
     // `formValuesToPayload` turns it into the `null` the API wants. A `.min(1)`
     // mirroring the DTO literally would make Tamil required, inverting the rule.
-    titleTa: z.string().trim().max(TITLE_MAX, `Keep the title under ${TITLE_MAX} characters.`),
-    bodyTa: z.string().trim().max(BODY_MAX, `Keep the body under ${BODY_MAX} characters.`),
+    titleTa: z
+      .string()
+      .trim()
+      .max(TITLE_MAX, `Keep the title under ${TITLE_MAX} characters.`)
+      // `v === "" ||` and not `.min(1)`: blank is the "no translation" state
+      // this whole form is built around, so it must pass. Only a field the
+      // operator actually typed into is held to the script rule.
+      .refine((v) => v === "" || containsTamil(v), TAMIL_ONLY_MESSAGE),
+    bodyTa: z
+      .string()
+      .trim()
+      .max(BODY_MAX, `Keep the body under ${BODY_MAX} characters.`)
+      .refine((v) => v === "" || containsTamil(v), TAMIL_ONLY_MESSAGE),
     publishAt: z.string(),
     expiresAt: z.string(),
   })
