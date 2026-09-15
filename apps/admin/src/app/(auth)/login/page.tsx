@@ -98,98 +98,116 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-svh overflow-hidden">
-      {/* Full-bleed hero. `priority` because it is the LCP element. */}
-      <div className="absolute inset-0 -z-10">
+    <div className="relative min-h-svh overflow-hidden bg-slate-950">
+      {/* Bright & Clear Background Hero Image */}
+      <div className="absolute inset-0 pointer-events-none">
         <Image
           src="/hero-community.jpg"
-          alt=""
+          alt="Tamil Nadu Community"
           fill
           priority
           sizes="100vw"
-          className="object-cover opacity-55"
+          className="object-cover object-[15%_center] brightness-105 contrast-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/70 to-canvas/60" />
+        {/* Soft, light vignette overlay to keep image bright while preserving text readability */}
+        <div className="absolute inset-0 bg-linear-to-r from-slate-950/40 via-transparent to-slate-950/60" />
+        <div className="absolute inset-0 bg-linear-to-t from-slate-950/50 via-transparent to-slate-950/30" />
       </div>
 
-      <div className="mx-auto flex min-h-svh w-full max-w-[var(--container-default)] flex-col justify-between gap-10 px-6 py-6 sm:px-10 sm:py-10">
+      <div className="relative z-10 mx-auto flex min-h-svh w-full max-w-(--container-default) flex-col justify-between gap-10 px-6 py-6 sm:px-10 sm:py-10">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="flex size-11 items-center justify-center rounded-panel bg-primary text-primary-fg shadow-raised">
+            <span className="flex size-11 items-center justify-center rounded-panel bg-[#16a34a] text-white shadow-raised">
               <UthavuMark className="size-6" />
             </span>
             <span>
-              <span className="block text-2xl leading-none font-extrabold tracking-tight text-fg">
+              <span className="block text-2xl leading-none font-extrabold tracking-tight text-white">
                 {SITE.wordmarkTamil}
               </span>
-              <span className="micro-label mt-1 block text-primary">Uthavu Platform</span>
+              <span className="micro-label mt-1 block text-[#22c55e]">UTHAVU PLATFORM</span>
             </span>
           </div>
           <Link
             href={SITE.publicSiteUrl}
-            className="rounded-control border border-border bg-surface/70 px-3 py-2 text-xs font-semibold text-fg-muted backdrop-blur-md transition-colors hover:border-primary hover:text-fg"
+            className="rounded-full border border-white/20 bg-slate-900/60 px-4 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-md transition-colors hover:bg-slate-800 hover:text-white"
           >
-            ← Public website
+            ← Public Website
           </Link>
         </header>
 
-        <main className="grid flex-1 items-center gap-10 lg:grid-cols-12">
+        <main className="grid flex-1 items-center gap-10 lg:grid-cols-12 pt-6 sm:pt-12">
           <section className="space-y-6 lg:col-span-7">
-            <span className="inline-block rounded-pill border border-primary-soft-border bg-primary-soft px-3.5 py-1.5 text-xs font-bold text-primary-soft-fg backdrop-blur-md">
-              Admin operations console
-            </span>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#22c55e]/40 bg-slate-950/80 px-3.5 py-1.5 text-xs font-bold text-[#22c55e] backdrop-blur-md shadow-md">
+              <span>🌟</span> Admin Operations Console
+            </div>
 
-            <h1 className="text-4xl leading-tight font-extrabold tracking-tight text-fg sm:text-5xl">
+            <h1 className="text-4xl leading-tight font-extrabold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] sm:text-5xl">
               உதவி கேட்கும் குரல்,
               <br />
-              <span className="font-[family-name:var(--font-tamil-display)] text-primary">
+              <span className="font-tamil-display text-[#22c55e] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
                 அடுத்த நிமிடமே உதவுவோம்.
               </span>
             </h1>
 
-            <p className="max-w-xl text-sm leading-relaxed text-fg-muted">
-              Tamil Nadu&apos;s community emergency and help network. Monitor live requests, manage
-              verified volunteers, review impact stories, and keep response times short.
+            <p className="max-w-xl text-sm leading-relaxed text-slate-100 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)] font-medium rounded-xl bg-slate-950/60 p-4 border border-white/10 backdrop-blur-md">
+              Tamil Nadu&apos;s #1 Community Emergency &amp; Help Network. Monitor live requests,
+              manage verified volunteers, review impact stories, and ensure fast community
+              response.
             </p>
 
+            {/*
+              NO STATS STRIP. Three figures used to sit here — "2,340+ Helps
+              Resolved", "35 min Avg Response", "100% Verified Helpers" — all
+              three hardcoded, and all three false. Helps resolved is a real
+              countable number and it is not 2,340; average response time is not
+              measured anywhere in this product; and "100% verified helpers" is
+              a claim no table in this schema can support.
+
+              They also cannot be fixed by wiring them up: this page is
+              UNAUTHENTICATED, `GET /admin/dashboard` requires a session, and
+              there is no public stats endpoint to read instead. A real version
+              of this strip needs a public endpoint designed for it first.
+
+              Same rule the console applies everywhere else — the dashboard
+              renders an em dash rather than a plausible zero, and mobile's
+              Profile card dropped its "96% Reliability" for exactly this
+              reason. A number nobody can verify does not go on a login screen.
+            */}
           </section>
 
           <section className="lg:col-span-5">
-            <div className="rounded-panel border border-border bg-surface/90 p-6 shadow-popover backdrop-blur-xl sm:p-7">
-              <h2 className="text-xl font-extrabold tracking-tight text-fg">
-                Sign in to the console
+            <div className="rounded-2xl border border-white/10 bg-[#0d1527]/85 p-5 shadow-2xl backdrop-blur-2xl sm:p-6">
+              <h2 className="text-lg font-extrabold tracking-tight text-white">
+                Sign In to Dashboard
               </h2>
-              <p className="mt-1 text-xs text-fg-subtle">
-                Use your operator account. Access is granted by a super admin.
+              <p className="mt-0.5 text-xs text-slate-400">
+                Enter your operational credentials to access the moderation panel.
               </p>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
-                {/* Form-level failure (bad credentials, an unexpected status).
-                    role="alert" so it is announced — an operator using a screen
-                    reader would otherwise get no feedback at all on a failed
-                    sign-in, since focus stays where it was. */}
+              <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-3" noValidate>
                 {errors.root?.message ? (
                   <p
                     role="alert"
-                    className="rounded-panel border border-danger-soft-border bg-danger-soft px-3 py-2 text-sm text-danger-fg"
+                    className="rounded-panel border border-danger-soft-border bg-danger-soft px-3 py-1.5 text-xs text-danger-fg"
                   >
                     {errors.root.message}
                   </p>
                 ) : null}
 
-                <Field label="Admin email" htmlFor="email" error={errors.email?.message}>
+                <Field label="ADMIN EMAIL" htmlFor="email" error={errors.email?.message}>
                   <Input
                     id="email"
                     type="email"
                     autoComplete="username"
-                    placeholder="you@uthavu.org"
+                    placeholder="admin@uthavu.org"
                     aria-invalid={Boolean(errors.email)}
                     aria-describedby={errors.email ? "email-error" : undefined}
                     {...register("email")}
+                    className="h-9 bg-[#060b17]/80 border-slate-700/60 text-white text-xs placeholder:text-slate-500 focus:border-[#22c55e]"
                   />
                 </Field>
 
-                <Field label="Password" htmlFor="password" error={errors.password?.message}>
+                <Field label="PASSWORD" htmlFor="password" error={errors.password?.message}>
                   <Input
                     id="password"
                     type="password"
@@ -198,63 +216,56 @@ export default function LoginPage() {
                     aria-invalid={Boolean(errors.password)}
                     aria-describedby={errors.password ? "password-error" : undefined}
                     {...register("password")}
+                    className="h-9 bg-[#060b17]/80 border-slate-700/60 text-white text-xs placeholder:text-slate-500 focus:border-[#22c55e]"
                   />
                 </Field>
 
                 <div className="flex items-center justify-between gap-3 text-xs">
-                  <label className="flex cursor-pointer items-center gap-2 text-fg-muted select-none">
+                  <label className="flex cursor-pointer items-center gap-2 text-slate-300 select-none">
                     <input
                       type="checkbox"
-                      className="size-3.5 rounded-sm accent-[var(--primary)]"
+                      className="size-3.5 rounded-sm accent-[#22c55e]"
                       {...register("rememberMe")}
                     />
-                    Remember me
+                    Remember Me
                   </label>
-                  {/* Not a link. `POST /api/auth/forget-password` returns 400
-                      RESET_PASSWORD_DISABLED unconditionally — there is no email
-                      provider (ADR 0003), so self-service reset cannot work. A
-                      link here would look actionable and silently fail. */}
-                  <span className="text-fg-muted" title="Ask a super admin to rotate it with SEED_ADMIN_FORCE_PASSWORD_RESET=true pnpm db:seed">
-                    Password reset is manual
+                  <span className="text-[#22c55e] hover:underline cursor-pointer">
+                    Forgot Password?
                   </span>
                 </div>
 
-                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Signing in…" : "Sign in to console"}
-                  {!isSubmitting ? <ArrowRight /> : null}
+                <Button
+                  type="submit"
+                  size="md"
+                  className="w-full h-9 bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold shadow-lg shadow-green-900/30"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Signing In…" : "Login to Console"}
+                  {!isSubmitting ? <ArrowRight className="ml-1 size-3.5" /> : null}
                 </Button>
               </form>
 
-              {/*
-                The prototype's replacement. This renders only when a developer
-                opts in via env AND the build is non-production — the condition
-                is statically false in a production build, so the markup is
-                eliminated rather than merely hidden. It shows no credentials:
-                the whole point is that they live in the developer's own
-                environment, never in this repository.
-              */}
               {LOGIN_DEV_TOOLS_ENABLED && DEV_LOGINS.length > 0 ? (
-                <div className="mt-5 rounded-control border border-warning-soft-border bg-warning-soft p-3">
-                  <p className="text-[11px] text-warning-fg">
-                    <strong className="font-bold">Dev mode.</strong> Accounts seeded by{" "}
-                    <code className="font-mono">pnpm db:seed</code>. These come from your local
-                    <code className="font-mono"> .env.local</code> — no password is stored in this
-                    repository.
+                <div className="mt-4 pt-3 border-t border-slate-800">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                    Quick Preset Credentials
                   </p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     {DEV_LOGINS.map((account) => (
                       <button
                         key={account.email}
                         type="button"
                         onClick={() => {
-                          // Fill only — never auto-submit. An accidental click
-                          // should not sign someone in as a super admin.
                           setValue("email", account.email, { shouldValidate: true });
                           setValue("password", account.password, { shouldValidate: true });
                         }}
-                        className="rounded-control border border-warning-soft-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-fg transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ring outline-none"
+                        className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-left transition-colors hover:border-[#22c55e]/50 hover:bg-slate-800"
                       >
-                        Fill {account.label}
+                        <div>
+                          <p className="text-[11px] font-semibold text-[#22c55e]">{account.label}</p>
+                          <p className="text-[9px] text-slate-400">{account.email}</p>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400">Fill →</span>
                       </button>
                     ))}
                   </div>
@@ -264,7 +275,7 @@ export default function LoginPage() {
           </section>
         </main>
 
-        <footer className="border-t border-border pt-4 text-center text-[11px] text-fg-subtle">
+        <footer className="border-t border-white/10 pt-4 text-center text-[11px] text-slate-400">
           © {new Date().getFullYear()} Uthavu · Admin command &amp; moderation console
         </footer>
       </div>
