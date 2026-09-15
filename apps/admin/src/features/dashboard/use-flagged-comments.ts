@@ -20,8 +20,9 @@ import { ListShapeError } from "@/lib/list-page";
  * report. `config/nav.ts` already made this correction for the sidebar entry
  * ("Flagged Reports" -> "Flagged Comments"); this panel is the same correction
  * on the dashboard, so the console does not disagree with itself about what can
- * be flagged. The counter tile above it that reads "Fake reports" is blank for
- * the same reason and says so in its own note.
+ * be flagged. A "Fake reports" counter tile used to sit above this panel,
+ * permanently blank for the same reason; it was removed rather than kept as a
+ * tile that could never show a number.
  *
  * NO STATUS PARAMETER, DELIBERATELY
  * ───────────────────────────────────────────────────────────────────────────

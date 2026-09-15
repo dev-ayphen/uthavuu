@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Award,
   CheckCircle2,
-  Flag,
   HandHeart,
   Inbox,
   Megaphone,
@@ -140,7 +139,7 @@ export function DashboardView({
             />
           </section>
 
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
             <CounterTile
               label="Active users"
               counter={data.counters.activeUsers}
@@ -153,14 +152,6 @@ export function DashboardView({
               label="Critical open"
               counter={data.counters.criticalOpen}
               icon={AlertTriangle}
-              accent="rose"
-            />
-            {/* Permanently blank: nothing in Uthavu flags a report. The tile's
-                note says so, so the em dash stops reading as a bug. */}
-            <CounterTile
-              label="Fake reports"
-              counter={data.counters.fakeReports}
-              icon={Flag}
               accent="rose"
             />
             <CounterTile

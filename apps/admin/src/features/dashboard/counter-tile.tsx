@@ -9,12 +9,12 @@ import { formatCount, type Counter } from "./use-dashboard-summary";
  *
  * WHY A TILE NEEDS A FOOTNOTE AT ALL
  * ───────────────────────────────────────────────────────────────────────────
- * Half the compact tiles render an em dash, and an em dash on its own is
- * ambiguous in the worst way: it could mean "not tracked", "the API is behind",
- * or "something is broken", and an operator cannot tell which. "Fake reports"
- * is permanently blank — only comments can be flagged in Uthavu — and without
- * somewhere to say that, the same person re-discovers the same non-bug every
- * few weeks. `Counter.note` carries that sentence; this renders it.
+ * A tile renders an em dash whenever the API has no number for it, and an em
+ * dash on its own is ambiguous in the worst way: it could mean "not tracked",
+ * "the API is behind", or "something is broken", and an operator cannot tell
+ * which. Without somewhere to say which one it is, the same person re-discovers
+ * the same non-bug every few weeks. `Counter.note` carries that sentence — the
+ * API's own `basis` caveat where it sends one — and this renders it.
  *
  * A native `title` plus a visible ⓘ, not a bespoke popover: it is the idiom the
  * console already uses (the timezone Badge, every truncated table cell), it

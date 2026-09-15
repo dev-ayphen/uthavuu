@@ -12,9 +12,10 @@ import { apiFetch } from "@/lib/api-client";
  * Every tile on the dashboard shows one of three things: a real number, or an
  * em dash, or nothing at all. It never shows a plausible-looking zero.
  *
- *   a `0` on "Fake reports" reads as "nothing to review". The truth is "we do
- *   not track this yet". An ops person ACTS on the first and INVESTIGATES the
- *   second, so showing 0 would be worse than showing nothing.
+ *   a `0` on "Critical open" reads as "checked, nothing is about to expire".
+ *   The truth may be "the API has no source for this". An ops person ACTS on
+ *   the first and INVESTIGATES the second, so showing 0 would be worse than
+ *   showing nothing.
  *
  * That is why no field here is coerced with `?? 0`, why `readNumber` refuses
  * anything that is not a finite number (an object, a string, a NaN), and why a
@@ -23,9 +24,13 @@ import { apiFetch } from "@/lib/api-client";
  * reason (docs/_audit/issues.md issue 18); this is the guardrail that keeps
  * them from creeping back in through a lenient parse.
  *
- * `flaggedReportsPendingReview` is null *permanently*, not pending: only
- * comments can be flagged in this product; there is no flagged-reports table.
- * Its `note` says so, so an operator staring at the em dash stops wondering.
+ * NOT RENDERED: `flaggedReportsPendingReview`. The API still sends it — null,
+ * permanently, because only comments can be flagged in this product and there
+ * is no flagged-reports table — but the console no longer has a "Fake reports"
+ * tile to put it in. A tile that can never show a number is dead space, and the
+ * flagged-comment queue it was confused with already has its own tile
+ * ("Pending review"). Deliberately not parsed here: reading a field nothing
+ * renders is how a dead tile grows back.
  *
  * FORWARD/BACKWARD COMPATIBILITY
  * ───────────────────────────────────────────────────────────────────────────
@@ -40,7 +45,6 @@ import { apiFetch } from "@/lib/api-client";
 export type CounterKey =
   | "activeUsers"
   | "criticalOpen"
-  | "fakeReports"
   | "pendingReview"
   | "helpsGiven"
   | "fieldUpdates"
@@ -83,7 +87,7 @@ export type AdminDashboardResponse = {
   activeMissions: number;
   completedToday: number;
   flaggedCommentsPendingReview: number;
-  /** Permanently null. See the header. */
+  /** Permanently null, and deliberately not read by this console. See the header. */
   flaggedReportsPendingReview: null;
   activeUsers: number;
   criticalOpen: number;
@@ -105,9 +109,6 @@ export type AdminDashboardResponse = {
   timeZone: string;
   generatedAt: string;
 };
-
-const FAKE_REPORTS_NOTE =
-  "Not tracked, and not pending either: only comments can be flagged in Uthavu — there is no flagged-reports table for this number to come from. This tile stays blank on purpose. Flagged comments are counted under “Pending review”.";
 
 const NOT_RETURNED_NOTE =
   "The API serving this console doesn’t return this counter yet, so there is nothing to show. Blank means “not counted”, not zero.";
@@ -192,16 +193,6 @@ export function readDashboardSummary(raw: unknown): DashboardSummary {
     counters: {
       activeUsers: readCounter(body, "activeUsers", "activeUsers"),
       criticalOpen: readCounter(body, "criticalOpen", "criticalOpen"),
-      // Always an em dash — the API sends null and says why. The local constant
-      // is only the fallback for a build that predates the basis map; either
-      // way the tooltip is what stops an operator filing a bug about the blank
-      // tile once a week.
-      fakeReports: readCounter(
-        body,
-        "flaggedReportsPendingReview",
-        "flaggedReportsPendingReview",
-        FAKE_REPORTS_NOTE,
-      ),
       pendingReview: readCounter(body, "flaggedCommentsPendingReview"),
       helpsGiven: readCounter(body, "helpsGiven", "helpsGiven"),
       fieldUpdates: readCounter(body, "fieldUpdates", "fieldUpdates"),
