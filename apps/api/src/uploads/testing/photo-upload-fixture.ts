@@ -1,6 +1,6 @@
 import { rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 import { db } from '../../db';
 import {
@@ -87,13 +87,45 @@ export async function createPhotoUploadFixture(options: {
 }
 
 /**
- * Removes a fixture's file from BOTH directories.
+ * Removes a fixture's file from BOTH directories, and NOTHING ELSE.
  *
  * A passed upload attached to a report is promoted out of quarantine into public
  * uploads, so which directory holds it depends on whether the spec got as far as
  * publishing. `force` so a suite that half-failed still tears down cleanly.
+ *
+ * The `photo_uploads` ROW is deliberately left alone: at least one spec deletes
+ * the bytes while keeping the record, to prove `fileFor()` answers
+ * PHOTO_FILE_NOT_FOUND for a row whose file has gone missing. For teardown you
+ * almost certainly want `deletePhotoUploadFixtures` below instead.
  */
 export function removePhotoUploadFixture(filename: string): void {
   rmSync(join(QUARANTINE_DIR, filename), { force: true });
   rmSync(join(UPLOADS_DIR, filename), { force: true });
+}
+
+/**
+ * Full teardown for a suite's fixtures: the files AND the `photo_uploads` rows.
+ *
+ * WHY THIS EXISTS. `createPhotoUploadFixture` writes a database row, and until
+ * this function existed nothing ever deleted one. A row only disappeared by
+ * accident — cascading from a report the spec also happened to delete
+ * (`photo_uploads.report_id` is ON DELETE CASCADE). Every fixture that was
+ * never attached to a report, or was attached to a report the spec left behind,
+ * simply stayed: `uploader_id` is ON DELETE SET NULL, so deleting the test user
+ * orphaned the row rather than removing it, and nothing else referenced it.
+ *
+ * Those orphans are invisible to the specs that made them and visible to
+ * everyone else — they sit in the admin console's photo-verification queue as
+ * work nobody can action. Keyed on `stored_filename` because that is the handle
+ * suites already track for the file cleanup, so adopting this is one call, not
+ * a new bookkeeping array in every spec.
+ */
+export async function deletePhotoUploadFixtures(
+  filenames: readonly string[],
+): Promise<void> {
+  filenames.forEach(removePhotoUploadFixture);
+  if (filenames.length === 0) return;
+  await db
+    .delete(photoUploads)
+    .where(inArray(photoUploads.storedFilename, [...filenames]));
 }

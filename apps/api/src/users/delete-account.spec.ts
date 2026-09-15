@@ -8,7 +8,7 @@ import 'dotenv/config';
 import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { uuidv7 } from 'uuidv7';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { user } from '../db/schema/auth-schema';
 import { reports } from '../db/schema/reports-schema';
@@ -25,7 +25,7 @@ import { CommentsService } from '../comments/comments.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
 import {
   createPhotoUploadFixture,
-  removePhotoUploadFixture,
+  deletePhotoUploadFixtures,
 } from '../uploads/testing/photo-upload-fixture';
 import type { CreateReportDto } from '../reports/dto/create-report.dto';
 
@@ -39,6 +39,15 @@ describe('Account deletion — community mission preservation', () => {
   const commentsService = new CommentsService();
 
   const createdUserIds: string[] = [];
+  // Tracked by ID, NOT by reporter. `reports.reporter_id` is ON DELETE SET
+  // NULL, and deleting the reporter is the whole subject of this suite — so by
+  // the time afterAll runs, every report it made has a null reporter and a
+  // `where(eq(reports.reporterId, id))` cleanup matches nothing. That is how
+  // this file quietly leaked a report per test into the dev database on every
+  // run: 432 rows titled "Test report" and 216 titled "Need groceries
+  // urgently" had accumulated there, and the admin console's Live activity fed
+  // on them as "Deleted account raised a help request".
+  const createdReportIds: string[] = [];
   // A real file, because create() now refuses a photo URL no upload produced
   // (docs/_audit/issues.md issue 27). Named per-suite: UPLOADS_DIR is shared by
   // every Jest worker.
@@ -49,13 +58,19 @@ describe('Account deletion — community mission preservation', () => {
   beforeAll(() => {});
 
   afterAll(async () => {
-    mintedFiles.forEach(removePhotoUploadFixture);
-    // Whatever's left of each test's fixtures — deleteAccount() itself
-    // already removed the users under test, this just mops up the rest
-    // (reports belonging to any user that survived a test, or a
-    // never-deleted counterpart in a given scenario).
+    await deletePhotoUploadFixtures(mintedFiles);
+    // Whatever's left of each test's fixtures. deleteAccount() already removed
+    // the users under test; this mops up the rest — the reports it deliberately
+    // leaves behind (soft-deleted, reporter nulled) and any counterpart user a
+    // given scenario never deleted.
+    //
+    // Reports first: missions, mission_volunteers, mission_completions and
+    // photo_uploads all hang off reports.id with ON DELETE CASCADE, so this one
+    // delete takes the whole graph with it.
+    if (createdReportIds.length > 0) {
+      await db.delete(reports).where(inArray(reports.id, createdReportIds));
+    }
     for (const id of createdUserIds) {
-      await db.delete(reports).where(eq(reports.reporterId, id));
       await db.delete(user).where(eq(user.id, id));
     }
   });
@@ -106,14 +121,31 @@ describe('Account deletion — community mission preservation', () => {
     };
   }
 
+  /**
+   * Create a report AND record it for teardown.
+   *
+   * The recording is why this wrapper exists rather than calling
+   * `reportsService.create` directly at each site: the id is the only handle on
+   * the row that survives `deleteAccount()`, so a test that forgets to capture
+   * it leaks that row forever. Route every creation in this file through here.
+   */
+  async function createReport(
+    reporterId: string,
+    overrides: Partial<CreateReportDto> = {},
+  ) {
+    const created = await reportsService.create(
+      reporterId,
+      await baseInput(reporterId, overrides),
+      req,
+    );
+    createdReportIds.push(created.id);
+    return created;
+  }
+
   describe('Rule 1 — nobody ever volunteered', () => {
     it('soft-deletes the report via the existing Delete Report mechanism, not a hard delete', async () => {
       const reporterId = await makeUser('Unclaimed Reporter');
-      const created = await reportsService.create(
-        reporterId,
-        await baseInput(reporterId),
-        req,
-      );
+      const created = await createReport(reporterId);
 
       await usersService.deleteAccount(reporterId);
 
@@ -142,11 +174,7 @@ describe('Account deletion — community mission preservation', () => {
     it('leaves a report alone if a volunteer ever joined, even after they released', async () => {
       const reporterId = await makeUser('Once-Claimed Reporter');
       const volunteerId = await makeUser('Volunteer Who Left');
-      const created = await reportsService.create(
-        reporterId,
-        await baseInput(reporterId),
-        req,
-      );
+      const created = await createReport(reporterId);
 
       await missionsService.accept(created.id, volunteerId);
       await missionsService.leave(created.id, volunteerId);
@@ -185,11 +213,9 @@ describe('Account deletion — community mission preservation', () => {
         const volunteerId = await makeUser('Volunteer Mid Mission');
 
         // Reporter creates.
-        const created = await reportsService.create(
-          reporterId,
-          await baseInput(reporterId, { title: 'Need groceries urgently' }),
-          req,
-        );
+        const created = await createReport(reporterId, {
+          title: 'Need groceries urgently',
+        });
 
         // Volunteer accepts.
         const afterAccept = await missionsService.accept(
@@ -282,11 +308,7 @@ describe('Account deletion — community mission preservation', () => {
       const volunteerId = await makeUser('Volunteer Who Deletes');
       const thirdVolunteerId = await makeUser('Third Volunteer');
 
-      const created = await reportsService.create(
-        reporterId,
-        await baseInput(reporterId, { neededVolunteers: 1 }),
-        req,
-      );
+      const created = await createReport(reporterId, { neededVolunteers: 1 });
 
       await missionsService.accept(created.id, volunteerId);
       await missionsService.confirm(created.id, volunteerId);

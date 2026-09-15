@@ -32,7 +32,7 @@ import {
 } from '../admin/testing/admin-spec-db';
 import {
   createPhotoUploadFixture,
-  removePhotoUploadFixture,
+  deletePhotoUploadFixtures,
 } from '../uploads/testing/photo-upload-fixture';
 
 const DATABASE = 'uthavu_settings_enforcement_test';
@@ -123,7 +123,7 @@ describe('Platform settings enforcement', () => {
   });
 
   afterAll(async () => {
-    mintedFiles.forEach(removePhotoUploadFixture);
+    await deletePhotoUploadFixtures(mintedFiles);
     await db.$client.end();
   });
 

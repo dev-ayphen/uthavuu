@@ -37,6 +37,7 @@ import { UPLOADS_DIR } from '../uploads/multer.config';
 import { QUARANTINE_DIR } from '../uploads/quarantine-storage';
 import {
   createPhotoUploadFixture,
+  deletePhotoUploadFixtures,
   removePhotoUploadFixture,
 } from '../uploads/testing/photo-upload-fixture';
 import { AdminAuditService } from './admin-audit.service';
@@ -175,7 +176,7 @@ describe('AdminReportPhotosService', () => {
   });
 
   afterAll(async () => {
-    for (const filename of fixtures) removePhotoUploadFixture(filename);
+    await deletePhotoUploadFixtures(fixtures);
     await db.$client.end();
   });
 

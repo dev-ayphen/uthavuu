@@ -17,7 +17,7 @@ import { AlertsService } from '../alerts/alerts.service';
 import { UPLOADS_DIR } from '../uploads/multer.config';
 import {
   createPhotoUploadFixture,
-  removePhotoUploadFixture,
+  deletePhotoUploadFixtures,
 } from '../uploads/testing/photo-upload-fixture';
 import { ReportsService } from './reports.service';
 import type { CreateReportDto } from './dto/create-report.dto';
@@ -68,7 +68,7 @@ describe('ReportsService', () => {
   });
 
   afterAll(async () => {
-    mintedFiles.forEach(removePhotoUploadFixture);
+    await deletePhotoUploadFixtures(mintedFiles);
     // Cascades to report_photos/missions/mission_volunteers/mission_messages.
     await db.delete(reports).where(eq(reports.reporterId, reporterId));
     await db.delete(user).where(eq(user.id, reporterId));
