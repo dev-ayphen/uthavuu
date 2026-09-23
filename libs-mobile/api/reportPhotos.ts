@@ -16,6 +16,7 @@
 // manipulated images, and does not read text in the picture.
 
 import { apiRequest } from '../lib/api';
+import { compressReportPhoto } from '../lib/report-photo-compression';
 import type { CategoryId } from '../data/categories';
 
 /**
@@ -83,11 +84,18 @@ export const UPLOAD_RATE_LIMITED = 'UPLOAD_RATE_LIMITED';
  * picture is not allowed" from arriving on the same code path and being reported
  * with the same words.
  */
-export function uploadReportPhoto(
+export async function uploadReportPhoto(
   localUri: string,
   categoryKey: CategoryId
 ): Promise<ReportPhotoUpload> {
-  const filename = localUri.split('/').pop() ?? `photo-${Date.now()}.jpg`;
+  // BEFORE anything is put on the wire. A modern phone camera can hand back a
+  // file well over the server's 4 MB ceiling, and a reporter has no way to make
+  // one smaller in the middle of an emergency — so the app does it for them.
+  // Falls back to the original capture on any failure, and the server's own
+  // limit still has the last word (report-photo-compression.ts).
+  const uploadUri = await compressReportPhoto(localUri);
+
+  const filename = uploadUri.split('/').pop() ?? `photo-${Date.now()}.jpg`;
   const extension = /\.(\w+)$/.exec(filename)?.[1]?.toLowerCase();
   // Only what the API accepts (JPEG/PNG, sniffed from magic bytes server-side —
   // this header is a hint, never the thing that's trusted).
@@ -101,7 +109,7 @@ export function uploadReportPhoto(
   form.append('categoryKey', categoryKey);
   // React Native's FormData accepts this { uri, name, type } shape for a file
   // part — not a real Blob/File, which don't exist for local URIs on-device.
-  form.append('file', { uri: localUri, name: filename, type: mimeType } as unknown as Blob);
+  form.append('file', { uri: uploadUri, name: filename, type: mimeType } as unknown as Blob);
 
   return apiRequest('/uploads/report-photo', { method: 'POST', auth: true, body: form });
 }

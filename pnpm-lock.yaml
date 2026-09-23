@@ -271,6 +271,12 @@ importers:
       expo-dev-client:
         specifier: ~57.0.15
         version: 57.0.15(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))
+      expo-file-system:
+        specifier: ~57.0.7
+        version: 57.0.7(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))
+      expo-image-manipulator:
+        specifier: ~57.0.18
+        version: 57.0.18(expo@57.0.14)
       expo-image-picker:
         specifier: ~57.0.11
         version: 57.0.11(expo@57.0.14)
@@ -344,6 +350,12 @@ importers:
       expo:
         specifier: ~57.0.14
         version: 57.0.14(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.8(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
+      expo-file-system:
+        specifier: ~57.0.7
+        version: 57.0.7(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))
+      expo-image-manipulator:
+        specifier: ~57.0.18
+        version: 57.0.18(expo@57.0.14)
       expo-localization:
         specifier: ~57.0.1
         version: 57.0.1(expo@57.0.14)(react@19.2.3)
@@ -4794,8 +4806,8 @@ packages:
       expo: '*'
       react-native: '*'
 
-  expo-file-system@57.0.4:
-    resolution: {integrity: sha512-h8qDOxSW1SQfnZyvH0+HeOfXCr2X4v3x50+d19JuyQcjDR+JA3tng20TlQxIHazzLPPbwtSKA1Dj3+XIOpnoKg==}
+  expo-file-system@57.0.7:
+    resolution: {integrity: sha512-1vkZRadOsIputFDBcclqBa1pO3iXOO6iIsdqJipQWw4V5TSnWgmRTuOF7ro8IzrVue+PHbum++KCG3Tawem4cg==}
     peerDependencies:
       expo: '*'
       react-native: '*'
@@ -4809,6 +4821,11 @@ packages:
 
   expo-image-loader@57.0.1:
     resolution: {integrity: sha512-uhrZKLT/cTl2mXyR28kPpVkS5O+PK9N1QA/07IFM4f5T4g0lTW1JHT3NEWwEEsGFldPmVX4j7LwUVVZxE+woug==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-manipulator@57.0.18:
+    resolution: {integrity: sha512-BnNlkPxE8okvMWjUbdtiLxbzCyohQstjf/bsmpZvJa67bpShRpoSlchTxB35qtet1w5OsQYn+ECNX/4Ow4/tBA==}
     peerDependencies:
       expo: '*'
 
@@ -12905,7 +12922,7 @@ snapshots:
       expo-dev-menu-interface: 57.0.0(expo@57.0.14)
       react-native: 0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3)
 
-  expo-file-system@57.0.4(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3)):
+  expo-file-system@57.0.7(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3)):
     dependencies:
       expo: 57.0.14(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.8(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
       react-native: 0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3)
@@ -12920,6 +12937,11 @@ snapshots:
   expo-image-loader@57.0.1(expo@57.0.14):
     dependencies:
       expo: 57.0.14(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.8(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
+
+  expo-image-manipulator@57.0.18(expo@57.0.14):
+    dependencies:
+      expo: 57.0.14(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.8(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
+      expo-image-loader: 57.0.1(expo@57.0.14)
 
   expo-image-picker@57.0.11(expo@57.0.14):
     dependencies:
@@ -13020,7 +13042,7 @@ snapshots:
       babel-preset-expo: 57.0.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(expo@57.0.14)(react-refresh@0.14.2)
       expo-asset: 57.0.12(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
       expo-constants: 57.0.12(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))
-      expo-file-system: 57.0.4(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))
+      expo-file-system: 57.0.7(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))
       expo-font: 57.0.1(expo@57.0.14)(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       expo-keep-awake: 57.0.1(expo@57.0.14)(react@19.2.3)
       expo-modules-autolinking: 57.0.10(typescript@6.0.3)
