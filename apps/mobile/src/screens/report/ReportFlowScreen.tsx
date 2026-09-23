@@ -27,6 +27,10 @@ import { listReportCategories, createReport, type Report } from '@uthavu/libs-mo
 import { getMe } from '@uthavu/libs-mobile/api/users';
 import { UPLOAD_RATE_LIMITED, uploadReportPhoto } from '@uthavu/libs-mobile/api/reportPhotos';
 import { reverseGeocode } from '@uthavu/libs-mobile/lib/geocode';
+import {
+  LocationServicesDisabledError,
+  getUsablePosition,
+} from '@uthavu/libs-mobile/lib/current-position';
 import { ApiError } from '@uthavu/libs-mobile/lib/api';
 import BackButton from '@uthavu/libs-mobile/components/BackButton';
 import Button from '@uthavu/libs-mobile/components/Button';
@@ -155,15 +159,25 @@ export default function ReportFlowScreen({ navigation, route }: Props) {
         );
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({});
-      const { latitude: lat, longitude: lng } = pos.coords;
+      // Falls back to a recent cached fix when the OS cannot produce a fresh one
+      // — which indoors is the normal case, not the edge case. See
+      // libs-mobile/lib/current-position.ts.
+      const { lat, lng } = await getUsablePosition();
       const { city, district } = await reverseGeocode(lat, lng);
       setDraft((d) => ({
         ...d, lat, lng,
         locationLabel: city ? `${city}, ${district}` : district,
       }));
-    } catch {
-      setLocationError('Could not detect your location. Check your GPS/network and try again.');
+    } catch (e) {
+      console.warn('[report] could not obtain a GPS fix', e);
+      // Two failures, two different remedies. Telling someone whose Location
+      // toggle is off to "check your GPS/network and try again" is advice that
+      // cannot work, and they will keep trying it.
+      setLocationError(
+        e instanceof LocationServicesDisabledError
+          ? 'Location is switched off. Turn on Location in your device settings, then try again.'
+          : 'Could not detect your location. Check your GPS/network and try again.'
+      );
     } finally {
       setLocating(false);
     }
