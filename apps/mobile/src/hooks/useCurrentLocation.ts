@@ -76,7 +76,8 @@ export function useCurrentLocation() {
         setCoords(next);
         setStatus('granted');
         return next;
-      } catch {
+      } catch (e) {
+        console.warn('[useCurrentLocation] could not obtain a GPS fix', e);
         // GPS off, no fix, airplane mode. Distinct from 'denied' because the
         // remedy is different: denied is answered by a permission prompt or the
         // Settings app, unavailable by moving or waiting.

@@ -84,7 +84,13 @@ export default function PermissionsScreen({ navigation }: Props) {
       const { latitude: lat, longitude: lng } = position.coords;
       const { city, district } = await reverseGeocode(lat, lng);
       navigation.replace('ProfileSetup', { lat, lng, city, district });
-    } catch {
+    } catch (e) {
+      // Logged, not swallowed. The alert can only ever say "try again", so without
+      // this the one fact that explains WHY — no fix on a simulator with no simulated
+      // location, GPS off, no signal indoors — reaches nobody, and a five-second
+      // diagnosis becomes an afternoon. Only the GPS fix can land here now:
+      // reverseGeocode() no longer throws (libs-mobile/lib/geocode.ts).
+      console.warn('[permissions] could not obtain a GPS fix', e);
       Alert.alert(t('locationErrorTitle'), t('locationErrorMessage'));
     } finally {
       setLocating(false);
